@@ -1,0 +1,1 @@
+41 3 * * * root /usr/local/sbin/renew-boatops-cert >> /www/server/panel/logs/boatops-cert-renew.log 2>&1

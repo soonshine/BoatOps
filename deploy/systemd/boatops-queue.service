@@ -1,0 +1,22 @@
+[Unit]
+Description=BoatOps Laravel database queue worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/boatops.ayany.com/current
+ExecStart=/www/server/php/84/bin/php -c /www/server/php/84/etc/php-boatops-cli.ini artisan queue:work database --sleep=1 --tries=3 --timeout=60 --max-time=3600
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=95
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://boatops.example/contracts/inventory-provider/v1/events/booking.cancelled.v1.schema.json",
+  "title": "booking.cancelled.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "organization_id",
+    "aggregate_type",
+    "aggregate_id",
+    "inventory_revision"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "event_type": {
+      "const": "booking.cancelled.v1"
+    },
+    "event_version": {
+      "const": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "organization_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "aggregate_type": {
+      "const": "booking"
+    },
+    "aggregate_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "inventory_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "external_reference": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "status": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 500
+    }
+  }
+}

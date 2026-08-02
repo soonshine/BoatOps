@@ -1,0 +1,38 @@
+version: 1.0.0-alpha.2
+errors:
+  - code: SLOT_UNAVAILABLE
+    retryable: false
+    manual_action_required: false
+    meaning: The requested occupied interval overlaps an active allocation.
+  - code: HOLD_EXPIRED
+    retryable: false
+    manual_action_required: false
+    meaning: The HOLD deadline passed before confirmation.
+  - code: DUPLICATE_EXTERNAL_REFERENCE
+    retryable: false
+    manual_action_required: true
+    meaning: The external reference is already bound to different business data.
+  - code: INVALID_TRANSITION
+    retryable: false
+    manual_action_required: false
+    meaning: The current object state does not permit this command.
+  - code: RATE_CHANGED
+    retryable: false
+    manual_action_required: true
+    meaning: A price snapshot changed and requires explicit confirmation.
+  - code: AUTHORIZATION_FAILED
+    retryable: false
+    manual_action_required: false
+    meaning: Authentication failed or the object belongs to another organization.
+  - code: VALIDATION_FAILED
+    retryable: false
+    manual_action_required: false
+    meaning: The request shape or a deterministic business rule is invalid.
+  - code: TEMPORARY_UNAVAILABLE
+    retryable: true
+    manual_action_required: false
+    meaning: BoatOps cannot safely decide the command at this time.
+  - code: IDEMPOTENCY_CONFLICT
+    retryable: false
+    manual_action_required: true
+    meaning: The key was already used for a different operation or payload.

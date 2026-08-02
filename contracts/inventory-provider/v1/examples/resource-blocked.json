@@ -1,0 +1,15 @@
+{
+  "event_id": "30000000-0000-4000-8000-000000000001",
+  "event_type": "resource.blocked.v1",
+  "event_version": 1,
+  "occurred_at": "2026-08-01T12:00:00Z",
+  "organization_id": 1,
+  "aggregate_type": "block",
+  "aggregate_id": 1,
+  "block_id": 1,
+  "boat_id": 1,
+  "inventory_revision": 1,
+  "status": "ACTIVE",
+  "business_start": "2026-09-24T10:00:00Z",
+  "business_end": "2026-09-24T12:00:00Z"
+}

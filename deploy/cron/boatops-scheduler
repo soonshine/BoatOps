@@ -1,0 +1,1 @@
+* * * * * www cd /www/wwwroot/boatops.ayany.com/current && /www/server/php/84/bin/php artisan schedule:run >> /www/wwwlogs/boatops-scheduler.log 2>&1

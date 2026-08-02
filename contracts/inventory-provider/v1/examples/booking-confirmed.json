@@ -1,0 +1,12 @@
+{
+  "event_id": "20000000-0000-4000-8000-000000000002",
+  "event_type": "booking.confirmed.v1",
+  "event_version": 1,
+  "occurred_at": "2026-08-01T10:01:00Z",
+  "organization_id": 1,
+  "aggregate_type": "booking",
+  "aggregate_id": 1,
+  "inventory_revision": 2,
+  "external_reference": "DEMO-BOOKING-001",
+  "status": "CONFIRMED"
+}

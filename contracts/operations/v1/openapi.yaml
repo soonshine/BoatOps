@@ -1,0 +1,337 @@
+openapi: 3.1.0
+info:
+  title: BoatOps Internal Operations API
+  version: 1.0.0-alpha.1
+  summary: Private operations commands for resource blocks and trip execution.
+  description: >-
+    Private alpha contract. Every operation requires an authenticated API client with
+    operations.write scope plus Idempotency-Key. It is not part of the channel-facing
+    Inventory Provider API and must not be exposed to untrusted channel clients.
+servers:
+  - url: https://boatops.ayany.com
+    description: Ayany private alpha target
+  - url: http://localhost:8000
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Blocks
+    description: Explicit resource unavailability intervals with immutable history.
+  - name: Trips
+    description: Private crew readiness and trip execution state commands.
+paths:
+  /api/internal/v1/blocks:
+    post:
+      tags: [Blocks]
+      operationId: createBlock
+      summary: Block one boat for an explicit UTC interval
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBlockRequest'
+      responses:
+        '201':
+          description: Block and active allocation created atomically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockCommandResponse'
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/blocks/{id}:release:
+    post:
+      tags: [Blocks]
+      operationId: releaseBlock
+      summary: Release an active resource block
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseBlockRequest'
+      responses:
+        '200':
+          description: Block released and inventory revision advanced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockCommandResponse'
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/trips/{id}:prepare:
+    post:
+      tags: [Trips]
+      operationId: prepareTrip
+      summary: Atomically freeze crew assignments and checklist state for a planned trip
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrepareTripRequest'
+      responses:
+        '200':
+          description: Trip preparation saved; response exposes counts only.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripPreparedResponse'
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/trips/{id}:depart:
+    post:
+      tags: [Trips]
+      operationId: departTrip
+      summary: Mark a fully prepared planned trip as departed
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartTripRequest'
+      responses:
+        '200':
+          description: Trip departed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripCommandResponse'
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/trips/{id}:return:
+    post:
+      tags: [Trips]
+      operationId: returnTrip
+      summary: Mark a departed trip as returned
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnTripRequest'
+      responses:
+        '200':
+          description: Trip returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripCommandResponse'
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/trips/{id}:complete:
+    post:
+      tags: [Trips]
+      operationId: completeTrip
+      summary: Complete a returned trip and release its booking allocation
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Trip and booking completed; inventory revision advanced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripCommandResponse'
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-api-token with operations.write scope
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 255
+    ObjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    AuthorizationFailed:
+      description: Authentication, organization isolation, or operations.write scope failed.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    Conflict:
+      description: Inventory, state, readiness, external-reference, or idempotency conflict.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+    ValidationFailed:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+  schemas:
+    CreateBlockRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, boat_id, starts_at, ends_at, reason_code]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        boat_id: {type: integer, minimum: 1}
+        starts_at: {type: string, format: date-time}
+        ends_at:
+          type: string
+          format: date-time
+          description: Half-open UTC interval end.
+        reason_code:
+          type: string
+          enum: [MAINTENANCE, WEATHER, OWNER_USE, MANUAL]
+        notes: {type: [string, 'null'], maxLength: 1000}
+    ReleaseBlockRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, release_reason]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        release_reason: {type: string, minLength: 1, maxLength: 500}
+    PrepareTripRequest:
+      type: object
+      additionalProperties: false
+      required: [crew, checklist]
+      properties:
+        crew:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/CrewAssignmentInput'
+        checklist:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ChecklistInput'
+    CrewAssignmentInput:
+      type: object
+      additionalProperties: false
+      required: [external_reference, display_name, role, duty]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Private operator data; never emitted to channel events.
+        role: {type: string, minLength: 1, maxLength: 100}
+        duty: {type: string, minLength: 1, maxLength: 100}
+    ChecklistInput:
+      type: object
+      additionalProperties: false
+      required: [code, label, required, completed]
+      properties:
+        code: {type: string, pattern: '^[A-Z0-9_-]+$', maxLength: 100}
+        label:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Private checklist text; never emitted to channel events.
+        required: {type: boolean}
+        completed: {type: boolean}
+    DepartTripRequest:
+      type: object
+      additionalProperties: false
+      required: [departed_at]
+      properties:
+        departed_at: {type: string, format: date-time}
+    ReturnTripRequest:
+      type: object
+      additionalProperties: false
+      required: [returned_at]
+      properties:
+        returned_at: {type: string, format: date-time}
+    BlockCommandResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, idempotency_key, organization_id, block_id, boat_id, external_reference, status, code, inventory_revision, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        block_id: {type: integer, minimum: 1}
+        boat_id: {type: integer, minimum: 1}
+        external_reference: {type: string}
+        status: {type: string, enum: [ACTIVE, RELEASED]}
+        code: {type: string, enum: [BLOCK_CREATED, BLOCK_RELEASED]}
+        inventory_revision: {type: integer, minimum: 1}
+        business_start: {type: string, format: date-time}
+        business_end: {type: string, format: date-time}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    TripPreparedResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, idempotency_key, organization_id, trip_id, status, code, crew_count, required_checklist_count, incomplete_required_count, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        trip_id: {type: integer, minimum: 1}
+        status: {const: PLANNED}
+        code: {const: TRIP_PREPARED}
+        crew_count: {type: integer, minimum: 1}
+        required_checklist_count: {type: integer, minimum: 0}
+        incomplete_required_count: {type: integer, minimum: 0}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    TripCommandResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, idempotency_key, organization_id, trip_id, status, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        trip_id: {type: integer, minimum: 1}
+        booking_id: {type: integer, minimum: 1}
+        status: {type: string, enum: [DEPARTED, RETURNED, COMPLETED]}
+        code: {type: string, enum: [TRIP_DEPARTED, TRIP_RETURNED, TRIP_COMPLETED]}
+        departed_at: {type: string, format: date-time}
+        returned_at: {type: string, format: date-time}
+        inventory_revision: {type: integer, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, code, message, retryable, manual_action_required]
+      properties:
+        request_id: {type: string, format: uuid}
+        code: {type: string}
+        message: {type: string}
+        retryable: {type: boolean}
+        manual_action_required: {type: boolean}

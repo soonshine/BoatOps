@@ -1,0 +1,7 @@
+{
+  "request_id": "60000000-0000-4000-8000-000000000001",
+  "code": "SLOT_UNAVAILABLE",
+  "message": "The requested interval is unavailable.",
+  "retryable": false,
+  "manual_action_required": false
+}

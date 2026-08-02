@@ -1,0 +1,559 @@
+openapi: 3.1.0
+info:
+  title: BoatOps Inventory Provider API
+  version: 1.0.0-alpha.3
+  summary: Versioned inventory command contract owned by BoatOps.
+  description: >-
+    Local alpha contract. Inventory decisions are final only after BoatOps commits
+    the command transaction. No private operator data or production credentials are included.
+servers:
+  - url: http://localhost:8000
+    description: Local development only
+security:
+  - bearerAuth: []
+tags:
+  - name: Availability
+    description: Short-lived availability snapshots; commands always re-check.
+  - name: Holds
+    description: Temporary inventory allocations with explicit expiry.
+  - name: Bookings
+    description: Confirmation, amendment, and cancellation commands.
+  - name: Inventory
+    description: Monotonic organization inventory revision reads.
+paths:
+  /api/v1/availability:check:
+    post:
+      tags: [Availability]
+      operationId: checkAvailability
+      summary: Check a short-lived availability snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityCheckRequest'
+      responses:
+        '200':
+          description: Snapshot result; final writes are re-checked transactionally.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+        '401':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '403':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/v1/holds:
+    post:
+      tags: [Holds]
+      operationId: createHold
+      summary: Create a temporary allocation
+      description: Requires Idempotency-Key and returns inventory_revision.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHoldRequest'
+      responses:
+        '201':
+          description: HOLD created and inventory revision advanced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HoldCommandResponse'
+        '401':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '403':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/v1/holds/{id}:release:
+    post:
+      tags: [Holds]
+      operationId: releaseHold
+      summary: Release an active HOLD
+      description: Requires Idempotency-Key and returns inventory_revision.
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalReferenceRequest'
+      responses:
+        '200':
+          description: HOLD released and inventory revision advanced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HoldCommandResponse'
+        '401':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '403':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/v1/bookings:confirm:
+    post:
+      tags: [Bookings]
+      operationId: confirmBooking
+      summary: Confirm an active HOLD into one booking and one trip
+      description: >-
+        Requires Idempotency-Key and a private immutable rate snapshot. The success
+        response and outbox event intentionally omit monetary fields.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmBookingRequest'
+      responses:
+        '201':
+          description: Booking and planned trip created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingCommandResponse'
+        '401':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '403':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/v1/bookings/{id}:amend:
+    post:
+      tags: [Bookings]
+      operationId: amendBooking
+      summary: Atomically move a booking to a new resource or interval
+      description: Requires Idempotency-Key and returns inventory_revision.
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmendBookingRequest'
+      responses:
+        '200':
+          description: Booking, allocation, and trip amended atomically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingCommandResponse'
+        '401':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '403':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/v1/bookings/{id}:cancel:
+    post:
+      tags: [Bookings]
+      operationId: cancelBooking
+      summary: Cancel a future booking and release its allocation
+      description: Requires Idempotency-Key and returns inventory_revision.
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelBookingRequest'
+      responses:
+        '200':
+          description: Booking and trip cancelled; allocation released.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingCommandResponse'
+        '401':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '403':
+          $ref: '#/components/responses/AuthorizationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/v1/inventory/revision:
+    get:
+      tags: [Inventory]
+      operationId: getRevision
+      summary: Get the authenticated organization's inventory revision
+      responses:
+        '200':
+          description: Current monotonic organization revision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisionResponse'
+        '401':
+          $ref: '#/components/responses/AuthorizationFailed'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-api-token
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Stable key scoped to authenticated organization and operation.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 255
+    ObjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    AuthorizationFailed:
+      description: Authentication or organization authorization failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Inventory, state, external-reference, or idempotency conflict.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationFailed:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    PositiveObjectId:
+      type: integer
+      minimum: 1
+    ExternalReference:
+      type: string
+      minLength: 1
+      maxLength: 255
+    AvailabilityCheckRequest:
+      type: object
+      additionalProperties: false
+      required: [boat_id, trip_template_id, starts_at, ends_at]
+      properties:
+        boat_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        trip_template_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        starts_at:
+          type: string
+          format: date-time
+          description: Business interval start in UTC.
+        ends_at:
+          type: string
+          format: date-time
+          description: Business interval end; interval semantics are half-open.
+    CreateHoldRequest:
+      type: object
+      additionalProperties: false
+      required: [boat_id, trip_template_id, starts_at, ends_at, external_reference, expires_at]
+      properties:
+        boat_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        trip_template_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          description: Business interval end; interval semantics are half-open.
+        external_reference:
+          $ref: '#/components/schemas/ExternalReference'
+        expires_at:
+          type: string
+          format: date-time
+          description: Explicit deadline; the contract has no deployment-specific default.
+    ConfirmBookingRequest:
+      type: object
+      additionalProperties: false
+      required: [hold_id, external_reference, rate_snapshot]
+      properties:
+        hold_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        external_reference:
+          $ref: '#/components/schemas/ExternalReference'
+        rate_snapshot:
+          $ref: '#/components/schemas/RateSnapshot'
+    RateSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - source_reference
+        - currency
+        - selling_amount_minor
+        - tax_amount_minor
+        - commission_amount_minor
+        - quoted_at
+      dependentRequired:
+        fx_rate: [fx_base_currency, fx_quote_currency]
+      properties:
+        source_reference:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Stable caller-side quote or rate reference; BoatOps does not calculate it.
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        selling_amount_minor:
+          type: integer
+          minimum: 0
+          description: Frozen selling amount in the currency's smallest unit.
+        tax_amount_minor:
+          type: integer
+          minimum: 0
+        commission_amount_minor:
+          type: integer
+          minimum: 0
+        fx_rate:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          description: Optional fixed-point rate captured from the caller; never calculated by BoatOps.
+        fx_base_currency:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}$'
+        fx_quote_currency:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}$'
+        quoted_at:
+          type: string
+          format: date-time
+        valid_until:
+          type: [string, 'null']
+          format: date-time
+          description: If supplied, confirmation at or after this instant returns RATE_CHANGED.
+    AmendBookingRequest:
+      type: object
+      additionalProperties: false
+      required: [boat_id, trip_template_id, starts_at, ends_at, external_reference]
+      properties:
+        boat_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        trip_template_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          description: Business interval end; interval semantics are half-open.
+        external_reference:
+          $ref: '#/components/schemas/ExternalReference'
+    ExternalReferenceRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference]
+      properties:
+        external_reference:
+          $ref: '#/components/schemas/ExternalReference'
+    CancelBookingRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference]
+      properties:
+        external_reference:
+          $ref: '#/components/schemas/ExternalReference'
+        reason:
+          type: [string, 'null']
+          maxLength: 500
+    AvailabilityResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - organization_id
+        - boat_id
+        - available
+        - occupied_start
+        - occupied_end
+        - inventory_revision
+        - occurred_at
+        - business_timezone
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        organization_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        boat_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        available:
+          type: boolean
+        occupied_start:
+          type: string
+          format: date-time
+        occupied_end:
+          type: string
+          format: date-time
+        inventory_revision:
+          type: integer
+          minimum: 0
+        occurred_at:
+          type: string
+          format: date-time
+        business_timezone:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+        manual_action_required:
+          type: boolean
+    HoldCommandResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - idempotency_key
+        - organization_id
+        - hold_id
+        - external_reference
+        - status
+        - code
+        - inventory_revision
+        - occurred_at
+        - business_timezone
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        idempotency_key:
+          type: string
+        organization_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        hold_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        external_reference:
+          $ref: '#/components/schemas/ExternalReference'
+        status:
+          type: string
+          enum: [ACTIVE, RELEASED]
+        code:
+          type: string
+          enum: [HOLD_CREATED, HOLD_RELEASED]
+        inventory_revision:
+          type: integer
+          minimum: 1
+        expires_at:
+          type: string
+          format: date-time
+        occurred_at:
+          type: string
+          format: date-time
+        business_timezone:
+          type: string
+    BookingCommandResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - idempotency_key
+        - organization_id
+        - booking_id
+        - trip_id
+        - external_reference
+        - status
+        - code
+        - inventory_revision
+        - occurred_at
+        - business_timezone
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        idempotency_key:
+          type: string
+        organization_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        booking_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        trip_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        external_reference:
+          $ref: '#/components/schemas/ExternalReference'
+        status:
+          type: string
+          enum: [CONFIRMED, CANCELLED]
+        code:
+          type: string
+          enum: [BOOKING_CONFIRMED, BOOKING_AMENDED, BOOKING_CANCELLED]
+        inventory_revision:
+          type: integer
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        business_timezone:
+          type: string
+    RevisionResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, inventory_revision, occurred_at, business_timezone]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        organization_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        inventory_revision:
+          type: integer
+          minimum: 0
+        occurred_at:
+          type: string
+          format: date-time
+        business_timezone:
+          type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, code, message, retryable, manual_action_required]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+        manual_action_required:
+          type: boolean

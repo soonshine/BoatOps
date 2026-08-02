@@ -1,0 +1,11 @@
+.tools/
+/vendor/
+/node_modules/
+.env
+.env.*
+!.env.example
+/database/*.sqlite
+/storage/*.key
+.phpunit.result.cache
+/public/build/
+/NUL

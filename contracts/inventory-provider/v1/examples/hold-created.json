@@ -1,0 +1,12 @@
+{
+  "event_id": "20000000-0000-4000-8000-000000000001",
+  "event_type": "hold.created.v1",
+  "event_version": 1,
+  "occurred_at": "2026-08-01T10:00:00Z",
+  "organization_id": 1,
+  "aggregate_type": "hold",
+  "aggregate_id": 1,
+  "inventory_revision": 1,
+  "external_reference": "DEMO-HOLD-001",
+  "status": "ACTIVE"
+}
