@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\SlotCatalogException;
 use App\Http\Controllers\Controller;
-use Carbon\CarbonImmutable;
+use App\Services\SlotCatalog\SlotAvailabilityService;
+use App\Services\SlotCatalog\SlotIntervalResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,13 +13,27 @@ use Illuminate\Support\Str;
 
 class InventoryController extends Controller
 {
+    public function __construct(
+        private readonly SlotIntervalResolver $slotResolver,
+        private readonly SlotAvailabilityService $slotAvailability,
+    ) {}
+
     public function availability(Request $request): JsonResponse
     {
         $input = $request->validate([
             'boat_id' => ['required', 'integer'],
             'trip_template_id' => ['required', 'integer'],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'slot_offering_id' => ['nullable', 'integer', 'min:1', 'prohibits:custom_slot_instance_id'],
+            'custom_slot_instance_id' => ['nullable', 'integer', 'min:1', 'prohibits:slot_offering_id'],
+            'service_date' => ['nullable', 'date_format:Y-m-d', 'required_with:slot_offering_id'],
+            'starts_at' => ['nullable', 'date', 'required_without_all:slot_offering_id,custom_slot_instance_id'],
+            'ends_at' => [
+                'nullable',
+                'date',
+                'after:starts_at',
+                'required_with:starts_at',
+                'required_without_all:slot_offering_id,custom_slot_instance_id',
+            ],
         ]);
         $organization = $request->attributes->get('organization');
         $boat = DB::table('boats')
@@ -31,48 +47,64 @@ class InventoryController extends Controller
             ->exists();
 
         if (! $boat || ! $templateExists) {
-            return response()->json([
-                'request_id' => (string) Str::uuid(),
-                'code' => 'AUTHORIZATION_FAILED',
-                'retryable' => false,
-                'manual_action_required' => false,
-                'message' => 'The requested inventory resource is not accessible.',
-            ], 403);
+            return $this->error(
+                'AUTHORIZATION_FAILED',
+                'The requested inventory resource is not accessible.',
+                403,
+            );
         }
 
-        $businessStart = CarbonImmutable::parse($input['starts_at'])->utc();
-        $businessEnd = CarbonImmutable::parse($input['ends_at'])->utc();
-        $occupiedStart = $businessStart->subMinutes($boat->buffer_before_minutes);
-        $occupiedEnd = $businessEnd->addMinutes($boat->buffer_after_minutes);
-        $overlapExists = DB::table('allocations')
-            ->where('organization_id', $organization->id)
-            ->where('boat_id', $boat->id)
-            ->where('status', 'ACTIVE')
-            ->where('occupied_start', '<', $occupiedEnd)
-            ->where('occupied_end', '>', $occupiedStart)
-            ->exists();
+        try {
+            $slot = $this->slotResolver->resolve($organization, $boat, $input);
+            $decision = $this->slotAvailability->decide(
+                (int) $organization->id,
+                (int) $boat->id,
+                $slot,
+            );
+        } catch (SlotCatalogException $exception) {
+            return $this->error(
+                $exception->errorCode,
+                $exception->getMessage(),
+                $exception->httpStatus,
+                $exception->manualActionRequired,
+            );
+        }
 
         $payload = [
             'request_id' => (string) Str::uuid(),
             'organization_id' => $organization->id,
             'boat_id' => $boat->id,
-            'available' => ! $overlapExists,
-            'occupied_start' => $occupiedStart->format('Y-m-d\TH:i:s\Z'),
-            'occupied_end' => $occupiedEnd->format('Y-m-d\TH:i:s\Z'),
+            'available' => $decision['available'],
+            ...$slot->responseValues(),
             'inventory_revision' => $organization->inventory_revision,
             'occurred_at' => now()->utc()->format('Y-m-d\TH:i:s\Z'),
             'business_timezone' => $organization->timezone,
         ];
 
-        if ($overlapExists) {
+        if (! $decision['available']) {
             $payload += [
-                'code' => 'SLOT_UNAVAILABLE',
+                'code' => $decision['code'],
                 'retryable' => false,
                 'manual_action_required' => false,
-                'message' => 'The requested slot is unavailable.',
+                'message' => $decision['message'],
             ];
         }
 
         return response()->json($payload);
+    }
+
+    private function error(
+        string $code,
+        string $message,
+        int $status,
+        bool $manualActionRequired = false,
+    ): JsonResponse {
+        return response()->json([
+            'request_id' => (string) Str::uuid(),
+            'code' => $code,
+            'retryable' => false,
+            'manual_action_required' => $manualActionRequired,
+            'message' => $message,
+        ], $status);
     }
 }

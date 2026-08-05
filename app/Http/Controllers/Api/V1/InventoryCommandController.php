@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\SlotCatalogException;
 use App\Http\Controllers\Controller;
+use App\Services\SlotCatalog\SlotAvailabilityService;
+use App\Services\SlotCatalog\SlotIntervalResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -12,6 +15,11 @@ use Illuminate\Support\Str;
 
 class InventoryCommandController extends Controller
 {
+    public function __construct(
+        private readonly SlotIntervalResolver $slotResolver,
+        private readonly SlotAvailabilityService $slotAvailability,
+    ) {}
+
     public function createHold(Request $request): JsonResponse
     {
         $idempotencyKey = $request->header('Idempotency-Key');
@@ -24,8 +32,17 @@ class InventoryCommandController extends Controller
             'external_reference' => ['required', 'string', 'max:255'],
             'boat_id' => ['required', 'integer'],
             'trip_template_id' => ['required', 'integer'],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'slot_offering_id' => ['nullable', 'integer', 'min:1', 'prohibits:custom_slot_instance_id'],
+            'custom_slot_instance_id' => ['nullable', 'integer', 'min:1', 'prohibits:slot_offering_id'],
+            'service_date' => ['nullable', 'date_format:Y-m-d', 'required_with:slot_offering_id'],
+            'starts_at' => ['nullable', 'date', 'required_without_all:slot_offering_id,custom_slot_instance_id'],
+            'ends_at' => [
+                'nullable',
+                'date',
+                'after:starts_at',
+                'required_with:starts_at',
+                'required_without_all:slot_offering_id,custom_slot_instance_id',
+            ],
             'expires_at' => ['required', 'date', 'after:now'],
         ]);
         $organization = $request->attributes->get('organization');
@@ -59,10 +76,12 @@ class InventoryCommandController extends Controller
             return $this->error('AUTHORIZATION_FAILED', 'The requested inventory resource is not accessible.', 403);
         }
 
-        $businessStart = CarbonImmutable::parse($input['starts_at'])->utc();
-        $businessEnd = CarbonImmutable::parse($input['ends_at'])->utc();
-        $occupiedStart = $businessStart->subMinutes($boat->buffer_before_minutes);
-        $occupiedEnd = $businessEnd->addMinutes($boat->buffer_after_minutes);
+        try {
+            $slot = $this->slotResolver->resolve($organization, $boat, $input);
+        } catch (SlotCatalogException $exception) {
+            return $this->slotError($exception);
+        }
+
         $expiresAt = CarbonImmutable::parse($input['expires_at'])->utc();
 
         try {
@@ -73,10 +92,7 @@ class InventoryCommandController extends Controller
                 $idempotencyKey,
                 $operation,
                 $requestHash,
-                $businessStart,
-                $businessEnd,
-                $occupiedStart,
-                $occupiedEnd,
+                $slot,
                 $expiresAt,
             ): JsonResponse {
                 DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
@@ -103,17 +119,15 @@ class InventoryCommandController extends Controller
                     );
                 }
 
-                $overlapExists = DB::table('allocations')
-                    ->where('organization_id', $organization->id)
-                    ->where('boat_id', $input['boat_id'])
-                    ->where('status', 'ACTIVE')
-                    ->where('occupied_start', '<', $occupiedEnd)
-                    ->where('occupied_end', '>', $occupiedStart)
-                    ->lockForUpdate()
-                    ->exists();
+                $decision = $this->slotAvailability->decide(
+                    (int) $organization->id,
+                    (int) $input['boat_id'],
+                    $slot,
+                    lockForUpdate: true,
+                );
 
-                if ($overlapExists) {
-                    return $this->error('SLOT_UNAVAILABLE', 'The requested slot is unavailable.', 409);
+                if (! $decision['available']) {
+                    return $this->error($decision['code'], $decision['message'], 409);
                 }
 
                 $now = now()->utc();
@@ -123,10 +137,7 @@ class InventoryCommandController extends Controller
                     'trip_template_id' => $input['trip_template_id'],
                     'external_reference' => $input['external_reference'],
                     'status' => 'ACTIVE',
-                    'business_start' => $businessStart,
-                    'business_end' => $businessEnd,
-                    'occupied_start' => $occupiedStart,
-                    'occupied_end' => $occupiedEnd,
+                    ...$slot->databaseValues(),
                     'expires_at' => $expiresAt,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -136,10 +147,7 @@ class InventoryCommandController extends Controller
                     'boat_id' => $input['boat_id'],
                     'allocation_type' => 'HOLD',
                     'status' => 'ACTIVE',
-                    'business_start' => $businessStart,
-                    'business_end' => $businessEnd,
-                    'occupied_start' => $occupiedStart,
-                    'occupied_end' => $occupiedEnd,
+                    ...$slot->databaseValues(),
                     'hold_id' => $holdId,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -159,6 +167,7 @@ class InventoryCommandController extends Controller
                     'code' => 'HOLD_CREATED',
                     'inventory_revision' => $revision,
                     'expires_at' => $expiresAt->format('Y-m-d\TH:i:s\Z'),
+                    ...$slot->responseValues(),
                     'occurred_at' => $occurredAt,
                     'business_timezone' => $organization->timezone,
                 ];
@@ -196,8 +205,11 @@ class InventoryCommandController extends Controller
                     'after_values' => json_encode([
                         'status' => 'ACTIVE',
                         'boat_id' => $input['boat_id'],
-                        'business_start' => $businessStart->format('Y-m-d\TH:i:s\Z'),
-                        'business_end' => $businessEnd->format('Y-m-d\TH:i:s\Z'),
+                        'service_date' => $slot->serviceDate,
+                        'business_start' => $slot->serviceStart->format('Y-m-d\TH:i:s\Z'),
+                        'business_end' => $slot->serviceEnd->format('Y-m-d\TH:i:s\Z'),
+                        'slot_offering_id' => $slot->slotOfferingId,
+                        'custom_slot_instance_id' => $slot->customSlotInstanceId,
                     ], JSON_THROW_ON_ERROR),
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -469,14 +481,24 @@ class InventoryCommandController extends Controller
 
             $bookingId = DB::table('bookings')->insertGetId([
                 'organization_id' => $organization->id,
-                'hold_id' => $hold->id,
-                'boat_id' => $hold->boat_id,
-                'trip_template_id' => $hold->trip_template_id,
+                'hold_id' => $lockedHold->id,
+                'boat_id' => $lockedHold->boat_id,
+                'trip_template_id' => $lockedHold->trip_template_id,
+                'slot_offering_id' => $lockedHold->slot_offering_id,
+                'custom_slot_instance_id' => $lockedHold->custom_slot_instance_id,
                 'external_reference' => $input['external_reference'],
                 'status' => 'CONFIRMED',
-                'business_start' => $hold->business_start,
-                'business_end' => $hold->business_end,
-                'allocation_id' => $hold->allocation_id,
+                'service_date' => $lockedHold->service_date,
+                'service_start' => $lockedHold->service_start,
+                'service_end' => $lockedHold->service_end,
+                'business_start' => $lockedHold->business_start,
+                'business_end' => $lockedHold->business_end,
+                'occupied_start' => $lockedHold->occupied_start,
+                'occupied_end' => $lockedHold->occupied_end,
+                'slot_code_snapshot' => $lockedHold->slot_code_snapshot,
+                'slot_name_snapshot' => $lockedHold->slot_name_snapshot,
+                'slot_duration_minutes_snapshot' => $lockedHold->slot_duration_minutes_snapshot,
+                'allocation_id' => $lockedHold->allocation_id,
                 'confirmed_at' => $now,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -537,6 +559,7 @@ class InventoryCommandController extends Controller
                 'status' => 'CONFIRMED',
                 'code' => 'BOOKING_CONFIRMED',
                 'inventory_revision' => $revision,
+                ...$this->slotResponseFromRecord($lockedHold),
                 'occurred_at' => $occurredAt,
                 'business_timezone' => $organization->timezone,
             ];
@@ -573,9 +596,12 @@ class InventoryCommandController extends Controller
                 'object_id' => $bookingId,
                 'after_values' => json_encode([
                     'status' => 'CONFIRMED',
-                    'hold_id' => $hold->id,
+                    'hold_id' => $lockedHold->id,
                     'trip_id' => $tripId,
                     'rate_snapshot_id' => $rateSnapshotId,
+                    'service_date' => $lockedHold->service_date,
+                    'slot_offering_id' => $lockedHold->slot_offering_id,
+                    'custom_slot_instance_id' => $lockedHold->custom_slot_instance_id,
                 ], JSON_THROW_ON_ERROR),
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -607,8 +633,17 @@ class InventoryCommandController extends Controller
             'external_reference' => ['required', 'string', 'max:255'],
             'boat_id' => ['required', 'integer'],
             'trip_template_id' => ['required', 'integer'],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['required', 'date', 'after:starts_at'],
+            'slot_offering_id' => ['nullable', 'integer', 'min:1', 'prohibits:custom_slot_instance_id'],
+            'custom_slot_instance_id' => ['nullable', 'integer', 'min:1', 'prohibits:slot_offering_id'],
+            'service_date' => ['nullable', 'date_format:Y-m-d', 'required_with:slot_offering_id'],
+            'starts_at' => ['nullable', 'date', 'required_without_all:slot_offering_id,custom_slot_instance_id'],
+            'ends_at' => [
+                'nullable',
+                'date',
+                'after:starts_at',
+                'required_with:starts_at',
+                'required_without_all:slot_offering_id,custom_slot_instance_id',
+            ],
         ]);
         $organization = $request->attributes->get('organization');
         $operation = 'amendBooking:'.$id;
@@ -649,10 +684,11 @@ class InventoryCommandController extends Controller
             return $this->error('VALIDATION_FAILED', 'The external reference does not match the booking.', 422);
         }
 
-        $businessStart = CarbonImmutable::parse($input['starts_at'])->utc();
-        $businessEnd = CarbonImmutable::parse($input['ends_at'])->utc();
-        $occupiedStart = $businessStart->subMinutes($boat->buffer_before_minutes);
-        $occupiedEnd = $businessEnd->addMinutes($boat->buffer_after_minutes);
+        try {
+            $slot = $this->slotResolver->resolve($organization, $boat, $input);
+        } catch (SlotCatalogException $exception) {
+            return $this->slotError($exception);
+        }
 
         try {
             return DB::transaction(function () use (
@@ -663,10 +699,7 @@ class InventoryCommandController extends Controller
                 $idempotencyKey,
                 $operation,
                 $requestHash,
-                $businessStart,
-                $businessEnd,
-                $occupiedStart,
-                $occupiedEnd,
+                $slot,
             ): JsonResponse {
                 DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
                 $replayed = $this->replayIdempotency(
@@ -687,41 +720,35 @@ class InventoryCommandController extends Controller
                     return $this->error('INVALID_TRANSITION', 'Only a confirmed booking with active inventory can be amended.', 409);
                 }
 
-                $overlapExists = DB::table('allocations')
-                    ->where('organization_id', $organization->id)
-                    ->where('boat_id', $input['boat_id'])
-                    ->where('status', 'ACTIVE')
-                    ->where('id', '!=', $allocation->id)
-                    ->where('occupied_start', '<', $occupiedEnd)
-                    ->where('occupied_end', '>', $occupiedStart)
-                    ->lockForUpdate()
-                    ->exists();
+                $decision = $this->slotAvailability->decide(
+                    (int) $organization->id,
+                    (int) $input['boat_id'],
+                    $slot,
+                    excludeAllocationId: (int) $allocation->id,
+                    lockForUpdate: true,
+                );
 
-                if ($overlapExists) {
-                    return $this->error('SLOT_UNAVAILABLE', 'The requested slot is unavailable.', 409);
+                if (! $decision['available']) {
+                    return $this->error($decision['code'], $decision['message'], 409);
                 }
 
                 $now = now()->utc();
                 DB::table('allocations')->where('id', $allocation->id)->update([
                     'boat_id' => $input['boat_id'],
-                    'business_start' => $businessStart,
-                    'business_end' => $businessEnd,
-                    'occupied_start' => $occupiedStart,
-                    'occupied_end' => $occupiedEnd,
+                    ...$slot->databaseValues(),
                     'updated_at' => $now,
                 ]);
                 DB::table('bookings')->where('id', $booking->id)->update([
                     'boat_id' => $input['boat_id'],
                     'trip_template_id' => $input['trip_template_id'],
-                    'business_start' => $businessStart,
-                    'business_end' => $businessEnd,
+                    ...$slot->databaseValues(),
                     'updated_at' => $now,
                 ]);
                 DB::table('trips')->where('booking_id', $booking->id)->update([
                     'boat_id' => $input['boat_id'],
                     'trip_template_id' => $input['trip_template_id'],
-                    'planned_start' => $businessStart,
-                    'planned_end' => $businessEnd,
+                    'planned_start' => $slot->serviceStart,
+                    'planned_end' => $slot->serviceEnd,
                     'updated_at' => $now,
                 ]);
                 $tripId = (int) DB::table('trips')->where('booking_id', $booking->id)->value('id');
@@ -738,6 +765,7 @@ class InventoryCommandController extends Controller
                     'status' => 'CONFIRMED',
                     'code' => 'BOOKING_AMENDED',
                     'inventory_revision' => $revision,
+                    ...$slot->responseValues(),
                     'occurred_at' => $occurredAt,
                     'business_timezone' => $organization->timezone,
                 ];
@@ -774,13 +802,19 @@ class InventoryCommandController extends Controller
                     'object_id' => $booking->id,
                     'before_values' => json_encode([
                         'boat_id' => $allocation->boat_id,
+                        'service_date' => $lockedBooking->service_date,
                         'business_start' => $lockedBooking->business_start,
                         'business_end' => $lockedBooking->business_end,
+                        'slot_offering_id' => $lockedBooking->slot_offering_id,
+                        'custom_slot_instance_id' => $lockedBooking->custom_slot_instance_id,
                     ], JSON_THROW_ON_ERROR),
                     'after_values' => json_encode([
                         'boat_id' => $input['boat_id'],
-                        'business_start' => $businessStart->format('Y-m-d\TH:i:s\Z'),
-                        'business_end' => $businessEnd->format('Y-m-d\TH:i:s\Z'),
+                        'service_date' => $slot->serviceDate,
+                        'business_start' => $slot->serviceStart->format('Y-m-d\TH:i:s\Z'),
+                        'business_end' => $slot->serviceEnd->format('Y-m-d\TH:i:s\Z'),
+                        'slot_offering_id' => $slot->slotOfferingId,
+                        'custom_slot_instance_id' => $slot->customSlotInstanceId,
                     ], JSON_THROW_ON_ERROR),
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -1061,6 +1095,53 @@ class InventoryCommandController extends Controller
             json_decode($existing->response_body, true, 512, JSON_THROW_ON_ERROR),
             $existing->response_status,
         );
+    }
+
+    private function slotError(SlotCatalogException $exception): JsonResponse
+    {
+        return $this->error(
+            $exception->errorCode,
+            $exception->getMessage(),
+            $exception->httpStatus,
+            $exception->manualActionRequired,
+        );
+    }
+
+    /**
+     * Return the interval and selected identity frozen on an existing HOLD.
+     *
+     * @return array<string, int|string>
+     */
+    private function slotResponseFromRecord(object $record): array
+    {
+        $serviceStart = CarbonImmutable::parse((string) ($record->service_start ?? $record->business_start), 'UTC')->utc();
+        $serviceEnd = CarbonImmutable::parse((string) ($record->service_end ?? $record->business_end), 'UTC')->utc();
+        $occupiedStart = CarbonImmutable::parse((string) $record->occupied_start, 'UTC')->utc();
+        $occupiedEnd = CarbonImmutable::parse((string) $record->occupied_end, 'UTC')->utc();
+        $values = [
+            'service_start' => $serviceStart->format('Y-m-d\TH:i:s\Z'),
+            'service_end' => $serviceEnd->format('Y-m-d\TH:i:s\Z'),
+            'occupied_start' => $occupiedStart->format('Y-m-d\TH:i:s\Z'),
+            'occupied_end' => $occupiedEnd->format('Y-m-d\TH:i:s\Z'),
+        ];
+
+        if ($record->service_date !== null) {
+            $values['service_date'] = (string) $record->service_date;
+        }
+
+        if ($record->slot_offering_id !== null) {
+            $values['slot_offering_id'] = (int) $record->slot_offering_id;
+        }
+
+        if ($record->custom_slot_instance_id !== null) {
+            $values['custom_slot_instance_id'] = (int) $record->custom_slot_instance_id;
+        }
+
+        if ($record->slot_code_snapshot !== null) {
+            $values['slot_code'] = (string) $record->slot_code_snapshot;
+        }
+
+        return $values;
     }
 
     private function error(

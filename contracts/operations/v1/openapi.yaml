@@ -1,12 +1,16 @@
 openapi: 3.1.0
 info:
   title: BoatOps Internal Operations API
-  version: 1.0.0-alpha.1
-  summary: Private operations commands for resource blocks and trip execution.
+  version: 1.0.0-alpha.5
+  summary: Private operations commands and operator schedule catalog/calendar reads.
   description: >-
-    Private alpha contract. Every operation requires an authenticated API client with
-    operations.write scope plus Idempotency-Key. It is not part of the channel-facing
-    Inventory Provider API and must not be exposed to untrusted channel clients.
+    Private alpha contract. Inventory and trip commands require operations.write.
+    Finance writes require operations.finance.write, and finance reads require
+    operations.finance.read or operations.finance.write. Schedule reads require
+    operations.schedule.read or operations.schedule.write; schedule writes require
+    operations.schedule.write. Schedule catalog writes use canonical server-owned
+    identities and audit logs. This API is not part of the channel-facing Inventory
+    Provider API and must not be exposed to untrusted channel clients.
 servers:
   - url: https://boatops.ayany.com
     description: Ayany private alpha target
@@ -19,6 +23,12 @@ tags:
     description: Explicit resource unavailability intervals with immutable history.
   - name: Trips
     description: Private crew readiness and trip execution state commands.
+  - name: Schedule
+    description: Organization-scoped operator slot catalog, compatibility, and bounded allocation-backed calendar.
+  - name: Finance setup
+    description: Private payment-source, expense-category, and stock-item masters.
+  - name: Operating costs
+    description: Private fuel, expense, stock movement, and trip cost records.
 paths:
   /api/internal/v1/blocks:
     post:
@@ -157,12 +167,437 @@ paths:
         '403': {$ref: '#/components/responses/AuthorizationFailed'}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/schedule/slot-offerings:
+    get:
+      tags: [Schedule]
+      operationId: listSlotOfferings
+      summary: List the organization slot catalog and canonical compatibility rules
+      description: Requires operations.schedule.read or operations.schedule.write.
+      responses:
+        '200':
+          description: Organization-scoped presets, custom templates, instances, status, boat scope, and rules.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SlotCatalogResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+    post:
+      tags: [Schedule]
+      operationId: createSlotOffering
+      summary: Create a reusable custom slot definition
+      description: Requires operations.schedule.write. Clock times remain unverified until operating rules are frozen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateSlotOfferingRequest'}
+      responses:
+        '201':
+          description: New immutable-identity reusable definition and audit row created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SlotOfferingCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/schedule/custom-slot-instances:
+    post:
+      tags: [Schedule]
+      operationId: createCustomSlotInstance
+      summary: Create a date-specific custom slot instance or template override
+      description: >-
+        Requires operations.schedule.write. The fictional FULL_DAY_6H 12:00-18:00
+        validation scenario must be represented here, not by changing the reusable preset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateCustomSlotInstanceRequest'}
+      responses:
+        '201':
+          description: Date-specific custom identity and audit row created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CustomSlotInstanceCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/schedule/compatibility-rules:
+    post:
+      tags: [Schedule]
+      operationId: setSlotCompatibilityRule
+      summary: Canonically upsert one ALLOW or DENY rule for an unordered slot pair
+      description: Requires operations.schedule.write. Every modification creates an audit row.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SetSlotCompatibilityRuleRequest'}
+      responses:
+        '200':
+          description: The single canonical pair rule was created or updated.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CompatibilityRuleCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/schedule/slot-offerings/{id}:activate:
+    post:
+      tags: [Schedule]
+      operationId: activateSlotOffering
+      summary: Transition a DRAFT slot definition to ACTIVE
+      description: Requires operations.schedule.write and creates an audit row.
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      responses:
+        '200':
+          description: Definition activated for future selection.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SlotOfferingCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/internal/v1/schedule/slot-offerings/{id}:retire:
+    post:
+      tags: [Schedule]
+      operationId: retireSlotOffering
+      summary: Transition a DRAFT or ACTIVE slot definition to RETIRED
+      description: >-
+        Requires operations.schedule.write and creates an audit row. RETIRED prevents
+        future selection but never changes historical HOLD/allocation/booking snapshots.
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      responses:
+        '200':
+          description: Definition retired without deleting history.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SlotOfferingCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/internal/v1/schedule/calendar:
+    get:
+      tags: [Schedule]
+      operationId: getScheduleCalendar
+      summary: Read at most 31 organization-local inventory dates
+      description: >-
+        Requires operations.schedule.read or operations.schedule.write. This bounded
+        projection is backed by ACTIVE allocations and is not a new inventory truth.
+        Availability and HOLD transactions always re-adjudicate final inventory. No
+        customer contact, lodging, price, payment, or seat inventory fields are returned.
+        Seeded clock times are DEMO DEFAULT / UNVERIFIED OPERATING TIME.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: {type: string, format: date}
+        - name: to
+          in: query
+          required: true
+          description: Inclusive; from through to may contain at most 31 local dates.
+          schema: {type: string, format: date}
+        - name: boat_id
+          in: query
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Allocation-backed whole-boat slot projection with stable conflict codes.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ScheduleCalendarResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/finance/accounts:
+    post:
+      tags: [Finance setup]
+      operationId: createCashAccount
+      summary: Create a payment-source account master
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateCashAccountRequest'}
+      responses:
+        '201':
+          description: Cash or payment-source account created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SetupCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/finance/accounts/{id}/activity:
+    get:
+      tags: [Finance reads]
+      operationId: getCashAccountActivity
+      summary: Read bounded cash posting activity for one organization account
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - name: from
+          in: query
+          required: true
+          schema: {type: string, format: date-time}
+        - name: to
+          in: query
+          required: true
+          schema: {type: string, format: date-time}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 500, default: 200}
+      responses:
+        '200':
+          description: Postings in the UTC half-open interval, ordered by occurred_at and id.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CashAccountActivityResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/finance/accounts/{id}/daily-summary:
+    get:
+      tags: [Finance reads]
+      operationId: getCashAccountDailySummary
+      summary: Summarize cash postings for one organization business date
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - name: date
+          in: query
+          required: true
+          schema: {type: string, format: date}
+      responses:
+        '200':
+          description: Single-currency account totals over the timezone-derived UTC half-open interval.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CashAccountDailySummaryResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/finance/expense-categories:
+    post:
+      tags: [Finance setup]
+      operationId: createExpenseCategory
+      summary: Create an operating-expense category
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateExpenseCategoryRequest'}
+      responses:
+        '201':
+          description: Expense category created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SetupCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/stock/items:
+    post:
+      tags: [Finance setup]
+      operationId: createStockItem
+      summary: Create a beverage, food, cleaning, safety, or maintenance stock item
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateStockItemRequest'}
+      responses:
+        '201':
+          description: Stock item created.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SetupCommandResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/fuel-logs:
+    post:
+      tags: [Operating costs]
+      operationId: recordFuelLog
+      summary: Record a posted fuel purchase for a boat and optional trip
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecordFuelLogRequest'}
+      responses:
+        '201':
+          description: Fuel log posted and audited.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FuelLogResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/expenses:
+    post:
+      tags: [Operating costs]
+      operationId: recordExpense
+      summary: Record one posted operating expense with one or more category lines
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecordExpenseRequest'}
+      responses:
+        '201':
+          description: Expense and lines posted atomically.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExpenseResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/stock/movements:
+    post:
+      tags: [Operating costs]
+      operationId: recordStockMovement
+      summary: Post a purchase, load, consumption, return, waste, or adjustment movement
+      description: >-
+        The item row is locked while balances are updated. LOAD and RETURN transfer cost
+        between warehouse and boat balances. CONSUME and WASTE recognize cost at the
+        source moving-average unit cost. A movement that would create negative stock fails.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecordStockMovementRequest'}
+      responses:
+        '201':
+          description: Stock movement and all affected balances posted atomically.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StockMovementResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/fuel-logs/{id}:reverse:
+    post:
+      tags: [Operating costs]
+      operationId: reverseFuelLog
+      summary: Reverse one posted fuel log
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReverseRecordRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/ReversalCreated'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/expenses/{id}:reverse:
+    post:
+      tags: [Operating costs]
+      operationId: reverseExpense
+      summary: Reverse one posted expense
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReverseRecordRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/ReversalCreated'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/stock/movements/{id}:reverse:
+    post:
+      tags: [Operating costs]
+      operationId: reverseStockMovement
+      summary: Reverse one posted stock movement
+      description: Posts one exact-value REVERSAL compensation atomically. Compensations cannot be reversed.
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReverseRecordRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/ReversalCreated'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/trips/{id}/cost-summary:
+    get:
+      tags: [Operating costs]
+      operationId: getTripCostSummary
+      summary: Return posted direct operating costs grouped by currency
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      responses:
+        '200':
+          description: Fuel, expense, and consumed/wasted stock cost summary.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TripCostSummaryResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+  /api/internal/v1/boats/{id}/daily-cost-summary:
+    get:
+      tags: [Operating costs]
+      operationId: getBoatDailyCostSummary
+      summary: Return one boat's posted operating costs for a local business date
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+        - name: date
+          in: query
+          required: true
+          schema: {type: string, format: date}
+          description: Business date interpreted in the organization's configured timezone.
+      responses:
+        '200':
+          description: Daily direct costs and the exact UTC interval used.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BoatDailyCostSummaryResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/internal/v1/stock/balances:
+    get:
+      tags: [Operating costs]
+      operationId: getStockBalances
+      summary: Return warehouse or boat stock balances with moving-average value
+      parameters:
+        - name: boat_id
+          in: query
+          schema: {type: integer, minimum: 1}
+        - name: item_id
+          in: query
+          schema: {type: integer, minimum: 1}
+        - name: location_type
+          in: query
+          schema: {type: string, enum: [WAREHOUSE, BOAT]}
+      responses:
+        '200':
+          description: Matching stock balances.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StockBalancesResponse'}
+        '403': {$ref: '#/components/responses/AuthorizationFailed'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: opaque-api-token with operations.write scope
+      bearerFormat: opaque API token with explicit operations, finance, or schedule scope
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
@@ -170,7 +605,8 @@ components:
       required: true
       schema:
         type: string
-        minLength: 8
+        format: uuid
+        minLength: 36
         maxLength: 255
     ObjectId:
       name: id
@@ -181,7 +617,7 @@ components:
         minimum: 1
   responses:
     AuthorizationFailed:
-      description: Authentication, organization isolation, or operations.write scope failed.
+      description: Authentication, organization isolation, or required operation scope failed.
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
@@ -195,7 +631,275 @@ components:
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
+    ReversalCreated:
+      description: Reversal, audit, idempotency record, and status or compensation committed atomically.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/FinanceReversalResponse'}
   schemas:
+    CreateSlotOfferingRequest:
+      type: object
+      additionalProperties: false
+      required: [code, name, service_start_time, service_end_time, duration_minutes]
+      properties:
+        code: {type: string, pattern: '^[A-Z0-9][A-Z0-9_-]{1,99}$', maxLength: 100}
+        name: {type: string, minLength: 1, maxLength: 255}
+        status: {type: string, enum: [DRAFT, ACTIVE], default: DRAFT}
+        service_start_time: {type: string, pattern: '^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$'}
+        service_end_time: {type: string, pattern: '^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$'}
+        duration_minutes: {type: integer, minimum: 1, maximum: 1440}
+        additional_buffer_before_minutes: {type: integer, minimum: 0, maximum: 1440, default: 0}
+        additional_buffer_after_minutes: {type: integer, minimum: 0, maximum: 1440, default: 0}
+        valid_from: {type: [string, 'null'], format: date}
+        valid_until: {type: [string, 'null'], format: date}
+        applies_to_all_boats: {type: boolean, default: true}
+        boat_ids:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: {type: integer, minimum: 1}
+    CreateCustomSlotInstanceRequest:
+      type: object
+      additionalProperties: false
+      required: [code, service_date]
+      properties:
+        template_slot_offering_id: {type: [integer, 'null'], minimum: 1}
+        code: {type: string, pattern: '^[A-Z0-9][A-Z0-9_-]{1,99}$', maxLength: 100}
+        name: {type: [string, 'null'], minLength: 1, maxLength: 255}
+        status: {type: string, enum: [DRAFT, ACTIVE], default: DRAFT}
+        service_date: {type: string, format: date}
+        service_start_time: {type: [string, 'null'], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$'}
+        service_end_time: {type: [string, 'null'], pattern: '^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$'}
+        duration_minutes: {type: [integer, 'null'], minimum: 1, maximum: 1440}
+        additional_buffer_before_minutes: {type: integer, minimum: 0, maximum: 1440, default: 0}
+        additional_buffer_after_minutes: {type: integer, minimum: 0, maximum: 1440, default: 0}
+        applies_to_all_boats: {type: boolean, default: true}
+        boat_ids:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: {type: integer, minimum: 1}
+    SetSlotCompatibilityRuleRequest:
+      type: object
+      additionalProperties: false
+      required: [first_slot_offering_id, second_slot_offering_id, policy]
+      properties:
+        first_slot_offering_id: {type: integer, minimum: 1}
+        second_slot_offering_id: {type: integer, minimum: 1}
+        policy: {type: string, enum: [ALLOW, DENY]}
+        reason: {type: [string, 'null'], maxLength: 500}
+    SlotOffering:
+      type: object
+      additionalProperties: false
+      required: [id, template_slot_offering_id, kind, code, name, status, operating_time_status, operating_time_notice, service_date, service_start_time, service_end_time, duration_minutes, additional_buffer_before_minutes, additional_buffer_after_minutes, valid_from, valid_until, applies_to_all_boats, boat_ids, has_historical_usage, created_at, updated_at]
+      properties:
+        id: {type: integer, minimum: 1}
+        template_slot_offering_id: {type: [integer, 'null'], minimum: 1}
+        kind: {type: string, enum: [PRESET, CUSTOM_TEMPLATE, CUSTOM_INSTANCE]}
+        code: {type: string}
+        name: {type: string}
+        status: {type: string, enum: [ACTIVE, DRAFT, RETIRED]}
+        operating_time_status: {type: string, enum: [UNVERIFIED, DEMO_DEFAULT_UNVERIFIED, FICTIONAL_VALIDATION_SCENARIO]}
+        operating_time_notice: {type: string}
+        service_date: {type: [string, 'null'], format: date}
+        service_start_time: {type: string}
+        service_end_time: {type: string}
+        duration_minutes: {type: integer, minimum: 1, maximum: 1440}
+        additional_buffer_before_minutes: {type: integer, minimum: 0}
+        additional_buffer_after_minutes: {type: integer, minimum: 0}
+        valid_from: {type: [string, 'null'], format: date}
+        valid_until: {type: [string, 'null'], format: date}
+        applies_to_all_boats: {type: boolean}
+        boat_ids:
+          type: array
+          uniqueItems: true
+          items: {type: integer, minimum: 1}
+        has_historical_usage: {type: boolean}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    CompatibilityRule:
+      type: object
+      additionalProperties: false
+      required: [id, pair_key, first_slot_offering_id, first_slot_code, first_slot_name, second_slot_offering_id, second_slot_code, second_slot_name, policy, reason, updated_at]
+      properties:
+        id: {type: integer, minimum: 1}
+        pair_key: {type: string, pattern: '^\d+:\d+$'}
+        first_slot_offering_id: {type: integer, minimum: 1}
+        first_slot_code: {type: string}
+        first_slot_name: {type: string}
+        second_slot_offering_id: {type: integer, minimum: 1}
+        second_slot_code: {type: string}
+        second_slot_name: {type: string}
+        policy: {type: string, enum: [ALLOW, DENY]}
+        reason: {type: [string, 'null']}
+        updated_at: {type: string, format: date-time}
+    SlotCatalogResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, inventory_revision, operating_time_notice, slot_offerings, compatibility_rules, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        inventory_revision: {type: integer, minimum: 0}
+        operating_time_notice: {type: string}
+        slot_offerings:
+          type: array
+          items: {$ref: '#/components/schemas/SlotOffering'}
+        compatibility_rules:
+          type: array
+          items: {$ref: '#/components/schemas/CompatibilityRule'}
+        code: {const: SLOT_OFFERINGS_LISTED}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    SlotOfferingCommandResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, slot_offering, inventory_revision, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        slot_offering: {$ref: '#/components/schemas/SlotOffering'}
+        inventory_revision: {type: integer, minimum: 1}
+        code: {type: string, enum: [SLOT_OFFERING_CREATED, SLOT_OFFERING_ACTIVATED, SLOT_OFFERING_RETIRED]}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    CustomSlotInstanceCommandResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, custom_slot_instance, inventory_revision, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        custom_slot_instance: {$ref: '#/components/schemas/SlotOffering'}
+        inventory_revision: {type: integer, minimum: 1}
+        code: {const: CUSTOM_SLOT_INSTANCE_CREATED}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    CompatibilityRuleCommandResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, compatibility_rule, inventory_revision, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        compatibility_rule: {$ref: '#/components/schemas/CompatibilityRule'}
+        inventory_revision: {type: integer, minimum: 1}
+        code: {const: SLOT_COMPATIBILITY_RULE_UPSERTED}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    CalendarSlotIdentity:
+      type: object
+      additionalProperties: false
+      required: [type, slot_offering_id, custom_slot_instance_id]
+      properties:
+        type: {type: string, enum: [SLOT_OFFERING, CUSTOM_INSTANCE]}
+        slot_offering_id: {type: [integer, 'null'], minimum: 1}
+        custom_slot_instance_id: {type: [integer, 'null'], minimum: 1}
+    CalendarAuthority:
+      type: [object, 'null']
+      additionalProperties: false
+      required: [allocation_id, allocation_type, occupied_start, occupied_end]
+      properties:
+        allocation_id: {type: integer, minimum: 1}
+        allocation_type: {type: string}
+        occupied_start: {type: string, format: date-time}
+        occupied_end: {type: string, format: date-time}
+    CalendarSlot:
+      type: object
+      additionalProperties: false
+      required: [definition_id, identity, slot_offering_id, custom_slot_instance_id, kind, code, name, definition_status, operating_time_status, operating_time_notice, duration_minutes, service_start, service_end, occupied_start, occupied_end, service_start_local, service_end_local, occupied_start_local, occupied_end_local, status, selectable, conflict_code, conflict_message, buffer_conflict, authority]
+      properties:
+        definition_id: {type: integer, minimum: 1}
+        identity: {$ref: '#/components/schemas/CalendarSlotIdentity'}
+        slot_offering_id: {type: [integer, 'null'], minimum: 1}
+        custom_slot_instance_id: {type: [integer, 'null'], minimum: 1}
+        kind: {type: string, enum: [PRESET, CUSTOM_TEMPLATE, CUSTOM_INSTANCE]}
+        code: {type: string}
+        name: {type: string}
+        definition_status: {type: string, enum: [ACTIVE, DRAFT, RETIRED]}
+        operating_time_status: {type: string}
+        operating_time_notice: {type: string}
+        duration_minutes: {type: integer, minimum: 1}
+        service_start: {type: string, format: date-time}
+        service_end: {type: string, format: date-time}
+        occupied_start: {type: string, format: date-time}
+        occupied_end: {type: string, format: date-time}
+        service_start_local: {type: string, format: date-time}
+        service_end_local: {type: string, format: date-time}
+        occupied_start_local: {type: string, format: date-time}
+        occupied_end_local: {type: string, format: date-time}
+        status: {type: string, enum: [AVAILABLE, HELD, CONFIRMED, BLOCKED, UNAVAILABLE]}
+        selectable: {type: boolean}
+        conflict_code: {type: [string, 'null'], enum: [SLOT_UNAVAILABLE, SLOT_COMPATIBILITY_CONFLICT, null]}
+        conflict_message: {type: [string, 'null']}
+        buffer_conflict: {type: boolean}
+        authority: {$ref: '#/components/schemas/CalendarAuthority'}
+    CalendarAllocation:
+      type: object
+      additionalProperties: false
+      required: [allocation_id, status, allocation_type, slot_offering_id, custom_slot_instance_id, service_date, slot_code, slot_name, service_start, service_end, occupied_start, occupied_end, occupied_start_local, occupied_end_local, authority]
+      properties:
+        allocation_id: {type: integer, minimum: 1}
+        status: {type: string, enum: [HELD, CONFIRMED, BLOCKED, UNAVAILABLE]}
+        allocation_type: {type: string}
+        slot_offering_id: {type: [integer, 'null'], minimum: 1}
+        custom_slot_instance_id: {type: [integer, 'null'], minimum: 1}
+        service_date: {type: string, format: date}
+        slot_code: {type: [string, 'null']}
+        slot_name: {type: [string, 'null']}
+        service_start: {type: string, format: date-time}
+        service_end: {type: string, format: date-time}
+        occupied_start: {type: string, format: date-time}
+        occupied_end: {type: string, format: date-time}
+        occupied_start_local: {type: string, format: date-time}
+        occupied_end_local: {type: string, format: date-time}
+        authority: {const: ACTIVE_ALLOCATION}
+    CalendarDate:
+      type: object
+      additionalProperties: false
+      required: [date, allocations, slots]
+      properties:
+        date: {type: string, format: date}
+        allocations:
+          type: array
+          items: {$ref: '#/components/schemas/CalendarAllocation'}
+        slots:
+          type: array
+          items: {$ref: '#/components/schemas/CalendarSlot'}
+    CalendarBoat:
+      type: object
+      additionalProperties: false
+      required: [boat_id, name, status, inventory_unit, buffer_before_minutes, buffer_after_minutes, dates]
+      properties:
+        boat_id: {type: integer, minimum: 1}
+        name: {type: string}
+        status: {type: string}
+        inventory_unit: {const: WHOLE_BOAT}
+        buffer_before_minutes: {type: integer, minimum: 0}
+        buffer_after_minutes: {type: integer, minimum: 0}
+        dates:
+          type: array
+          minItems: 1
+          maxItems: 31
+          items: {$ref: '#/components/schemas/CalendarDate'}
+    ScheduleCalendarResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, business_timezone, from, to, as_of, inventory_revision, inventory_truth, read_model_notice, operating_time_notice, boats]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        business_timezone: {type: string}
+        from: {type: string, format: date}
+        to: {type: string, format: date}
+        as_of: {type: string, format: date-time}
+        inventory_revision: {type: integer, minimum: 0}
+        inventory_truth: {const: ACTIVE_ALLOCATIONS}
+        read_model_notice: {type: string}
+        operating_time_notice: {type: string}
+        boats:
+          type: array
+          items: {$ref: '#/components/schemas/CalendarBoat'}
     CreateBlockRequest:
       type: object
       additionalProperties: false
@@ -211,14 +915,14 @@ components:
         reason_code:
           type: string
           enum: [MAINTENANCE, WEATHER, OWNER_USE, MANUAL]
-        notes: {type: [string, 'null'], maxLength: 1000}
+        reason: {type: [string, 'null'], maxLength: 500}
     ReleaseBlockRequest:
       type: object
       additionalProperties: false
-      required: [external_reference, release_reason]
+      required: [external_reference]
       properties:
         external_reference: {type: string, minLength: 1, maxLength: 255}
-        release_reason: {type: string, minLength: 1, maxLength: 500}
+        reason: {type: [string, 'null'], maxLength: 500}
     PrepareTripRequest:
       type: object
       additionalProperties: false
@@ -274,19 +978,389 @@ components:
       required: [returned_at]
       properties:
         returned_at: {type: string, format: date-time}
+    CreateCashAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, name, account_type, currency]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        name: {type: string, minLength: 1, maxLength: 255}
+        account_type:
+          type: string
+          enum: [CASH, BANK, COMPANY_CARD, EMPLOYEE_ADVANCE, OTHER]
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+    CreateExpenseCategoryRequest:
+      type: object
+      additionalProperties: false
+      required: [code, name, cost_scope]
+      properties:
+        code: {type: string, pattern: '^[A-Z0-9_-]+$', maxLength: 100}
+        name: {type: string, minLength: 1, maxLength: 255}
+        cost_scope:
+          type: string
+          enum: [DIRECT, BOAT_DAILY, COMMON]
+    CreateStockItemRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, name, category, unit, currency]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        name: {type: string, minLength: 1, maxLength: 255}
+        category:
+          type: string
+          enum: [BEVERAGE, FOOD, CLEANING, SAFETY, MAINTENANCE, OTHER]
+        unit: {type: string, pattern: '^[A-Z0-9_-]+$', maxLength: 50}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        minimum_stock_quantity: {type: number, minimum: 0, multipleOf: 0.001}
+    RecordFuelLogRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, boat_id, cash_account_id, occurred_at, station_name, liters, price_per_liter_minor, total_amount_minor, currency, handled_by]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        boat_id: {type: integer, minimum: 1}
+        trip_id: {type: [integer, 'null'], minimum: 1}
+        cash_account_id: {type: integer, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        station_name: {type: string, minLength: 1, maxLength: 255}
+        liters: {type: number, exclusiveMinimum: 0, multipleOf: 0.001}
+        price_per_liter_minor: {type: integer, minimum: 0}
+        total_amount_minor:
+          type: integer
+          minimum: 0
+          description: Must equal liters multiplied by price_per_liter_minor within one minor unit of rounding.
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        fuel_level_before_percent: {type: [number, 'null'], minimum: 0, maximum: 100}
+        fuel_level_after_percent: {type: [number, 'null'], minimum: 0, maximum: 100}
+        engine_hours: {type: [number, 'null'], minimum: 0}
+        handled_by: {type: string, minLength: 1, maxLength: 255}
+        receipt_reference: {type: [string, 'null'], maxLength: 500}
+        notes: {type: [string, 'null'], maxLength: 2000}
+    ExpenseLineInput:
+      type: object
+      additionalProperties: false
+      required: [expense_category_id, description, amount_minor]
+      properties:
+        expense_category_id: {type: integer, minimum: 1}
+        description: {type: string, minLength: 1, maxLength: 500}
+        amount_minor: {type: integer, minimum: 0}
+    RecordExpenseRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, cash_account_id, occurred_at, currency, handled_by, lines]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        boat_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Required when any line is DIRECT or BOAT_DAILY; inferred from trip_id when omitted.
+        trip_id: {type: [integer, 'null'], minimum: 1}
+        cash_account_id: {type: integer, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        handled_by: {type: string, minLength: 1, maxLength: 255}
+        receipt_reference: {type: [string, 'null'], maxLength: 500}
+        notes: {type: [string, 'null'], maxLength: 2000}
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: {$ref: '#/components/schemas/ExpenseLineInput'}
+    RecordStockMovementRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, item_id, movement_type, occurred_at, quantity, handled_by]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        item_id: {type: integer, minimum: 1}
+        boat_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Required for LOAD, CONSUME, and RETURN; optional stock location for waste and adjustments.
+        trip_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Allowed for LOAD, CONSUME, RETURN, and WASTE; the trip determines the boat when boat_id is omitted.
+        cash_account_id:
+          type: [integer, 'null']
+          minimum: 1
+          description: Required only for PURCHASE and must use the item's currency.
+        movement_type:
+          type: string
+          enum: [PURCHASE, LOAD, CONSUME, RETURN, WASTE, ADJUSTMENT_IN, ADJUSTMENT_OUT]
+        occurred_at: {type: string, format: date-time}
+        quantity: {type: number, exclusiveMinimum: 0, multipleOf: 0.001}
+        total_cost_amount_minor:
+          type: [integer, 'null']
+          minimum: 0
+          description: Required only for PURCHASE and ADJUSTMENT_IN; other movement costs come from moving-average cost.
+        handled_by: {type: string, minLength: 1, maxLength: 255}
+        receipt_reference: {type: [string, 'null'], maxLength: 500}
+        reason:
+          type: [string, 'null']
+          maxLength: 2000
+          description: Required for WASTE, ADJUSTMENT_IN, and ADJUSTMENT_OUT.
+    ReverseRecordRequest:
+      type: object
+      additionalProperties: false
+      required: [external_reference, reason]
+      properties:
+        external_reference: {type: string, minLength: 1, maxLength: 255}
+        reason: {type: string, minLength: 3, maxLength: 2000}
+    FinanceReversalResponse:
+      type: object
+      additionalProperties: true
+      required: [request_id, idempotency_key, organization_id, finance_reversal_id, original_record_type, original_record_id, status, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        finance_reversal_id: {type: integer, minimum: 1}
+        original_record_type: {type: string, enum: [fuel_log, expense, stock_movement]}
+        original_record_id: {type: integer, minimum: 1}
+        compensation: {type: [object, "null"]}
+        status: {const: REVERSED}
+        code: {const: FINANCE_RECORD_REVERSED}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    CashPostingSource:
+      type: object
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: {type: string, enum: [fuel_log, expense, stock_movement, finance_reversal]}
+        id: {type: integer, minimum: 1}
+    CashPosting:
+      type: object
+      additionalProperties: false
+      required: [cash_posting_id, external_reference, source, posting_kind, direction, occurred_at, amount_minor, currency, description, status, reversal_of_posting_id]
+      properties:
+        cash_posting_id: {type: integer, minimum: 1}
+        external_reference: {type: string}
+        source: {$ref: '#/components/schemas/CashPostingSource'}
+        posting_kind: {type: string, enum: [FUEL, EXPENSE, STOCK_PURCHASE, REVERSAL]}
+        direction: {type: string, enum: [OUTFLOW, INFLOW]}
+        occurred_at: {type: string, format: date-time}
+        amount_minor: {type: integer, minimum: 1}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        description: {type: string}
+        status: {type: string, enum: [POSTED, REVERSED]}
+        reversal_of_posting_id: {type: [integer, 'null'], minimum: 1}
+    CashAccountActivityResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, cash_account_id, currency, from, to, limit, postings, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        cash_account_id: {type: integer, minimum: 1}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        from: {type: string, format: date-time}
+        to: {type: string, format: date-time}
+        limit: {type: integer, minimum: 1, maximum: 500}
+        postings:
+          type: array
+          maxItems: 500
+          items: {$ref: '#/components/schemas/CashPosting'}
+        code: {const: CASH_ACCOUNT_ACTIVITY}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    CashAccountDailySummaryResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, cash_account_id, business_date, utc_start, utc_end, currency, total_outflow_minor, total_inflow_minor, net_change_minor, posting_count, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        cash_account_id: {type: integer, minimum: 1}
+        business_date: {type: string, format: date}
+        utc_start: {type: string, format: date-time}
+        utc_end: {type: string, format: date-time}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        total_outflow_minor: {type: integer, minimum: 0}
+        total_inflow_minor: {type: integer, minimum: 0}
+        net_change_minor: {type: integer}
+        posting_count: {type: integer, minimum: 0}
+        code: {const: CASH_ACCOUNT_DAILY_SUMMARY}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    SetupCommandResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, idempotency_key, organization_id, status, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        cash_account_id: {type: integer, minimum: 1}
+        expense_category_id: {type: integer, minimum: 1}
+        item_id: {type: integer, minimum: 1}
+        external_reference: {type: string}
+        category_code: {type: string}
+        account_type: {type: string}
+        cost_scope: {type: string}
+        category: {type: string}
+        unit: {type: string}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        minimum_stock_quantity: {type: string, pattern: '^\d+\.\d{3}$'}
+        status: {const: ACTIVE}
+        code:
+          type: string
+          enum: [CASH_ACCOUNT_CREATED, EXPENSE_CATEGORY_CREATED, STOCK_ITEM_CREATED]
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    FuelLogResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, idempotency_key, organization_id, fuel_log_id, external_reference, boat_id, trip_id, liters, total_amount_minor, currency, status, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        fuel_log_id: {type: integer, minimum: 1}
+        external_reference: {type: string}
+        boat_id: {type: integer, minimum: 1}
+        trip_id: {type: [integer, 'null'], minimum: 1}
+        liters: {type: string, pattern: '^\d+\.\d{3}$'}
+        total_amount_minor: {type: integer, minimum: 0}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        status: {const: POSTED}
+        code: {const: FUEL_LOG_RECORDED}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    ExpenseResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, idempotency_key, organization_id, expense_id, external_reference, boat_id, trip_id, line_count, total_amount_minor, currency, status, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        expense_id: {type: integer, minimum: 1}
+        external_reference: {type: string}
+        boat_id: {type: [integer, 'null'], minimum: 1}
+        trip_id: {type: [integer, 'null'], minimum: 1}
+        line_count: {type: integer, minimum: 1}
+        total_amount_minor: {type: integer, minimum: 0}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        status: {const: POSTED}
+        code: {const: EXPENSE_RECORDED}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    StockMovementResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, idempotency_key, organization_id, movement_id, external_reference, item_id, boat_id, trip_id, cash_account_id, movement_type, quantity, unit_cost_minor, total_cost_amount_minor, currency, from_location_key, to_location_key, from_balance_quantity, to_balance_quantity, status, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        idempotency_key: {type: string}
+        organization_id: {type: integer, minimum: 1}
+        movement_id: {type: integer, minimum: 1}
+        external_reference: {type: string}
+        item_id: {type: integer, minimum: 1}
+        boat_id: {type: [integer, 'null'], minimum: 1}
+        trip_id: {type: [integer, 'null'], minimum: 1}
+        cash_account_id: {type: [integer, 'null'], minimum: 1}
+        movement_type:
+          type: string
+          enum: [PURCHASE, LOAD, CONSUME, RETURN, WASTE, ADJUSTMENT_IN, ADJUSTMENT_OUT]
+        quantity: {type: string, pattern: '^\d+\.\d{3}$'}
+        unit_cost_minor: {type: string, pattern: '^\d+\.\d{6}$'}
+        total_cost_amount_minor: {type: integer, minimum: 0}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        from_location_key: {type: [string, 'null']}
+        to_location_key: {type: [string, 'null']}
+        from_balance_quantity: {type: [string, 'null']}
+        to_balance_quantity: {type: [string, 'null']}
+        status: {const: POSTED}
+        code: {const: STOCK_MOVEMENT_RECORDED}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    CurrencyCostSummary:
+      type: object
+      additionalProperties: false
+      required: [currency, fuel_amount_minor, expense_amount_minor, stock_consumption_amount_minor, direct_cost_amount_minor]
+      properties:
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        fuel_amount_minor: {type: integer, minimum: 0}
+        expense_amount_minor: {type: integer, minimum: 0}
+        stock_consumption_amount_minor: {type: integer, minimum: 0}
+        direct_cost_amount_minor: {type: integer, minimum: 0}
+    TripCostSummaryResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, trip_id, boat_id, costs_by_currency, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        trip_id: {type: integer, minimum: 1}
+        boat_id: {type: integer, minimum: 1}
+        costs_by_currency:
+          type: array
+          items: {$ref: '#/components/schemas/CurrencyCostSummary'}
+        code: {const: TRIP_COST_SUMMARY}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    BoatDailyCostSummaryResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, boat_id, business_date, utc_start, utc_end, costs_by_currency, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        boat_id: {type: integer, minimum: 1}
+        business_date: {type: string, format: date}
+        utc_start: {type: string, format: date-time}
+        utc_end: {type: string, format: date-time}
+        costs_by_currency:
+          type: array
+          items: {$ref: '#/components/schemas/CurrencyCostSummary'}
+        code: {const: BOAT_DAILY_COST_SUMMARY}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
+    StockBalance:
+      type: object
+      additionalProperties: false
+      required: [item_id, external_reference, name, category, unit, currency, location_key, location_type, boat_id, quantity, average_unit_cost_minor, stock_value_amount_minor, below_minimum]
+      properties:
+        item_id: {type: integer, minimum: 1}
+        external_reference: {type: string}
+        name: {type: string}
+        category: {type: string}
+        unit: {type: string}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        location_key: {type: string}
+        location_type: {type: string, enum: [WAREHOUSE, BOAT]}
+        boat_id: {type: [integer, 'null'], minimum: 1}
+        quantity: {type: string, pattern: '^\d+\.\d{3}$'}
+        average_unit_cost_minor: {type: string, pattern: '^\d+\.\d{6}$'}
+        stock_value_amount_minor: {type: integer, minimum: 0}
+        below_minimum: {type: boolean}
+    StockBalancesResponse:
+      type: object
+      additionalProperties: false
+      required: [request_id, organization_id, balances, code, occurred_at, business_timezone]
+      properties:
+        request_id: {type: string, format: uuid}
+        organization_id: {type: integer, minimum: 1}
+        balances:
+          type: array
+          items: {$ref: '#/components/schemas/StockBalance'}
+        code: {const: STOCK_BALANCES}
+        occurred_at: {type: string, format: date-time}
+        business_timezone: {type: string}
     BlockCommandResponse:
       type: object
       additionalProperties: false
-      required: [request_id, idempotency_key, organization_id, block_id, boat_id, external_reference, status, code, inventory_revision, occurred_at, business_timezone]
+      required: [request_id, idempotency_key, organization_id, block_id, external_reference, status, code, inventory_revision, occurred_at, business_timezone]
       properties:
         request_id: {type: string, format: uuid}
         idempotency_key: {type: string}
         organization_id: {type: integer, minimum: 1}
         block_id: {type: integer, minimum: 1}
-        boat_id: {type: integer, minimum: 1}
         external_reference: {type: string}
         status: {type: string, enum: [ACTIVE, RELEASED]}
-        code: {type: string, enum: [BLOCK_CREATED, BLOCK_RELEASED]}
+        code: {type: string, enum: [RESOURCE_BLOCKED, RESOURCE_UNBLOCKED]}
         inventory_revision: {type: integer, minimum: 1}
         business_start: {type: string, format: date-time}
         business_end: {type: string, format: date-time}

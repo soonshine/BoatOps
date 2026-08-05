@@ -1,9 +1,17 @@
-version: 1.0.0-alpha.2
+version: 1.0.0-alpha.3
 errors:
   - code: SLOT_UNAVAILABLE
     retryable: false
     manual_action_required: false
-    meaning: The requested occupied interval overlaps an active allocation.
+    meaning: The selected slot is inactive, outside scope, or its occupied interval overlaps an active allocation.
+  - code: SLOT_COMPATIBILITY_CONFLICT
+    retryable: false
+    manual_action_required: false
+    meaning: The organization compatibility matrix does not explicitly allow the identified same-boat, same-date slot pair.
+  - code: SLOT_CROSSES_MIDNIGHT
+    retryable: false
+    manual_action_required: false
+    meaning: BoatOps v0.0.5 does not support a slot whose local service end is on the following date.
   - code: HOLD_EXPIRED
     retryable: false
     manual_action_required: false

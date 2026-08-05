@@ -5,7 +5,10 @@ info:
   summary: Versioned inventory command contract owned by BoatOps.
   description: >-
     Local alpha contract. Inventory decisions are final only after BoatOps commits
-    the command transaction. No private operator data or production credentials are included.
+    the command transaction. Legacy UTC intervals remain supported; identified slot
+    offerings are resolved in the authenticated organization timezone and caller-supplied
+    interval fields are not authoritative. No private operator data or production credentials
+    are included.
 servers:
   - url: http://localhost:8000
     description: Local development only
@@ -43,6 +46,8 @@ paths:
           $ref: '#/components/responses/AuthorizationFailed'
         '403':
           $ref: '#/components/responses/AuthorizationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationFailed'
   /api/v1/holds:
@@ -262,36 +267,61 @@ components:
     AvailabilityCheckRequest:
       type: object
       additionalProperties: false
-      required: [boat_id, trip_template_id, starts_at, ends_at]
+      required: [boat_id, trip_template_id]
+      anyOf:
+        - required: [starts_at, ends_at]
+        - required: [slot_offering_id, service_date]
+        - required: [custom_slot_instance_id]
       properties:
         boat_id:
           $ref: '#/components/schemas/PositiveObjectId'
         trip_template_id:
           $ref: '#/components/schemas/PositiveObjectId'
+        slot_offering_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        custom_slot_instance_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        service_date:
+          type: string
+          format: date
+          description: Organization-local date required with a reusable slot offering.
         starts_at:
           type: string
           format: date-time
-          description: Business interval start in UTC.
+          description: Legacy business interval start. Ignored as an authority when a slot identity is supplied.
         ends_at:
           type: string
           format: date-time
-          description: Business interval end; interval semantics are half-open.
+          description: Legacy half-open business interval end. Ignored as an authority when a slot identity is supplied.
     CreateHoldRequest:
       type: object
       additionalProperties: false
-      required: [boat_id, trip_template_id, starts_at, ends_at, external_reference, expires_at]
+      required: [boat_id, trip_template_id, external_reference, expires_at]
+      anyOf:
+        - required: [starts_at, ends_at]
+        - required: [slot_offering_id, service_date]
+        - required: [custom_slot_instance_id]
       properties:
         boat_id:
           $ref: '#/components/schemas/PositiveObjectId'
         trip_template_id:
           $ref: '#/components/schemas/PositiveObjectId'
+        slot_offering_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        custom_slot_instance_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        service_date:
+          type: string
+          format: date
+          description: Organization-local date required with a reusable slot offering.
         starts_at:
           type: string
           format: date-time
+          description: Legacy interval start used only when no slot identity is supplied.
         ends_at:
           type: string
           format: date-time
-          description: Business interval end; interval semantics are half-open.
+          description: Legacy half-open interval end used only when no slot identity is supplied.
         external_reference:
           $ref: '#/components/schemas/ExternalReference'
         expires_at:
@@ -360,19 +390,32 @@ components:
     AmendBookingRequest:
       type: object
       additionalProperties: false
-      required: [boat_id, trip_template_id, starts_at, ends_at, external_reference]
+      required: [boat_id, trip_template_id, external_reference]
+      anyOf:
+        - required: [starts_at, ends_at]
+        - required: [slot_offering_id, service_date]
+        - required: [custom_slot_instance_id]
       properties:
         boat_id:
           $ref: '#/components/schemas/PositiveObjectId'
         trip_template_id:
           $ref: '#/components/schemas/PositiveObjectId'
+        slot_offering_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        custom_slot_instance_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        service_date:
+          type: string
+          format: date
+          description: Organization-local date required with a reusable slot offering.
         starts_at:
           type: string
           format: date-time
+          description: Legacy interval start used only when no slot identity is supplied.
         ends_at:
           type: string
           format: date-time
-          description: Business interval end; interval semantics are half-open.
+          description: Legacy half-open interval end used only when no slot identity is supplied.
         external_reference:
           $ref: '#/components/schemas/ExternalReference'
     ExternalReferenceRequest:
@@ -415,6 +458,21 @@ components:
           $ref: '#/components/schemas/PositiveObjectId'
         available:
           type: boolean
+        slot_offering_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        custom_slot_instance_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        slot_code:
+          type: string
+        service_date:
+          type: string
+          format: date
+        service_start:
+          type: string
+          format: date-time
+        service_end:
+          type: string
+          format: date-time
         occupied_start:
           type: string
           format: date-time
@@ -461,6 +519,27 @@ components:
           $ref: '#/components/schemas/PositiveObjectId'
         hold_id:
           $ref: '#/components/schemas/PositiveObjectId'
+        slot_offering_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        custom_slot_instance_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        slot_code:
+          type: string
+        service_date:
+          type: string
+          format: date
+        service_start:
+          type: string
+          format: date-time
+        service_end:
+          type: string
+          format: date-time
+        occupied_start:
+          type: string
+          format: date-time
+        occupied_end:
+          type: string
+          format: date-time
         external_reference:
           $ref: '#/components/schemas/ExternalReference'
         status:
@@ -507,6 +586,27 @@ components:
           $ref: '#/components/schemas/PositiveObjectId'
         trip_id:
           $ref: '#/components/schemas/PositiveObjectId'
+        slot_offering_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        custom_slot_instance_id:
+          $ref: '#/components/schemas/PositiveObjectId'
+        slot_code:
+          type: string
+        service_date:
+          type: string
+          format: date
+        service_start:
+          type: string
+          format: date-time
+        service_end:
+          type: string
+          format: date-time
+        occupied_start:
+          type: string
+          format: date-time
+        occupied_end:
+          type: string
+          format: date-time
         external_reference:
           $ref: '#/components/schemas/ExternalReference'
         status:
