@@ -1,53 +1,76 @@
 # BoatOps Review Queue
 
-Last updated: `2026-08-08 18:05 Asia/Bangkok`
+Last updated: `2026-08-08 18:37 Asia/Bangkok`
 
-Current decision: `NO_GO_MERGE_PENDING_CHATGPT_REVIEW`
+Current decision: `G0_CODE_REVIEW_APPROVED / OWNER_MERGE_AUTHORIZED`
 
-## Open blockers
+## Closed G0 blockers
 
-| ID | Priority | Status | Owner | Finding | Reproduction evidence | Acceptance |
-| --- | --- | --- | --- | --- | --- | --- |
-| G0-REV-001 | P0 | REMEDIATED_PENDING_CHATGPT_REVIEW | Hermes | Production-capable `DemoSiteSeeder` invoked an unscoped `SlotCatalogSeeder`. | `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca` scopes the Demo catalog and removes the default-chain bypass; production regression preserves unrelated offerings/rules byte-for-byte. | Demo seed changes only the exact fictional org; unrelated offerings and rules remain unchanged. |
-| G0-REV-002 | P0 | REMEDIATED_PENDING_CHATGPT_REVIEW | Hermes | `public_read_only` left the application API reachable with valid credentials. | `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca` closes `/api` and `/api/*` before auth and rejects actual non-GET methods; valid fictional Bearer matrix leaves API metadata and application rows unchanged. | `/api/*` is closed before auth in public mode; all non-GET writes are rejected; all tracked row counts and revisions remain unchanged. |
-| G0-REV-003 | P0 | REMEDIATED_PENDING_CHATGPT_REVIEW | Hermes | Database cache/session defaults made a public GET mutate the Demo SQLite database. | `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca` requires file cache/session, file limiter, and sync queue; WAL-mode file SQLite test compares artifact hash, row hash, and counts; unsafe drivers fail before SQL. | Approved public settings cannot write the app DB; GET leaves hash and relevant counts unchanged; unsafe settings fail closed. |
-| G0-REV-004 | P0 | REMEDIATED_PENDING_CHATGPT_REVIEW | Hermes | Public mode lacked an enforceable isolated-dataset/driver gate. | `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca` adds strict boolean defaults, explicit isolation, effective/nested `DB_URL` SQLite validation, production seed gating, and zero-query regressions. | Public serving and production seeding require explicit isolation flag plus SQLite for current D0; missing/mismatched configuration fails before DB access. |
+| ID | Priority | Status | Reviewer | Independent reproduction evidence | Acceptance result |
+| --- | --- | --- | --- | --- | --- |
+| G0-REV-001 | P0 | CLOSED | ChatGPT | Production Demo seed plus the default `DatabaseSeeder` chain left an unrelated organization's sentinel offerings and compatibility rule unchanged; unexpected writes `0`. | Exact fictional organization only: PASS. |
+| G0-REV-002 | P0 | CLOSED | ChatGPT | Valid fictional Bearer credential received `404` for the API before auth; `last_used_at`, HOLDs, and canonical database state remained unchanged. Non-GET non-API requests received `405`. | API closed and writes rejected before controllers: PASS. |
+| G0-REV-003 | P0 | CLOSED | ChatGPT | Approved file cache/session runtime returned `GET /demo = 200`; SQLite rows/artifacts, cache rows, session rows, and job rows were unchanged. Database-backed state drivers returned `404` with `0` SQL. | Public GET cannot mutate the application SQLite database: PASS. |
+| G0-REV-004 | P0 | CLOSED | ChatGPT | Missing/false isolation, PostgreSQL default, PostgreSQL `DB_URL`, database cache, database session, and database queue each returned `404` with `0` SQL queries. Invalid production seed gates also failed before SQL. | Explicit isolated SQLite contract enforced: PASS. |
 
-## Code pointers
+## Frozen review identities
 
-- `database/seeders/DatabaseSeeder.php:20`
-- `database/seeders/DemoSiteSeeder.php:22,68,99`
-- `database/seeders/SlotCatalogSeeder.php:8,15`
-- `app/Http/Middleware/RejectPublicDemoWrites.php:13`
-- `app/Http/Middleware/AuthenticateApiClient.php:36`
-- `app/Http/Middleware/ResolveDemoSiteContext.php:15,128`
-- `.env.example:8,42,50`
+| Identity | Commit / run | Status |
+| --- | --- | --- |
+| G0 remediation implementation | `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca` | REVIEWED |
+| G0 code baseline | `adaf4035d4b91a6bd872954113da177a61604c8f` | APPROVED / FROZEN |
+| Code-baseline CI | [Run 31254772199](https://github.com/soonshine/BoatOps/actions/runs/31254772199) | SUCCESS |
+| Main before alignment | `c920043950e80a0a60ca88a83e440fc3b9882b94` | VERIFIED |
+| Deployed Demo branch | `c10f3a2eb2769a2f30f346906131b3c07c95e111` | UNCHANGED |
+| Governance head | Dedicated `.project`-only child of `adaf4035...` | PENDING COMMIT / CI |
 
-## Verified passes
+## Independent verified passes
 
 | Area | Evidence | Result |
 | --- | --- | --- |
-| Branch identity | Remote `main=c9200439...`, Demo branch `c10f3a2...` | PASS |
-| Remediation commit | `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca`, parent `547198e3a2e9e4c058803f0f58529bc997fa2542` | PUSHED |
+| Exact code diff | `547198e3...adaf4035`; allowed G0 remediation, tests, documentation, and governance evidence only | PASS |
 | PHPUnit | 130 tests, 1,482 assertions | PASS |
+| Targeted Demo regression set | 38 tests, 520 assertions | PASS |
+| File-backed SQLite GET regression | 1 test, 10 assertions re-run on final code head | PASS |
 | Formatting | Pint | PASS |
 | Contracts | Inventory and Operations OpenAPI plus event fixtures | PASS |
 | Frontend | Vite production build | PASS |
-| PHP dependencies | strict Composer validation; Composer audit | PASS |
+| PHP dependencies | strict Composer validation; locked dependency audit | PASS, 0 advisories |
 | Node dependencies | npm audit | PASS, 0 vulnerabilities |
-| Git secret scan | 166 tracked files and 325 history objects | PASS, current/history 0 findings |
-| GitHub CI | [Run 31254144086](https://github.com/soonshine/BoatOps/actions/runs/31254144086) for `6e2b6efa...` | PASS |
-| Public HTTP | five approved GET paths | PASS, 200 |
-| Public Demo UI boundary | no POST form, password field, credential marker, or local marker | PASS |
+| SQLite lifecycle | fresh migration, rollback, remigration, integrity check | PASS |
+| Git secret scan | 166 tracked files and 358 history objects | PASS, current/history 0 findings |
+| GitHub CI | Exact `adaf4035...` head | PASS |
+| Public HTTP | `/up`, `/`, `/demo`, `/demo/calendar`, `/demo/slots` | PASS, 200 |
 | Public Demo POST boundary | `/demo/calendar`, `/demo/fuel` | PASS, 405 |
 
-## Evidence limitations
+## Scope and deployment findings
 
-- The public response does not expose a trustworthy release-commit identity; deployed commit `011cd81...` remains deployment-receipt evidence, not independently re-proven from runtime.
-- Physical SQLite isolation is documented in the deployment receipt but cannot be independently proven from outside the server.
-- ChatGPT must independently reproduce and review this remediation before any G0 merge decision; Hermes has not closed the gate.
-- No merge, deployment, Tag, or Release has been authorized during this review.
+- No Operator MVP, finance, stock, Google Sheet, ChannelHub, OTA, payment,
+  WordPress, deployment, Tag, Release, or real-data change is part of this
+  governance step.
+- The live Demo remains the earlier candidate. Its unauthenticated Inventory API
+  probe returned `401`, whereas the approved G0 source returns `404`; therefore
+  the G0 hardening has not been presented as deployed.
+- The public response does not expose a trustworthy release-commit identity.
+  Deployed commit `011cd81...` remains deployment-receipt evidence rather than
+  independently proven runtime identity.
+- Physical SQLite isolation is recorded by the deployment receipt but cannot be
+  proven from outside the server.
 
-## Review rule
+## Merge authorization and remaining controls
 
-When Hermes completes `G0_READ_ONLY_ISOLATION_HARDENING`, add its commit, exact test evidence, CI link, and remaining limitations here. Do not close any item based only on Hermes or Claude Code saying it is complete; ChatGPT must inspect and reproduce it.
+Owner authorization is granted only for a fast-forward alignment of the G0 code
+baseline plus its `.project`-only governance descendant into `main`, after exact
+governance-head CI success.
+
+Still prohibited:
+
+- deployment;
+- Tag or GitHub Release;
+- production/real data;
+- new business code;
+- changes to the live Demo;
+- widening the authorized merge range after the governance head is frozen.
+
+After the merge, ChatGPT must independently verify the new remote `main`, its
+ancestry and CI, then stop before any G1 implementation.

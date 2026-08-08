@@ -1,34 +1,40 @@
 schema_version: 1
 project: BoatOps
-updated_at: "2026-08-08T13:50:53+07:00"
+updated_at: "2026-08-08T18:37:55+07:00"
 
-phase: post-public-demo
+phase: g0-approved-pending-main-merge
 current_gate:
   id: G0_PROJECT_ALIGNMENT
-  status: BLOCKED_FOR_REMEDIATION
+  status: APPROVED_PENDING_MERGE
   objective: >-
-    Align governance and make the 0.0.7 development baseline safe before any
-    Operator MVP business work begins.
+    Align the independently reviewed G0 code baseline and its governance record
+    into main without deploying, tagging, releasing, or using real data.
 
 current_objective: >-
-  Preserve the isolated public Demo while closing the reviewed read-only and
-  data-isolation gaps, then decide whether 0.0.7 may become the new main baseline.
+  Preserve adaf4035d4b91a6bd872954113da177a61604c8f as the immutable G0 code
+  baseline, create a governance-only descendant, pass CI, and align main under
+  the Owner's exact merge authorization.
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
-  reviewed_branch: codex/boatops-v0.0.7-public-demo
-  reviewed_head: "c10f3a2eb2769a2f30f346906131b3c07c95e111"
-  governance_branch: codex/boatops-g0-project-alignment
-  governance_base: "c10f3a2eb2769a2f30f346906131b3c07c95e111"
-  implementation_commit: "011cd81c7fd7907086178db735dbebc28abe7b61"
-  main_commit: "c920043950e80a0a60ca88a83e440fc3b9882b94"
+  reviewed_branch: codex/boatops-g0-read-only-isolation-hardening
+  reviewed_head: "adaf4035d4b91a6bd872954113da177a61604c8f"
+  g0_code_baseline: "adaf4035d4b91a6bd872954113da177a61604c8f"
+  g0_remediation_commit: "6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca"
+  g0_test_stabilization_commit: "adaf4035d4b91a6bd872954113da177a61604c8f"
+  governance_branch: codex/boatops-g0-read-only-isolation-hardening
+  governance_parent: "adaf4035d4b91a6bd872954113da177a61604c8f"
+  governance_head_rule: >-
+    The dedicated descendant of governance_parent that changes only .project
+    files and records this approval state.
+  main_commit_before_alignment: "c920043950e80a0a60ca88a83e440fc3b9882b94"
   merge_base: "c920043950e80a0a60ca88a83e440fc3b9882b94"
   worktree_clean_at_review: true
 
 public_demo:
   url: "https://boatops.ayany.com/demo"
-  status: DEPLOYED_CANDIDATE
-  externally_checked_at: "2026-08-08T13:44:00+07:00"
+  status: DEPLOYED_CANDIDATE_NOT_G0_HARDENED
+  externally_checked_at: "2026-08-08T18:30:00+07:00"
   http_get:
     health: 200
     home: 200
@@ -36,13 +42,15 @@ public_demo:
     calendar: 200
     slots: 200
   demo_post_status: 405
+  unauthenticated_api_probe_status: 401
+  g0_hardening_deployed: false
   headers_verified:
     x_robots_tag: "noindex, nofollow, noarchive"
     cache_control_contains: no-store
   html_scan:
     post_forms: 0
     password_fields: 0
-    credential_markers: 0
+    exposed_credentials: 0
     local_only_markers: 0
   data_boundary:
     receipt_claim: dedicated_fictional_sqlite
@@ -71,40 +79,50 @@ p0_security:
   note: "Credential values and local cleanup receipts are intentionally not stored in Git."
 
 independent_review:
-  reviewed_range: "c920043950e80a0a60ca88a83e440fc3b9882b94..c10f3a2eb2769a2f30f346906131b3c07c95e111"
-  result: NO_GO_MERGE
+  reviewer: chatgpt
+  reviewed_range: "547198e3a2e9e4c058803f0f58529bc997fa2542..adaf4035d4b91a6bd872954113da177a61604c8f"
+  code_review_result: APPROVED
+  technical_merge_decision: GO
+  original_merge_decision_state: GO_PENDING_OWNER_AUTHORIZATION
+  owner_authorization:
+    status: GRANTED
+    authorized_at: "2026-08-08T18:37:55+07:00"
+    scope: >-
+      After a governance-only commit and successful CI, fast-forward the complete
+      G0 baseline to main; do not deploy, tag, release, or use real data.
   blockers:
-    - G0-REV-001
-    - G0-REV-002
-    - G0-REV-003
-    - G0-REV-004
+    G0-REV-001: CLOSED
+    G0-REV-002: CLOSED
+    G0-REV-003: CLOSED
+    G0-REV-004: CLOSED
+  independent_reproductions:
+    G0-REV-001: "PASS unrelated organization offerings/rules unchanged; unexpected writes 0"
+    G0-REV-002: "PASS valid fictional credential received 404 before auth; metadata and HOLDs unchanged"
+    G0-REV-003: "PASS public GET 200 with SQLite rows/artifacts unchanged; unsafe state drivers fail 404 before SQL"
+    G0-REV-004: "PASS missing/false isolation and non-SQLite configurations fail 404 with 0 SQL queries"
   local_quality:
-    phpunit: "PASS 121 tests / 1367 assertions"
+    phpunit: "PASS 130 tests / 1482 assertions"
+    targeted_regressions: "PASS 38 tests / 520 assertions"
     pint: PASS
     contracts: PASS
     production_build: PASS
     composer_validate_strict: PASS
     composer_audit: "PASS 0 advisories"
     npm_audit: "PASS 0 vulnerabilities"
-    tracked_and_history_secret_scan: "PASS 0 findings"
+    sqlite_migration_roundtrip: "PASS migrate fresh / rollback / remigrate / integrity_check=ok"
+    tracked_and_history_secret_scan: "PASS 166 tracked files / 358 history objects / 0 findings"
   github_ci:
-    head: "c10f3a2eb2769a2f30f346906131b3c07c95e111"
+    head: "adaf4035d4b91a6bd872954113da177a61604c8f"
     result: success
-    run: "https://github.com/soonshine/BoatOps/actions/runs/31243002377"
+    run: "https://github.com/soonshine/BoatOps/actions/runs/31254772199"
 
 priority:
-  - close G0 review blockers
-  - preserve public Demo behavior and isolation
-  - re-review 0.0.7 baseline
-  - operator calendar
-  - inquiry
-  - hold
-  - confirm
-  - amend
-  - cancel
-  - block
-
+  - create and validate the G0 governance-only commit
+  - align main with the approved G0 governance head
+  - independently verify the new remote main
+  - define G1 Operator MVP before any implementation resumes
 deferred:
+  - operator MVP implementation until G0 main verification is complete
   - finance completion
   - warehouse completion
   - google sheet migration
@@ -114,20 +132,25 @@ deferred:
   - formal open-source release
 
 executor:
-  primary: hermes
-  optional_builder: claude-code
+  governance_update: chatgpt
+  prior_remediation: hermes
 reviewer:
   primary: chatgpt
   milestone_secondary: codex
 
 authorizations:
-  merge_authorized: false
+  merge_authorized: true
+  merge_authorized_at: "2026-08-08T18:37:55+07:00"
+  merge_scope: "G0 code baseline plus governance-only descendant into main"
   deployment_authorized: false
   tag_authorized: false
   release_authorized: false
   production_data_authorized: false
 
 next_task:
-  id: G0_READ_ONLY_ISOLATION_HARDENING
-  owner: hermes
-  scope: "Fix only G0-REV-001 through G0-REV-004 and their regression tests."
+  id: G0_GOVERNANCE_CLOSE_AND_MAIN_ALIGNMENT
+  owner: chatgpt
+  scope: >-
+    Change only .project, pass governance-head CI, fast-forward the authorized
+    G0 baseline to main, and independently verify remote main.
+  excluded: "Business code, deployment, Tag, Release, and real-data operations."
