@@ -1,0 +1,1 @@
+@extends('operator.layout') @section('content')<h1>Inquiries</h1><a href="{{route('operator.inquiries.create')}}">New inquiry</a>@foreach($inquiries as $i)<div><a href="{{route('operator.inquiries.show',$i->id)}}">{{$i->reference}}</a> {{$i->status}}</div>@endforeach @endsection

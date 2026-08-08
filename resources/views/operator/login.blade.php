@@ -1,0 +1,1 @@
+@extends('operator.layout') @section('content')<h1>Operator login</h1><form method="post" action="{{route('operator.login.store')}}">@csrf<label>Email <input name="email" type="email"></label><label>Password <input name="password" type="password"></label><button>Login</button></form>@endsection

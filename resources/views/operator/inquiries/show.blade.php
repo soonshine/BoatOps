@@ -1,0 +1,1 @@
+@extends('operator.layout') @section('content')<h1>{{$inquiry->reference}}</h1><div>Status: {{$inquiry->status}}</div><div>Service date: {{$inquiry->service_date?:'Unselected'}}</div><div>Notes: {{$inquiry->notes?:'None'}}</div>@endsection

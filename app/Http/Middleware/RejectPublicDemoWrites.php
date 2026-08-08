@@ -22,6 +22,9 @@ final class RejectPublicDemoWrites
             if ($request->is('api', 'api/*')) {
                 abort(404);
             }
+            if ($request->getRealMethod() === 'GET' && $request->is('operator', 'operator/*')) {
+                abort(404);
+            }
             if ($request->getRealMethod() !== 'GET') {
                 abort(405, 'The public Demo accepts GET requests only.', ['Allow' => 'GET']);
             }
