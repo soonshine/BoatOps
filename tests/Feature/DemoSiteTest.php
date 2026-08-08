@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\DemoSiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -19,6 +20,7 @@ class DemoSiteTest extends TestCase
     protected function tearDown(): void
     {
         CarbonImmutable::setTestNow();
+        File::deleteDirectory($this->publicRuntimePath());
         putenv('BOATOPS_DEMO_TOKEN');
         parent::tearDown();
     }
@@ -39,12 +41,77 @@ class DemoSiteTest extends TestCase
         }
     }
 
+    public function test_public_read_only_fails_before_database_access_without_isolated_sqlite_contract(): void
+    {
+        $this->enableAndSeed();
+        $originalEnvironment = $this->app->environment();
+        $originalDemoConfig = config('demo_site');
+        $originalDatabaseDefault = config('database.default');
+        $originalSqliteUrl = config('database.connections.sqlite.url');
+        $originalCacheDefault = config('cache.default');
+        $originalSessionDriver = config('session.driver');
+        $originalQueueDefault = config('queue.default');
+        $queryCount = 0;
+        DB::listen(static function () use (&$queryCount): void {
+            $queryCount++;
+        });
+        $invalidCases = [
+            ['isolated' => null, 'database' => 'sqlite', 'url' => null],
+            ['isolated' => false, 'database' => 'sqlite', 'url' => null],
+            ['isolated' => true, 'database' => 'pgsql', 'url' => null],
+            ['isolated' => true, 'database' => 'sqlite', 'url' => 'pgsql://fictional.invalid/boatops'],
+            ['isolated' => true, 'database' => 'sqlite', 'url' => 'sqlite:///tmp/demo.sqlite?read%5Bdriver%5D=pgsql&write%5Bdriver%5D=pgsql'],
+        ];
+
+        try {
+            $this->app->detectEnvironment(fn (): string => 'production');
+            foreach ($invalidCases as $case) {
+                $queryCount = 0;
+                config([
+                    'demo_site' => $originalDemoConfig,
+                    'demo_site.enabled' => true,
+                    'demo_site.mode' => 'public_read_only',
+                    'database.default' => $case['database'],
+                    'database.connections.sqlite.url' => $case['url'],
+                    'cache.default' => 'file',
+                    'session.driver' => 'file',
+                    'queue.default' => 'sync',
+                ]);
+                if ($case['isolated'] === null) {
+                    $demoConfig = (array) config('demo_site');
+                    unset($demoConfig['isolated_dataset']);
+                    config(['demo_site' => $demoConfig]);
+                } else {
+                    config(['demo_site.isolated_dataset' => $case['isolated']]);
+                }
+
+                $this->get('/demo')->assertNotFound();
+                $this->assertSame(0, $queryCount, 'An invalid public Demo isolation contract must fail before every database query.');
+            }
+        } finally {
+            $this->app->detectEnvironment(fn (): string => $originalEnvironment);
+            config([
+                'demo_site' => $originalDemoConfig,
+                'database.default' => $originalDatabaseDefault,
+                'database.connections.sqlite.url' => $originalSqliteUrl,
+                'cache.default' => $originalCacheDefault,
+                'session.driver' => $originalSessionDriver,
+                'queue.default' => $originalQueueDefault,
+            ]);
+        }
+    }
+
     public function test_public_read_only_is_production_get_only_and_sets_public_headers(): void
     {
+        $this->configurePublicReadOnlyRuntime();
         config([
             'demo_site.enabled' => true,
             'demo_site.mode' => 'public_read_only',
+            'demo_site.isolated_dataset' => true,
             'demo_site.public_rate_limit_per_minute' => 2,
+            'cache.default' => 'file',
+            'session.driver' => 'file',
+            'queue.default' => 'sync',
         ]);
         putenv('BOATOPS_DEMO_TOKEN='.$this->token);
         $this->seed(DemoSiteSeeder::class);
@@ -58,9 +125,124 @@ class DemoSiteTest extends TestCase
             $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
             $this->get('/demo/slots')->assertOk();
             $this->get('/demo')->assertStatus(429);
-            $this->post('/demo/fuel', [])->assertStatus(405);
+            $this->post('/demo/fuel', [])->assertStatus(405)->assertHeader('Allow', 'GET');
         } finally {
             RateLimiter::clear($rateLimitKey);
+            $this->app->detectEnvironment(fn (): string => 'testing');
+        }
+    }
+
+    public function test_public_read_only_fails_before_database_access_with_stateful_database_runtime_drivers(): void
+    {
+        $this->enableAndSeed();
+        $originalEnvironment = $this->app->environment();
+        $originalConfig = [
+            'cache' => config('cache.default'),
+            'limiter' => config('cache.limiter'),
+            'session' => config('session.driver'),
+            'queue' => config('queue.default'),
+        ];
+        $queryCount = 0;
+        DB::listen(static function () use (&$queryCount): void {
+            $queryCount++;
+        });
+        $unsafeCases = [
+            ['cache' => 'database', 'limiter' => null, 'session' => 'file', 'queue' => 'sync'],
+            ['cache' => 'file', 'limiter' => 'database', 'session' => 'file', 'queue' => 'sync'],
+            ['cache' => 'file', 'limiter' => null, 'session' => 'database', 'queue' => 'sync'],
+            ['cache' => 'file', 'limiter' => null, 'session' => 'file', 'queue' => 'database'],
+        ];
+
+        try {
+            $this->app->detectEnvironment(fn (): string => 'production');
+            config([
+                'demo_site.mode' => 'public_read_only',
+                'demo_site.isolated_dataset' => true,
+            ]);
+            foreach ($unsafeCases as $case) {
+                config([
+                    'cache.default' => $case['cache'],
+                    'cache.limiter' => $case['limiter'],
+                    'session.driver' => $case['session'],
+                    'queue.default' => $case['queue'],
+                ]);
+                $queryCount = 0;
+
+                $this->get('/demo')->assertNotFound();
+                $this->assertSame(0, $queryCount, 'Unsafe public Demo state drivers must fail before every database query.');
+            }
+        } finally {
+            $this->app->detectEnvironment(fn (): string => $originalEnvironment);
+            config([
+                'cache.default' => $originalConfig['cache'],
+                'cache.limiter' => $originalConfig['limiter'],
+                'session.driver' => $originalConfig['session'],
+                'queue.default' => $originalConfig['queue'],
+            ]);
+        }
+    }
+
+    public function test_public_read_only_closes_every_api_method_before_valid_fictional_authentication(): void
+    {
+        $this->enableAndSeed();
+        config([
+            'demo_site.mode' => 'public_read_only',
+            'demo_site.isolated_dataset' => true,
+            'cache.default' => 'file',
+            'session.driver' => 'file',
+            'queue.default' => 'sync',
+        ]);
+        $this->app->detectEnvironment(fn (): string => 'production');
+
+        try {
+            $before = $this->applicationDatabaseState();
+            foreach ([
+                ['GET', '/api/v1/inventory/revision'],
+                ['POST', '/api/v1/holds'],
+                ['PUT', '/api/v1/holds'],
+                ['PATCH', '/api/v1/holds'],
+                ['DELETE', '/api/v1/holds'],
+                ['OPTIONS', '/api/v1/holds'],
+                ['HEAD', '/api/v1/holds'],
+            ] as [$method, $uri]) {
+                $this->call($method, $uri, [], [], [], [
+                    'HTTP_AUTHORIZATION' => 'Bearer '.$this->token,
+                ])->assertNotFound();
+            }
+            config(['demo_site.enabled' => false]);
+            $this->call('GET', '/api/v1/inventory/revision', [], [], [], [
+                'HTTP_AUTHORIZATION' => 'Bearer '.$this->token,
+            ])->assertNotFound();
+
+            $this->assertSame($before, $this->applicationDatabaseState());
+            foreach (['cache', 'sessions', 'jobs', 'job_batches', 'failed_jobs'] as $table) {
+                $this->assertDatabaseCount($table, 0);
+            }
+        } finally {
+            $this->app->detectEnvironment(fn (): string => 'testing');
+        }
+    }
+
+    public function test_public_read_only_rejects_every_remaining_non_get_request_before_routing(): void
+    {
+        $this->enableAndSeed();
+        config([
+            'demo_site.mode' => 'public_read_only',
+            'demo_site.isolated_dataset' => true,
+            'cache.default' => 'file',
+            'session.driver' => 'file',
+            'queue.default' => 'sync',
+        ]);
+        $this->app->detectEnvironment(fn (): string => 'production');
+
+        try {
+            $before = $this->applicationDatabaseState();
+            foreach (['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as $method) {
+                $this->call($method, '/unrouted-public-write')->assertStatus(405)->assertHeader('Allow', 'GET');
+            }
+            $this->call('POST', '/demo', ['_method' => 'GET'])->assertStatus(405)->assertHeader('Allow', 'GET');
+            $this->assertSame($before, $this->applicationDatabaseState());
+        } finally {
             $this->app->detectEnvironment(fn (): string => 'testing');
         }
     }
@@ -73,7 +255,14 @@ class DemoSiteTest extends TestCase
         $scopes = json_decode((string) DB::table('api_clients')->where('name', config('demo_site.public_reader_name'))->value('scopes'), true);
         $this->assertSame(['operations.finance.read', 'operations.schedule.read'], $scopes);
 
-        config(['demo_site.mode' => 'public_read_only']);
+        $this->configurePublicReadOnlyRuntime();
+        config([
+            'demo_site.mode' => 'public_read_only',
+            'demo_site.isolated_dataset' => true,
+            'cache.default' => 'file',
+            'session.driver' => 'file',
+            'queue.default' => 'sync',
+        ]);
         $this->app->detectEnvironment(fn (): string => 'production');
         try {
             DB::table('api_clients')->where('name', config('demo_site.public_reader_name'))->update([
@@ -470,6 +659,46 @@ class DemoSiteTest extends TestCase
         $this->assertDatabaseHas('fuel_logs', ['id' => $crossId, 'status' => 'POSTED']);
         $this->assertSame($snapshot, [DB::table('finance_reversals')->count(), DB::table('stock_movements')->count(),
             DB::table('audit_logs')->count(), DB::table('idempotency_keys')->count()]);
+    }
+
+    private function applicationDatabaseState(): string
+    {
+        $tables = collect(DB::select(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        ))->map(static fn (object $row): string => (string) $row->name);
+        $state = [];
+
+        foreach ($tables as $table) {
+            $quotedTable = '"'.str_replace('"', '""', $table).'"';
+            $state[$table] = array_map(
+                static fn (object $row): array => (array) $row,
+                DB::select("SELECT * FROM {$quotedTable} ORDER BY rowid"),
+            );
+        }
+
+        return json_encode($state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    }
+
+    private function configurePublicReadOnlyRuntime(): void
+    {
+        $path = $this->publicRuntimePath();
+        File::deleteDirectory($path);
+        File::ensureDirectoryExists($path.'/cache');
+        File::ensureDirectoryExists($path.'/sessions');
+        config([
+            'cache.default' => 'file',
+            'cache.limiter' => 'file',
+            'cache.stores.file.path' => $path.'/cache',
+            'cache.stores.file.lock_path' => $path.'/cache',
+            'session.driver' => 'file',
+            'session.files' => $path.'/sessions',
+            'queue.default' => 'sync',
+        ]);
+    }
+
+    private function publicRuntimePath(): string
+    {
+        return storage_path('framework/testing/demo-site-runtime-'.getmypid().'-'.spl_object_id($this));
     }
 
     private function fuelPayload(int $boatId, int $accountId, string $occurredAt, int $amountMinor): array

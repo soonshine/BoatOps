@@ -9,7 +9,9 @@ use App\Services\SlotCatalog\SlotIntervalResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\Request;
+use Illuminate\Support\ConfigurationUrlParser;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use RuntimeException;
 
 class DemoSiteSeeder extends Seeder
@@ -20,10 +22,12 @@ class DemoSiteSeeder extends Seeder
         $isExplicitPublicProductionSeed = app()->environment('production')
             && config('demo_site.enabled') === true
             && config('demo_site.mode') === 'public_read_only'
-            && config('demo_site.allow_production_seed') === true;
+            && config('demo_site.allow_production_seed') === true
+            && config('demo_site.isolated_dataset') === true
+            && $this->configuredDatabaseIsSqlite();
 
         if (! $isLocalSeed && ! $isExplicitPublicProductionSeed) {
-            throw new RuntimeException('DemoSiteSeeder is allowed only in local/testing, or in production with the enabled public_read_only demo and the one-time production seed flag.');
+            throw new RuntimeException('DemoSiteSeeder is allowed only in local/testing, or in production with the enabled public_read_only demo, the one-time production seed flag, an explicitly isolated dataset, and the approved SQLite driver.');
         }
         $token = getenv('BOATOPS_DEMO_TOKEN');
         if (! is_string($token) || strlen($token) < 24) {
@@ -64,7 +68,7 @@ class DemoSiteSeeder extends Seeder
                     'status' => 'ACTIVE', 'buffer_before_minutes' => 30, 'buffer_after_minutes' => 30,
                 ], $now);
             }
-            $this->call(SlotCatalogSeeder::class);
+            app(SlotCatalogSeeder::class)->runForOrganization($organizationId);
             $templateId = $this->upsertId('trip_templates', ['organization_id' => $organizationId, 'code' => 'DEMO-4H'], [
                 'name' => 'Fictional Four Hour Whole-Boat Charter', 'status' => 'ACTIVE',
             ], $now);
@@ -90,6 +94,44 @@ class DemoSiteSeeder extends Seeder
             $this->seedScheduleCatalog($organizationId, $actorId, $templateId, $boatIds, $start, $now);
             $this->openingStock($organizationId, $actorId, $itemId, $accountId, array_values($boatIds));
         }, 3);
+    }
+
+    private function configuredDatabaseIsSqlite(): bool
+    {
+        $connection = (string) config('database.default');
+        $configuration = config("database.connections.{$connection}");
+        if (! is_array($configuration)) {
+            return false;
+        }
+
+        try {
+            $configuration = (new ConfigurationUrlParser)->parseConfiguration($configuration);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+
+        foreach (['read', 'write', 'direct'] as $override) {
+            if (array_key_exists($override, $configuration) && ! is_array($configuration[$override])) {
+                return false;
+            }
+        }
+
+        return ($configuration['driver'] ?? null) === 'sqlite'
+            && $this->allConfiguredDriversAreSqlite($configuration);
+    }
+
+    private function allConfiguredDriversAreSqlite(array $configuration): bool
+    {
+        foreach ($configuration as $key => $value) {
+            if ($key === 'driver' && $value !== 'sqlite') {
+                return false;
+            }
+            if (is_array($value) && ! $this->allConfiguredDriversAreSqlite($value)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function upsertId(string $table, array $identity, array $values, mixed $now): int

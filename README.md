@@ -117,4 +117,4 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 
 本工作树提供基于 Laravel Blade 的 `/demo` 虚构演示站，展示同一虚构组织下的 Plan A（虚构演示船）与 Plan B（虚构演示船）两艘整船资源、7 天库存日历、五种预设和指定日期自定义档期、HOLD / CONFIRMED / BLOCK 投影，以及运营费用、燃油、库存和现金活动摘要。GET 模拟选择不会创建占位或改变库存；最终 HOLD/确认仍由 BoatOps 事务重新裁决。所有内容均为人工虚构演示，不连接 Google Sheet、真实客户、真实财务、ChannelHub、OTA 或 WordPress。
 
-入口默认 `disabled` 并 fail closed。`local_write` 只允许 `local/testing` 的虚构写入测试；`public_read_only` 只允许 `production` 的公开 GET，并要求专用只读 actor、写入口早期 405、`noindex/no-store` 和限流。浏览器不接收 Bearer Token 或 `BOATOPS_DEMO_TOKEN`。本地步骤见 `docs/demo-site-local.md`，公网只读候选边界见 `docs/demo-site-public-read-only.md`。
+入口默认 `disabled` 并 fail closed。`local_write` 只允许 `local/testing` 的虚构写入测试；`public_read_only` 只允许 `production` 的公开 GET，并要求显式独立数据集标志、有效 SQLite 驱动、`CACHE_STORE=file`（且任何 Laravel `cache.limiter` 覆盖也必须指向 file store）、`SESSION_DRIVER=file`、`QUEUE_CONNECTION=sync` 和专用只读 actor。该模式在认证前关闭全部 `/api/*`，在 controller 前拒绝其余非 GET 请求，并设置 `noindex/no-store` 与文件型限流。浏览器不接收 Bearer Token 或 `BOATOPS_DEMO_TOKEN`。本地步骤见 `docs/demo-site-local.md`，公网只读候选边界见 `docs/demo-site-public-read-only.md`。

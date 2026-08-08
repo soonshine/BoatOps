@@ -4,8 +4,10 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\ConfigurationUrlParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveDemoSiteContext
@@ -13,7 +15,7 @@ class ResolveDemoSiteContext
     public function handle(Request $request, Closure $next): Response
     {
         $mode = (string) config('demo_site.mode');
-        if (! config('demo_site.enabled') || ! in_array($mode, ['local_write', 'public_read_only'], true)) {
+        if (config('demo_site.enabled') !== true || ! in_array($mode, ['local_write', 'public_read_only'], true)) {
             abort(404);
         }
         if ($mode === 'local_write' && ! app()->environment(['local', 'testing'])) {
@@ -22,8 +24,14 @@ class ResolveDemoSiteContext
         if ($mode === 'public_read_only' && ! app()->environment('production')) {
             abort(404);
         }
-        if ($mode === 'public_read_only' && ! $request->isMethod('GET')) {
-            abort(405);
+        if ($mode === 'public_read_only' && ! $this->hasIsolatedSqliteContract()) {
+            abort(404);
+        }
+        if ($mode === 'public_read_only' && ! $this->hasApprovedReadOnlyStateDrivers()) {
+            abort(404);
+        }
+        if ($mode === 'public_read_only' && $request->getRealMethod() !== 'GET') {
+            abort(405, 'The public Demo accepts GET requests only.', ['Allow' => 'GET']);
         }
         if ($mode === 'public_read_only') {
             $key = 'boatops-demo-get:'.sha1((string) $request->ip());
@@ -76,5 +84,65 @@ class ResolveDemoSiteContext
         }
 
         return $response;
+    }
+
+    private function hasIsolatedSqliteContract(): bool
+    {
+        $connection = (string) config('database.default');
+
+        return config('demo_site.isolated_dataset') === true
+            && $this->configuredDatabaseIsSqlite($connection);
+    }
+
+    private function configuredDatabaseIsSqlite(string $connection): bool
+    {
+        $configuration = config("database.connections.{$connection}");
+        if (! is_array($configuration)) {
+            return false;
+        }
+
+        try {
+            $configuration = (new ConfigurationUrlParser)->parseConfiguration($configuration);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+
+        foreach (['read', 'write', 'direct'] as $override) {
+            if (array_key_exists($override, $configuration) && ! is_array($configuration[$override])) {
+                return false;
+            }
+        }
+
+        return ($configuration['driver'] ?? null) === 'sqlite'
+            && $this->allConfiguredDriversAreSqlite($configuration);
+    }
+
+    private function allConfiguredDriversAreSqlite(array $configuration): bool
+    {
+        foreach ($configuration as $key => $value) {
+            if ($key === 'driver' && $value !== 'sqlite') {
+                return false;
+            }
+            if (is_array($value) && ! $this->allConfiguredDriversAreSqlite($value)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function hasApprovedReadOnlyStateDrivers(): bool
+    {
+        $cache = (string) config('cache.default');
+        $limiter = (string) (config('cache.limiter') ?? $cache);
+        $queue = (string) config('queue.default');
+
+        return $cache === 'file'
+            && config("cache.stores.{$cache}.driver") === 'file'
+            && $limiter === 'file'
+            && config("cache.stores.{$limiter}.driver") === 'file'
+            && config('session.driver') === 'file'
+            && $queue === 'sync'
+            && config("queue.connections.{$queue}.driver") === 'sync';
     }
 }

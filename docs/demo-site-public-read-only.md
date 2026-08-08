@@ -1,23 +1,39 @@
 # BoatOps Demo Site: Public Read-Only Candidate
 
-Status: `DEPLOYED_CANDIDATE / PUBLIC_READ_ONLY / NOT_MERGED / NOT_TAGGED / NOT_RELEASED`
+Status: `DEPLOYED_CANDIDATE (011cd81) / G0_HARDENING_CANDIDATE_NOT_DEPLOYED / NOT_MERGED / NOT_TAGGED / NOT_RELEASED`
 
-This document describes the deployed Gate D0 public read-only candidate. Deployment does not make BoatOps the production inventory master and does not authorize real-data migration.
+This document describes the deployed Gate D0 public read-only candidate and the stricter G0 source-code hardening contract. The G0 hardening changes are not deployed. The earlier deployment does not make BoatOps the production inventory master and does not authorize real-data migration.
 
 ## Runtime modes
 
 - `disabled` (default): all `/demo` paths fail closed with 404.
 - `local_write`: local/testing only; fictional local write routes remain available for automated tests and development.
-- `public_read_only`: production only; only GET `/demo`, `/demo/calendar`, and `/demo/slots` are intended for public access.
+- `public_read_only`: production only, with an explicitly isolated SQLite dataset and approved file-backed runtime state; only GET `/demo`, `/demo/calendar`, and `/demo/slots` are intended for public access.
 
 Public mode requires the explicit enable flag and mode, the exact fictional organization and two fictional boats, and the dedicated `Public Demo Reader`. Its scopes are exactly:
 
 - `operations.finance.read`
 - `operations.schedule.read`
 
-It has no write scope. Demo POST routes are rejected before controller execution with 405. Responses include `X-Robots-Tag: noindex, nofollow, noarchive` and `Cache-Control: no-store`; GET requests are rate limited.
+It has no write scope. Every `/api/*` request is rejected with 404 before API authentication, so a valid fictional credential cannot update `api_clients.last_used_at`. Every remaining non-GET request is rejected before routing or controller execution with 405. Responses include `X-Robots-Tag: noindex, nofollow, noarchive` and `Cache-Control: no-store`; GET requests are rate limited through the file cache.
 
-The early method gate runs before the normal web CSRF middleware, so a public POST cannot be changed into a CSRF-dependent code path or reach a write controller. `disabled` remains fail-closed for every method.
+The global public-mode gate runs before the normal web session, CSRF, API authentication, and controller middleware. A public POST cannot be changed into a CSRF-dependent code path or reach a write controller. `disabled` remains fail-closed for every Demo method.
+
+## Isolated runtime contract
+
+G0 public serving fails closed before database access unless all of these settings are effective at runtime:
+
+1. `APP_ENV=production`
+2. `BOATOPS_DEMO_SITE_ENABLED=true`
+3. `BOATOPS_DEMO_SITE_MODE=public_read_only`
+4. `BOATOPS_DEMO_SITE_ISOLATED_DATASET=true`
+5. the effective database driver, including any `DB_URL` override, is `sqlite`
+6. `CACHE_STORE=file`
+7. any explicit Laravel `cache.limiter` override also resolves to the file store
+8. `SESSION_DRIVER=file`
+9. `QUEUE_CONNECTION=sync`
+
+The isolation flag defaults to false. It is an explicit assertion that the SQLite file contains only the dedicated fictional Demo dataset; it must never be enabled for a shared or real operations database. Database cache, database session, database queue, a non-SQLite connection, or a non-SQLite `DB_URL` override causes public mode to return 404 before any application-database query. Public GET requests may write file cache/session state but may not change the SQLite application database.
 
 ## Calendar simulation
 
@@ -31,18 +47,20 @@ No real customer, contact, hotel, price, contract, Google Sheet, ChannelHub, OTA
 
 ## One-time production seed gate
 
-Production does not permit demo seeding by default. The fictional dataset may be initialized only when all four conditions are true at the same time:
+Production does not permit demo seeding by default. The fictional dataset may be initialized only when all six conditions are true at the same time:
 
 1. `APP_ENV=production`
 2. `BOATOPS_DEMO_SITE_ENABLED=true`
 3. `BOATOPS_DEMO_SITE_MODE=public_read_only`
 4. `BOATOPS_DEMO_SITE_ALLOW_PRODUCTION_SEED=true`
+5. `BOATOPS_DEMO_SITE_ISOLATED_DATASET=true`
+6. the effective database driver, including any `DB_URL` override, is `sqlite`
 
 Set a private `BOATOPS_DEMO_TOKEN` of at least 24 characters, run only `php artisan db:seed --class=DemoSiteSeeder --force`, and then immediately return `BOATOPS_DEMO_SITE_ALLOW_PRODUCTION_SEED=false` before serving traffic. The token is hashed for internal demo actors and must never be sent to a browser. Re-running this dedicated seeder is idempotent for its named fictional records, but it is not a general production-data migration mechanism.
 
 ## Local acceptance evidence (2026-08-08)
 
-- PHPUnit: 121 tests / 1,367 assertions passed; Pint passed.
+- G0 hardening local full suite: 130 tests / 1,482 assertions passed; Pint passed.
 - Contract suite: 7 Inventory endpoints, 26 Operations path templates / 27 Operations, 9 event schemas, and 5 event fixtures passed.
 - Production frontend build, strict Composer validation, Composer audit, and npm audit passed; npm reported 0 vulnerabilities.
 - An isolated SQLite `migrate:fresh -> migrate:rollback -> migrate` round trip passed and the disposable database was removed.

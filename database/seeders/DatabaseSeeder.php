@@ -17,9 +17,6 @@ class DatabaseSeeder extends Seeder
             throw new RuntimeException('BOATOPS_DEMO_TOKEN must be set to at least 24 characters for fictional demo seeding.');
         }
 
-        $this->call([
-            DemoSiteSeeder::class,
-            SlotCatalogSeeder::class,
-        ]);
+        $this->call(DemoSiteSeeder::class);
     }
 }

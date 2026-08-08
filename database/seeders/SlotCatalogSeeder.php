@@ -9,6 +9,16 @@ class SlotCatalogSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->seedOrganizations(DB::table('organizations')->orderBy('id')->pluck('id'));
+    }
+
+    public function runForOrganization(int $organizationId): void
+    {
+        $this->seedOrganizations([$organizationId]);
+    }
+
+    private function seedOrganizations(iterable $organizationIds): void
+    {
         // These clock times are demonstration defaults only. They are not frozen
         // Ayany, Plan A, or Plan B operating rules.
         $presets = [
@@ -49,8 +59,8 @@ class SlotCatalogSeeder extends Seeder
             ],
         ];
 
-        DB::transaction(function () use ($presets): void {
-            foreach (DB::table('organizations')->orderBy('id')->pluck('id') as $organizationId) {
+        DB::transaction(function () use ($organizationIds, $presets): void {
+            foreach ($organizationIds as $organizationId) {
                 $slotIds = [];
                 $now = now()->utc();
 

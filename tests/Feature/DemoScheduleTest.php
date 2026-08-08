@@ -9,6 +9,7 @@ use Database\Seeders\DemoSiteSeeder;
 use Database\Seeders\SlotCatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class DemoScheduleTest extends TestCase
@@ -20,6 +21,7 @@ class DemoScheduleTest extends TestCase
     protected function tearDown(): void
     {
         CarbonImmutable::setTestNow();
+        File::deleteDirectory($this->publicRuntimePath());
         putenv('BOATOPS_DEMO_TOKEN');
         parent::tearDown();
     }
@@ -279,7 +281,14 @@ class DemoScheduleTest extends TestCase
     public function test_public_read_only_hides_all_write_ui_and_rejects_demo_posts(): void
     {
         $this->enableAndSeed();
-        config(['demo_site.mode' => 'public_read_only']);
+        $this->configurePublicReadOnlyRuntime();
+        config([
+            'demo_site.mode' => 'public_read_only',
+            'demo_site.isolated_dataset' => true,
+            'cache.default' => 'file',
+            'session.driver' => 'file',
+            'queue.default' => 'sync',
+        ]);
         $this->app->detectEnvironment(fn (): string => 'production');
         try {
             $snapshot = [
@@ -295,7 +304,7 @@ class DemoScheduleTest extends TestCase
                 $this->assertDoesNotMatchRegularExpression('/<form[^>]+method="post"/i', $html);
             }
             foreach (['/demo/slots/reusable', '/demo/slots/instances', '/demo/slots/compatibility', '/demo/fuel', '/demo/expenses', '/demo/stock', '/demo/reversals'] as $uri) {
-                $this->post($uri, [])->assertStatus(405);
+                $this->post($uri, [])->assertStatus(405)->assertHeader('Allow', 'GET');
             }
             $this->post('/demo/slots/1:activate', [])->assertStatus(405);
             $this->post('/demo/slots/1:retire', [])->assertStatus(405);
@@ -307,6 +316,28 @@ class DemoScheduleTest extends TestCase
         } finally {
             $this->app->detectEnvironment(fn (): string => 'testing');
         }
+    }
+
+    private function configurePublicReadOnlyRuntime(): void
+    {
+        $path = $this->publicRuntimePath();
+        File::deleteDirectory($path);
+        File::ensureDirectoryExists($path.'/cache');
+        File::ensureDirectoryExists($path.'/sessions');
+        config([
+            'cache.default' => 'file',
+            'cache.limiter' => 'file',
+            'cache.stores.file.path' => $path.'/cache',
+            'cache.stores.file.lock_path' => $path.'/cache',
+            'session.driver' => 'file',
+            'session.files' => $path.'/sessions',
+            'queue.default' => 'sync',
+        ]);
+    }
+
+    private function publicRuntimePath(): string
+    {
+        return storage_path('framework/testing/demo-schedule-runtime-'.getmypid().'-'.spl_object_id($this));
     }
 
     private function enableAndSeed(): void

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoSiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Env;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\TestCase;
@@ -12,28 +14,92 @@ class DemoSeederTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_env_example_uses_fail_closed_isolation_and_approved_read_only_state_drivers(): void
+    {
+        $environment = (string) file_get_contents(base_path('.env.example'));
+
+        $this->assertMatchesRegularExpression('/^BOATOPS_DEMO_SITE_ISOLATED_DATASET=false\r?$/m', $environment);
+        $this->assertMatchesRegularExpression('/^CACHE_STORE=file\r?$/m', $environment);
+        $this->assertMatchesRegularExpression('/^SESSION_DRIVER=file\r?$/m', $environment);
+        $this->assertMatchesRegularExpression('/^QUEUE_CONNECTION=sync\r?$/m', $environment);
+    }
+
+    public function test_isolated_dataset_flag_defaults_to_false(): void
+    {
+        $this->assertFalse(config('demo_site.isolated_dataset'));
+    }
+
+    public function test_demo_security_boolean_environment_values_fail_closed_unless_literal_true(): void
+    {
+        Env::enablePutenv();
+        $variables = [
+            'BOATOPS_DEMO_SITE_ENABLED' => 'enabled',
+            'BOATOPS_DEMO_SITE_ISOLATED_DATASET' => 'isolated_dataset',
+            'BOATOPS_DEMO_SITE_ALLOW_PRODUCTION_SEED' => 'allow_production_seed',
+        ];
+        $original = [];
+        foreach (array_keys($variables) as $variable) {
+            $original[$variable] = getenv($variable);
+        }
+
+        try {
+            foreach ($variables as $variable => $configKey) {
+                foreach (['true' => true, 'false' => false, 'no' => false, 'typo' => false] as $raw => $expected) {
+                    putenv($variable.'='.$raw);
+                    $demoConfig = require base_path('config/demo_site.php');
+                    $this->assertSame($expected, $demoConfig[$configKey], $variable.'='.$raw.' must not enable a fail-closed gate unexpectedly.');
+                }
+            }
+        } finally {
+            foreach ($original as $variable => $value) {
+                $value === false ? putenv($variable) : putenv($variable.'='.$value);
+            }
+        }
+    }
+
     public function test_production_demo_seeding_requires_every_explicit_public_seed_gate(): void
     {
         $originalEnvironment = $this->app->environment();
         $originalConfig = config('demo_site');
+        $originalDatabaseDefault = config('database.default');
+        $originalSqliteUrl = config('database.connections.sqlite.url');
         $token = 'fictional-production-seed-gate-test-token';
         putenv('BOATOPS_DEMO_TOKEN='.$token);
 
         $invalidCases = [
-            ['environment' => 'production', 'enabled' => false, 'mode' => 'public_read_only', 'allow' => true],
-            ['environment' => 'production', 'enabled' => true, 'mode' => 'disabled', 'allow' => true],
-            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => false],
-            ['environment' => 'staging', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true],
+            ['environment' => 'production', 'enabled' => false, 'mode' => 'public_read_only', 'allow' => true, 'isolated' => true, 'database' => 'sqlite', 'url' => null],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'disabled', 'allow' => true, 'isolated' => true, 'database' => 'sqlite', 'url' => null],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => false, 'isolated' => true, 'database' => 'sqlite', 'url' => null],
+            ['environment' => 'staging', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true, 'isolated' => true, 'database' => 'sqlite', 'url' => null],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true, 'isolated' => null, 'database' => 'sqlite', 'url' => null],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true, 'isolated' => false, 'database' => 'sqlite', 'url' => null],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true, 'isolated' => true, 'database' => 'pgsql', 'url' => null],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true, 'isolated' => true, 'database' => 'sqlite', 'url' => 'pgsql://fictional.invalid/boatops'],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true, 'isolated' => true, 'database' => 'sqlite', 'url' => 'sqlite:///tmp/demo.sqlite?read%5Bdriver%5D=pgsql&write%5Bdriver%5D=pgsql'],
         ];
+        $queryCount = 0;
+        DB::listen(static function () use (&$queryCount): void {
+            $queryCount++;
+        });
 
         try {
             foreach ($invalidCases as $case) {
+                $queryCount = 0;
                 $this->app->detectEnvironment(fn (): string => $case['environment']);
                 config([
                     'demo_site.enabled' => $case['enabled'],
                     'demo_site.mode' => $case['mode'],
                     'demo_site.allow_production_seed' => $case['allow'],
+                    'database.default' => $case['database'],
+                    'database.connections.sqlite.url' => $case['url'],
                 ]);
+                if ($case['isolated'] === null) {
+                    $demoConfig = (array) config('demo_site');
+                    unset($demoConfig['isolated_dataset']);
+                    config(['demo_site' => $demoConfig]);
+                } else {
+                    config(['demo_site.isolated_dataset' => $case['isolated']]);
+                }
 
                 try {
                     $this->runDemoSiteSeeder();
@@ -41,10 +107,13 @@ class DemoSeederTest extends TestCase
                 } catch (RuntimeException $exception) {
                     $this->assertStringContainsString('one-time production seed flag', $exception->getMessage());
                 }
+                $this->assertSame(0, $queryCount, 'An invalid production Demo seed gate must fail before every database query.');
             }
         } finally {
             $this->app->detectEnvironment(fn (): string => $originalEnvironment);
             config(['demo_site' => $originalConfig]);
+            config(['database.default' => $originalDatabaseDefault]);
+            config(['database.connections.sqlite.url' => $originalSqliteUrl]);
             putenv('BOATOPS_DEMO_TOKEN');
         }
 
@@ -64,6 +133,7 @@ class DemoSeederTest extends TestCase
                 'demo_site.enabled' => true,
                 'demo_site.mode' => 'public_read_only',
                 'demo_site.allow_production_seed' => true,
+                'demo_site.isolated_dataset' => true,
             ]);
 
             $this->runDemoSiteSeeder();
@@ -76,6 +146,97 @@ class DemoSeederTest extends TestCase
         $this->assertDatabaseHas('organizations', ['name' => 'Fictional Andaman Charter Lab']);
         $this->assertDatabaseHas('api_clients', ['name' => 'Public Demo Reader']);
         $this->assertDatabaseCount('boats', 2);
+    }
+
+    public function test_production_demo_seeding_does_not_modify_unrelated_organization_slot_catalog(): void
+    {
+        $unrelatedOrganizationId = DB::table('organizations')->insertGetId([
+            'name' => 'Unrelated Fictional Organization',
+            'timezone' => 'Asia/Bangkok',
+            'inventory_revision' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $firstSlotId = DB::table('slot_offerings')->insertGetId([
+            'organization_id' => $unrelatedOrganizationId,
+            'template_slot_offering_id' => null,
+            'kind' => 'CUSTOM',
+            'code' => 'UNRELATED_SENTINEL_AM',
+            'name' => 'Unrelated Sentinel Morning',
+            'status' => 'ACTIVE',
+            'operating_time_status' => 'FICTIONAL_VALIDATION_SCENARIO',
+            'service_date' => null,
+            'service_start_time' => '06:00:00',
+            'service_end_time' => '07:00:00',
+            'duration_minutes' => 60,
+            'additional_buffer_before_minutes' => 0,
+            'additional_buffer_after_minutes' => 0,
+            'valid_from' => null,
+            'valid_until' => null,
+            'applies_to_all_boats' => true,
+            'created_by_api_client_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $secondSlotId = DB::table('slot_offerings')->insertGetId([
+            'organization_id' => $unrelatedOrganizationId,
+            'template_slot_offering_id' => null,
+            'kind' => 'CUSTOM',
+            'code' => 'UNRELATED_SENTINEL_PM',
+            'name' => 'Unrelated Sentinel Afternoon',
+            'status' => 'ACTIVE',
+            'operating_time_status' => 'FICTIONAL_VALIDATION_SCENARIO',
+            'service_date' => null,
+            'service_start_time' => '16:00:00',
+            'service_end_time' => '17:00:00',
+            'duration_minutes' => 60,
+            'additional_buffer_before_minutes' => 0,
+            'additional_buffer_after_minutes' => 0,
+            'valid_from' => null,
+            'valid_until' => null,
+            'applies_to_all_boats' => true,
+            'created_by_api_client_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('slot_compatibility_rules')->insert([
+            'organization_id' => $unrelatedOrganizationId,
+            'first_slot_offering_id' => $firstSlotId,
+            'second_slot_offering_id' => $secondSlotId,
+            'pair_key' => $firstSlotId.':'.$secondSlotId,
+            'policy' => 'ALLOW',
+            'reason' => 'UNRELATED_SENTINEL_RULE',
+            'created_by_api_client_id' => null,
+            'updated_by_api_client_id' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $offeringsBefore = $this->organizationRows('slot_offerings', $unrelatedOrganizationId);
+        $rulesBefore = $this->organizationRows('slot_compatibility_rules', $unrelatedOrganizationId);
+        $originalEnvironment = $this->app->environment();
+        $originalConfig = config('demo_site');
+        putenv('BOATOPS_DEMO_TOKEN=fictional-production-isolation-token');
+
+        try {
+            $this->app->detectEnvironment(fn (): string => 'production');
+            config([
+                'demo_site.enabled' => true,
+                'demo_site.mode' => 'public_read_only',
+                'demo_site.allow_production_seed' => true,
+                'demo_site.isolated_dataset' => true,
+            ]);
+            $this->runDemoSiteSeeder();
+            $this->runSeeder(DatabaseSeeder::class);
+        } finally {
+            $this->app->detectEnvironment(fn (): string => $originalEnvironment);
+            config(['demo_site' => $originalConfig]);
+            putenv('BOATOPS_DEMO_TOKEN');
+        }
+
+        $this->assertSame($offeringsBefore, $this->organizationRows('slot_offerings', $unrelatedOrganizationId));
+        $this->assertSame($rulesBefore, $this->organizationRows('slot_compatibility_rules', $unrelatedOrganizationId));
+        $this->assertCount(2, DB::table('slot_offerings')->where('organization_id', $unrelatedOrganizationId)->get());
+        $this->assertCount(1, DB::table('slot_compatibility_rules')->where('organization_id', $unrelatedOrganizationId)->get());
     }
 
     public function test_demo_seeder_creates_idempotent_fictional_inventory_without_storing_plain_token(): void
@@ -161,9 +322,27 @@ class DemoSeederTest extends TestCase
         $this->assertSame(1, DB::table('audit_logs')->where('object_type', 'slot_compatibility_rule')->count());
     }
 
+    private function organizationRows(string $table, int $organizationId): string
+    {
+        return json_encode(
+            DB::table($table)
+                ->where('organization_id', $organizationId)
+                ->orderBy('id')
+                ->get()
+                ->map(static fn (object $row): array => (array) $row)
+                ->all(),
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
+        );
+    }
+
     private function runDemoSiteSeeder(): void
     {
-        $seeder = $this->app->make(DemoSiteSeeder::class);
+        $this->runSeeder(DemoSiteSeeder::class);
+    }
+
+    private function runSeeder(string $seederClass): void
+    {
+        $seeder = $this->app->make($seederClass);
         $seeder->setContainer($this->app);
         $seeder();
     }
