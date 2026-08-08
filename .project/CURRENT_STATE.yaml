@@ -1,19 +1,18 @@
 schema_version: 1
 project: BoatOps
-updated_at: "2026-08-08T18:37:55+07:00"
+updated_at: "2026-08-08T18:45:25+07:00"
 
-phase: g0-approved-pending-main-merge
+phase: post-g0-main-alignment
 current_gate:
   id: G0_PROJECT_ALIGNMENT
-  status: APPROVED_PENDING_MERGE
+  status: COMPLETE
   objective: >-
-    Align the independently reviewed G0 code baseline and its governance record
-    into main without deploying, tagging, releasing, or using real data.
+    Preserve the independently reviewed G0 baseline now aligned into main while
+    keeping deployment, Tag, Release, real data, and G1 implementation closed.
 
 current_objective: >-
-  Preserve adaf4035d4b91a6bd872954113da177a61604c8f as the immutable G0 code
-  baseline, create a governance-only descendant, pass CI, and align main under
-  the Owner's exact merge authorization.
+  Stop after verified main alignment. Define and authorize the next G1 gate
+  before any Operator MVP business implementation resumes.
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
@@ -24,9 +23,15 @@ repository:
   g0_test_stabilization_commit: "adaf4035d4b91a6bd872954113da177a61604c8f"
   governance_branch: codex/boatops-g0-read-only-isolation-hardening
   governance_parent: "adaf4035d4b91a6bd872954113da177a61604c8f"
-  governance_head_rule: >-
-    The dedicated descendant of governance_parent that changes only .project
-    files and records this approval state.
+  g0_approval_governance_head: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
+  main_alignment_commit: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
+  main_alignment_verified: true
+  main_alignment_ci:
+    result: success
+    run: "https://github.com/soonshine/BoatOps/actions/runs/31255606952"
+  governance_receipt_rule: >-
+    The commit containing this state is a .project-only post-merge receipt; it
+    does not alter the frozen G0 code or approval governance identities.
   main_commit_before_alignment: "c920043950e80a0a60ca88a83e440fc3b9882b94"
   merge_base: "c920043950e80a0a60ca88a83e440fc3b9882b94"
   worktree_clean_at_review: true
@@ -82,11 +87,13 @@ independent_review:
   reviewer: chatgpt
   reviewed_range: "547198e3a2e9e4c058803f0f58529bc997fa2542..adaf4035d4b91a6bd872954113da177a61604c8f"
   code_review_result: APPROVED
-  technical_merge_decision: GO
+  technical_merge_decision: EXECUTED_AND_VERIFIED
   original_merge_decision_state: GO_PENDING_OWNER_AUTHORIZATION
   owner_authorization:
-    status: GRANTED
+    status: CONSUMED
     authorized_at: "2026-08-08T18:37:55+07:00"
+    consumed_at: "2026-08-08T18:45:25+07:00"
+    merged_target: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
     scope: >-
       After a governance-only commit and successful CI, fast-forward the complete
       G0 baseline to main; do not deploy, tag, release, or use real data.
@@ -115,12 +122,24 @@ independent_review:
     head: "adaf4035d4b91a6bd872954113da177a61604c8f"
     result: success
     run: "https://github.com/soonshine/BoatOps/actions/runs/31254772199"
+  main_verification:
+    remote_main: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
+    code_baseline_is_ancestor: true
+    governance_only_paths:
+      - .project/CURRENT_GATE.md
+      - .project/CURRENT_STATE.yaml
+      - .project/REVIEW_QUEUE.md
+    main_ci_result: success
+    main_ci_run: "https://github.com/soonshine/BoatOps/actions/runs/31255606952"
+    tags: 0
+    releases: 0
+    deployments_for_main_sha: 0
+    live_demo_remained_earlier_candidate: true
 
 priority:
-  - create and validate the G0 governance-only commit
-  - align main with the approved G0 governance head
-  - independently verify the new remote main
-  - define G1 Operator MVP before any implementation resumes
+  - stop G0 work with no further code changes
+  - define G1 Operator MVP scope and acceptance before implementation
+  - preserve the public Demo as the earlier isolated candidate
 deferred:
   - operator MVP implementation until G0 main verification is complete
   - finance completion
@@ -139,18 +158,18 @@ reviewer:
   milestone_secondary: codex
 
 authorizations:
-  merge_authorized: true
-  merge_authorized_at: "2026-08-08T18:37:55+07:00"
-  merge_scope: "G0 code baseline plus governance-only descendant into main"
+  merge_authorized: false
+  prior_merge_authorization_consumed: true
+  consumed_merge_target: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
   deployment_authorized: false
   tag_authorized: false
   release_authorized: false
   production_data_authorized: false
 
 next_task:
-  id: G0_GOVERNANCE_CLOSE_AND_MAIN_ALIGNMENT
-  owner: chatgpt
+  id: WAIT_FOR_G1_DEFINITION_AND_OWNER_AUTHORIZATION
+  owner: owner
   scope: >-
-    Change only .project, pass governance-head CI, fast-forward the authorized
-    G0 baseline to main, and independently verify remote main.
-  excluded: "Business code, deployment, Tag, Release, and real-data operations."
+    Define the smallest Operator MVP gate, its business inputs, acceptance
+    criteria, executor, and new authorization before implementation.
+  excluded: "All implementation, deployment, Tag, Release, and real-data operations."

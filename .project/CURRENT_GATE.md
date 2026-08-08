@@ -1,12 +1,12 @@
 # Current Gate: G0 Project Alignment
 
-Status: `APPROVED_PENDING_MERGE`
+Status: `COMPLETE`
 
 Code review decision: `APPROVED`
 
-Technical merge decision: `GO`
+Technical merge decision: `EXECUTED_AND_VERIFIED`
 
-Owner merge authorization: `GRANTED_FOR_EXACT_G0_SCOPE`
+Owner merge authorization: `CONSUMED_FOR_EXACT_G0_SCOPE`
 
 Deployment decision: `NO_GO`
 
@@ -29,6 +29,9 @@ Operator MVP business implementation.
 - Remediation implementation: `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca`
 - Test-only stabilization: `adaf4035d4b91a6bd872954113da177a61604c8f`
 - Main before alignment: `c920043950e80a0a60ca88a83e440fc3b9882b94`
+- G0 approval governance head: `ead79da1a7cc39be0d18ac26d5388689b131fc13`
+- Verified main alignment commit: `ead79da1a7cc39be0d18ac26d5388689b131fc13`
+- Main CI: [GitHub Actions 31255606952](https://github.com/soonshine/BoatOps/actions/runs/31255606952), `success`
 - Deployed Demo branch: `c10f3a2eb2769a2f30f346906131b3c07c95e111`
 - Deployed Demo implementation receipt: `011cd81c7fd7907086178db735dbebc28abe7b61`
 - Reviewed code CI: [GitHub Actions 31254772199](https://github.com/soonshine/BoatOps/actions/runs/31254772199), `success`
@@ -93,18 +96,33 @@ This authorization does not include deployment, Tag, GitHub Release, real-data
 access/import, Google Sheet, ChannelHub, OTA, payment, WordPress, finance/stock
 expansion, or Operator MVP implementation.
 
-## Merge protocol
+The one-time authorization was consumed by fast-forwarding `main` from
+`c9200439...` to `ead79da1...`. It is no longer active for any later merge.
 
-1. Confirm the governance diff contains only `.project` files.
-2. Commit as `docs: close G0 remediation review` with parent `adaf4035...`.
-3. Push the remediation branch and wait for exact-head CI success.
-4. Reconfirm remote `main=c920043...` and a clean worktree.
-5. Fast-forward `main` to the governance head; do not rewrite history.
-6. Push `main`, wait for its CI, and independently verify the remote commit,
-   ancestry, changed paths, authorization boundaries, and live Demo separation.
+## Executed merge protocol
+
+1. Governance diff contained only three `.project` files: complete.
+2. Approval governance commit `ead79da1...` had parent `adaf4035...`: complete.
+3. Governance-head CI [31255555082](https://github.com/soonshine/BoatOps/actions/runs/31255555082): success.
+4. Remote `main=c9200439...` and clean worktree were reconfirmed: complete.
+5. `main` was fast-forwarded without rewriting history: complete.
+6. Remote `main=ead79da1...`, exact main CI, ancestry, scope, and live Demo
+   separation were independently verified: complete.
+
+## Main alignment receipt
+
+- `adaf4035...` is an ancestor of the verified main alignment commit.
+- `adaf4035...ead79da1` changes only `.project/CURRENT_GATE.md`,
+  `.project/CURRENT_STATE.yaml`, and `.project/REVIEW_QUEUE.md`.
+- Main CI job `Quality and contracts` concluded `success`.
+- Tags: `0`; GitHub Releases: `0`; deployments for `ead79da1...`: `0`.
+- Live `/up` and `/demo` remained `200`; live unauthenticated Inventory API
+  remained `401` and Demo POST remained `405`, consistent with the earlier
+  candidate and with no new deployment of the approved source.
+- Worktree was clean after push and verification.
 
 ## Gate boundary
 
-Until remote `main` is independently verified after the authorized merge:
+G0 is complete. No G1 implementation is authorized by this gate:
 
-`NO_BUSINESS_CHANGES / NOT_DEPLOYED / NOT_TAGGED / NOT_RELEASED / NO_REAL_DATA`
+`G0_COMPLETE / STOP_BEFORE_G1 / NOT_DEPLOYED / NOT_TAGGED / NOT_RELEASED / NO_REAL_DATA`

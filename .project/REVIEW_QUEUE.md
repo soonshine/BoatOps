@@ -1,8 +1,8 @@
 # BoatOps Review Queue
 
-Last updated: `2026-08-08 18:37 Asia/Bangkok`
+Last updated: `2026-08-08 18:45 Asia/Bangkok`
 
-Current decision: `G0_CODE_REVIEW_APPROVED / OWNER_MERGE_AUTHORIZED`
+Current decision: `G0_COMPLETE / MAIN_ALIGNED_AND_VERIFIED`
 
 ## Closed G0 blockers
 
@@ -22,7 +22,9 @@ Current decision: `G0_CODE_REVIEW_APPROVED / OWNER_MERGE_AUTHORIZED`
 | Code-baseline CI | [Run 31254772199](https://github.com/soonshine/BoatOps/actions/runs/31254772199) | SUCCESS |
 | Main before alignment | `c920043950e80a0a60ca88a83e440fc3b9882b94` | VERIFIED |
 | Deployed Demo branch | `c10f3a2eb2769a2f30f346906131b3c07c95e111` | UNCHANGED |
-| Governance head | Dedicated `.project`-only child of `adaf4035...` | PENDING COMMIT / CI |
+| G0 approval governance head | `ead79da1a7cc39be0d18ac26d5388689b131fc13` | APPROVED / CI SUCCESS |
+| Main alignment | `c9200439... -> ead79da1...` fast-forward | EXECUTED / VERIFIED |
+| Main CI | [Run 31255606952](https://github.com/soonshine/BoatOps/actions/runs/31255606952) | SUCCESS |
 
 ## Independent verified passes
 
@@ -57,11 +59,23 @@ Current decision: `G0_CODE_REVIEW_APPROVED / OWNER_MERGE_AUTHORIZED`
 - Physical SQLite isolation is recorded by the deployment receipt but cannot be
   proven from outside the server.
 
-## Merge authorization and remaining controls
+## Merge receipt and remaining controls
 
-Owner authorization is granted only for a fast-forward alignment of the G0 code
-baseline plus its `.project`-only governance descendant into `main`, after exact
-governance-head CI success.
+The one-time Owner authorization was consumed by the verified fast-forward to
+`ead79da1...`. `merge_authorized` is now false and cannot authorize any later
+change.
+
+Final verification:
+
+- remote `main` and the G0 approval governance branch both resolved to
+  `ead79da1...` at alignment verification time;
+- `adaf4035...` was an ancestor;
+- the approval governance range changed only three `.project` files;
+- exact main CI concluded success;
+- worktree was clean;
+- tags, releases, and deployments for the merged SHA were all zero;
+- live Demo behavior remained the earlier candidate and was not silently
+  switched to the G0 source.
 
 Still prohibited:
 
@@ -72,5 +86,5 @@ Still prohibited:
 - changes to the live Demo;
 - widening the authorized merge range after the governance head is frozen.
 
-After the merge, ChatGPT must independently verify the new remote `main`, its
-ancestry and CI, then stop before any G1 implementation.
+G0 is closed. Stop before any G1 implementation until a new gate and explicit
+Owner authorization exist.
