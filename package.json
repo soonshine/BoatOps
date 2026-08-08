@@ -1,19 +1,23 @@
 {
     "$schema": "https://www.schemastore.org/package.json",
+    "name": "boatops",
     "private": true,
     "type": "module",
     "scripts": {
         "build": "vite build",
         "dev": "vite",
         "test:contract:structure": "node tests/Contract/contract-structure.test.mjs",
-        "test:contract:openapi": "npx --yes @redocly/cli lint contracts/inventory-provider/v1/openapi.yaml",
-        "test:contract:operations": "npx --yes @redocly/cli lint contracts/operations/v1/openapi.yaml",
-        "test:contract:events": "npx --yes --package=ajv-cli --package=ajv-formats ajv validate --spec=draft2020 -c ajv-formats -s contracts/inventory-provider/v1/events/booking.confirmed.v1.schema.json -d contracts/inventory-provider/v1/examples/booking-confirmed.json && npx --yes --package=ajv-cli --package=ajv-formats ajv validate --spec=draft2020 -c ajv-formats -s contracts/inventory-provider/v1/events/hold.created.v1.schema.json -d contracts/inventory-provider/v1/examples/hold-created.json && npx --yes --package=ajv-cli --package=ajv-formats ajv validate --spec=draft2020 -c ajv-formats -s contracts/inventory-provider/v1/events/resource.blocked.v1.schema.json -d contracts/inventory-provider/v1/examples/resource-blocked.json && npx --yes --package=ajv-cli --package=ajv-formats ajv validate --spec=draft2020 -c ajv-formats -s contracts/inventory-provider/v1/events/resource.unblocked.v1.schema.json -d contracts/inventory-provider/v1/examples/resource-unblocked.json && npx --yes --package=ajv-cli --package=ajv-formats ajv validate --spec=draft2020 -c ajv-formats -s contracts/inventory-provider/v1/events/trip.completed.v1.schema.json -d contracts/inventory-provider/v1/examples/trip-completed.json",
+        "test:contract:openapi": "redocly lint contracts/inventory-provider/v1/openapi.yaml",
+        "test:contract:operations": "redocly lint contracts/operations/v1/openapi.yaml",
+        "test:contract:events": "node tests/Contract/validate-event-examples.mjs",
         "test:contract": "npm run test:contract:structure && npm run test:contract:openapi && npm run test:contract:operations && npm run test:contract:events",
         "test:load:holds": "node tests/load/hold-concurrency.mjs"
     },
     "devDependencies": {
+        "@redocly/cli": "2.46.0",
         "@tailwindcss/vite": "^4.0.0",
+        "ajv": "8.20.0",
+        "ajv-formats": "3.0.1",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^3.1",
         "tailwindcss": "^4.0.0",

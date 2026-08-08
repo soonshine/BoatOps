@@ -4,7 +4,7 @@ BoatOps Community 是一个可自托管的船务运营系统项目，面向中�
 
 > **当前状态：** `ALPHA_CANDIDATE / CANDIDATE_DEPLOYED / NOT_RELEASED`
 > 首个候选实例已部署到 `https://boatops.ayany.com`，但仍未完成全部验收门禁，也没有正式版本、Tag 或公开发行许可证。
-> `2026-08-04` 本地 `0.0.2 operations-finance` 是运营财务基础；当前工作树上的 `0.0.3 finance-reversals` 与 `0.0.4 cash-activity-local` 是本地候选。它们均为 `LOCAL_WORKTREE / NOT_DEPLOYED / NOT_RELEASED`，不能据此更新公网 `0.0.1 deployed alpha candidate` 状态。
+> 本地 `0.0.2 operations-finance`、`0.0.3 finance-reversals`、`0.0.4 cash-activity-local`、`0.0.5 slot-catalog` 与 `0.0.6 operator-calendar` 均为候选。它们都是 `LOCAL_WORKTREE / NOT_DEPLOYED / NOT_RELEASED`，不能据此更新公网 `0.0.1 deployed alpha candidate` 状态。
 
 ## 产品职责
 
@@ -63,6 +63,8 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 8. 本地 `0.0.2` 已加入付款账户、费用分类、燃油日志、费用明细、饮料/消耗品移动平均库存流水、出航成本和单船日成本查询；尚未部署。
 9. 本地 `0.0.3` 冲销候选已加入燃油、费用、库存冲销，`finance_reversals`、库存补偿、幂等/审计/组织隔离及 `/demo` 近期流水操作台；尚未部署或发布。
 10. 本地 `0.0.4` Gate B 在 `/demo` 为每个启用的虚构现金账户显示组织时区今日摘要和最近 7 个本地营业日（最多 200 条）的只读派生现金流水；页面通过既有 Operations controller 正式读方法读取，不提供手工现金记账或编辑。
+11. 本地 `0.0.5` 已加入组织级档期目录、五种演示预设、可复用与指定日期自定义档期、占用区间/缓冲和默认 fail-closed 的档期兼容规则；真实运营时间尚未冻结。
+12. 本地 `0.0.6` Gate B1 已加入 Schedule API、最多 31 天的库存日历投影以及 `/demo/calendar`、`/demo/slots` 运营页面；日历只做投影，HOLD/确认仍由 BoatOps 事务重新裁决。
 
 仍未闭环：
 
@@ -73,7 +75,7 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 - CSV/XLSX 导入导出及正式迁移流程；
 - 正式许可证、独立安全审查和第二运营商安装验证。
 
-已部署候选记录见 `docs/releases/0.0.1-deployed-alpha-candidate.md`；本地运营财务基础见 `docs/releases/0.0.2-operations-finance-local-candidate.md`；本地冲销候选见 `docs/releases/0.0.3-finance-reversals-local-candidate.md`；本地现金活动候选见 `docs/releases/0.0.4-cash-activity-local-candidate.md`。
+已部署候选记录见 `docs/releases/0.0.1-deployed-alpha-candidate.md`；后续本地候选依次见 `docs/releases/0.0.2-operations-finance-local-candidate.md`、`docs/releases/0.0.3-finance-reversals-local-candidate.md`、`docs/releases/0.0.4-cash-activity-local-candidate.md`、`docs/releases/0.0.5-slot-catalog-local-candidate.md` 与 `docs/releases/0.0.6-operator-calendar-local-candidate.md`。
 
 ## 非目标
 
@@ -95,12 +97,14 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 
 ## 下一步门禁
 
-1. 完成凭证文件、真实收付款/退款、现金日结、利润和审批后台；
-2. 使用脱敏真实样本冻结字段，执行 PostgreSQL 并发、备份恢复和金额/库存复算；
-3. 完成 Google Sheet dry-run、冲突清单和逐单对账；
-4. 再完成公网 UI/API QA、不可变归档、manifest、SHA-256 和回滚记录；
-5. 冻结许可证并加入正式 LICENSE/SPDX 边界，通过验收后再创建 Tag 或 GitHub Release；
-6. ChannelHub 暂停开发，等 BoatOps 闭环和 Inventory Provider 契约形成可引用版本后再启动。
+1. 完成 `0.0.6` Gate B1 的 CI、候选 PR 和独立审查；在明确批准前不合并、不部署；
+2. 开发运营端完整订单管理：询价、HOLD、确认、改期、取消、封船，以及与日历联动的确认单 HTML/PDF；
+3. 从运营资料冻结 Plan A / Plan B 的真实档期起止时间和周转缓冲，并执行 PostgreSQL 并发、备份恢复及库存复算；
+4. 完成凭证文件、真实收付款/退款、现金日结、利润和审批后台；
+5. 完成 Google Sheet dry-run、冲突清单和逐单对账；
+6. 再完成公网 UI/API QA、不可变归档、manifest、SHA-256 和回滚记录；
+7. 冻结许可证并加入正式 LICENSE/SPDX 边界，通过验收后再创建 Tag 或 GitHub Release；
+8. ChannelHub 暂停开发，等 BoatOps 闭环和 Inventory Provider 契约形成可引用版本后再启动。
 
 ## 安全与数据
 
@@ -111,6 +115,6 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 
 > **LOCAL_WORKTREE / NOT_DEPLOYED / NOT_RELEASED**
 
-本工作树提供基于 Laravel Blade 的 `/demo` 本地测试站，展示同一虚构组织下的 Plan A（虚构演示船）与 Plan B（虚构演示船）两艘整船资源、未来 7 天 `allocations` / `trips` 排期、运营费用、移动平均库存流水、近期燃油/费用/库存流水与行内冲销操作，以及按启用现金账户分组的今日现金摘要和最近 7 个本地营业日派生流水。现金区只读，不能手工记账或编辑。所有内容均为人工虚构演示，不连接 Google Sheet、生产库、真实客户或真实财务，也不对接 ChannelHub、OTA 或 WordPress。
+本工作树提供基于 Laravel Blade 的 `/demo` 本地测试站，展示同一虚构组织下的 Plan A（虚构演示船）与 Plan B（虚构演示船）两艘整船资源、未来 7 天 `allocations` / `trips` 排期、运营费用、移动平均库存流水、近期燃油/费用/库存流水与行内冲销操作，以及按启用现金账户分组的今日现金摘要和最近 7 个本地营业日派生流水。`/demo/calendar` 展示库存日历投影，`/demo/slots` 管理虚构档期目录与兼容规则；两页都明确标注演示时间未经运营冻结。现金区只读，不能手工记账或编辑。所有内容均为人工虚构演示，不连接 Google Sheet、生产库、真实客户或真实财务，也不对接 ChannelHub、OTA 或 WordPress。
 
 入口默认 fail closed；仅在 `BOATOPS_DEMO_SITE_ENABLED=true`、环境为 `local/testing` 且精确虚构组织和最小权限 actor 均存在时开放。浏览器不接收 Bearer Token 或 `BOATOPS_DEMO_TOKEN`。迁移、幂等 seed、启动和验证步骤见 `docs/demo-site-local.md`。
