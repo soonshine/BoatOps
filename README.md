@@ -65,7 +65,7 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 10. 本地 `0.0.4` Gate B 在 `/demo` 为每个启用的虚构现金账户显示组织时区今日摘要和最近 7 个本地营业日（最多 200 条）的只读派生现金流水；页面通过既有 Operations controller 正式读方法读取，不提供手工现金记账或编辑。
 11. 本地 `0.0.5` 已加入组织级档期目录、五种演示预设、可复用与指定日期自定义档期、占用区间/缓冲和默认 fail-closed 的档期兼容规则；真实运营时间尚未冻结。
 12. 本地 `0.0.6` Gate B1 已加入 Schedule API、最多 31 天的库存日历投影以及 `/demo/calendar`、`/demo/slots` 运营页面；日历只做投影，HOLD/确认仍由 BoatOps 事务重新裁决。
-13. 本地 `0.0.7` Gate D0 候选加入 `disabled / local_write / public_read_only` 三态门禁、专用只读 actor、公网写入口早期拒绝、无写入档期模拟和可解释冲突展示；尚未部署或发布。
+13. `0.0.7` Gate D0 候选加入 `disabled / local_write / public_read_only` 三态门禁、专用只读 actor、公网写入口早期拒绝、无写入档期模拟和可解释冲突展示；已于 2026-08-08 部署到 `https://boatops.ayany.com/demo` 并通过公网只读验收，但尚未合并、打 Tag 或正式发布。
 
 仍未闭环：
 
@@ -98,9 +98,9 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 
 ## 下一步门禁
 
-1. 完成 `0.0.7` Gate D0 的代码复核、GitHub CI 和只读安全证据；在明确批准前不合并；
-2. 使用隔离的纯虚构数据库把 Gate D0 候选部署到 `boatops.ayany.com/demo`，保留部署前版本和可验证回滚点；
-3. 完成公网桌面/手机视觉 QA、GET 限流、全部 Demo POST 不可写和无真实数据验收；
+1. `0.0.7` Gate D0 的代码复核、GitHub CI 和只读安全证据已完成；候选分支仍未合并；
+2. Gate D0 候选已使用隔离的纯虚构 SQLite 部署到 `boatops.ayany.com/demo`，部署前版本和可验证回滚点均已保留；
+3. 公网 HTTP、桌面浏览器、无写入 GET 模拟和同一发布制品的 390px 响应式验收已完成；GET 限流仍由应用门禁和自动化测试持续覆盖；
 4. Demo 验收后再开发运营端完整订单管理：询价、HOLD、确认、改期、取消、封船，以及与日历联动的确认单 HTML/PDF；
 5. 从运营资料冻结 Plan A / Plan B 的真实档期起止时间和周转缓冲，并执行 PostgreSQL 并发、备份恢复及库存复算；
 6. 再完成财务闭环、Google Sheet dry-run、许可证与正式发布门禁；

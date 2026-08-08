@@ -1,8 +1,8 @@
 # BoatOps Demo Site: Public Read-Only Candidate
 
-Status: `CANDIDATE / LOCAL_WORKTREE / NOT_DEPLOYED / NOT_RELEASED`
+Status: `DEPLOYED_CANDIDATE / PUBLIC_READ_ONLY / NOT_MERGED / NOT_TAGGED / NOT_RELEASED`
 
-This document describes the Gate D0 candidate only. It does not authorize deployment or claim that BoatOps is the production inventory master.
+This document describes the deployed Gate D0 public read-only candidate. Deployment does not make BoatOps the production inventory master and does not authorize real-data migration.
 
 ## Runtime modes
 
@@ -42,8 +42,6 @@ Set a private `BOATOPS_DEMO_TOKEN` of at least 24 characters, run only `php arti
 
 ## Local acceptance evidence (2026-08-08)
 
-This remains a local candidate and is not a deployment or release claim.
-
 - PHPUnit: 121 tests / 1,367 assertions passed; Pint passed.
 - Contract suite: 7 Inventory endpoints, 26 Operations path templates / 27 Operations, 9 event schemas, and 5 event fixtures passed.
 - Production frontend build, strict Composer validation, Composer audit, and npm audit passed; npm reported 0 vulnerabilities.
@@ -51,3 +49,23 @@ This remains a local candidate and is not a deployment or release claim.
 - A real `production + public_read_only` local HTTP run returned 200 for all three GET pages, `noindex/no-store` headers, and 405 for a Demo POST.
 - Browser QA passed at desktop and 390px widths for `/demo`, `/demo/calendar`, and `/demo/slots`: no horizontal overflow, no POST forms, no browser warnings/errors, and no password fields or browser credentials.
 - Clicking an available GET simulation changed no allocation, HOLD, booking, audit, cash, stock, or organization revision count. The selected boat showed the simulated choice and compatibility conflicts; the other boat projection remained unchanged.
+
+## Public deployment evidence (2026-08-08)
+
+The exact reviewed artifact was deployed to [https://boatops.ayany.com/demo](https://boatops.ayany.com/demo) with an isolated fictional SQLite database. It does not connect to the previous PostgreSQL dataset, Google Sheet, ChannelHub, OTA, WordPress, or real operations data.
+
+- Release ID: `20260808T054205Z`
+- Git commit: `011cd81c7fd7907086178db735dbebc28abe7b61`
+- Source tree SHA-256: `7ebe669cb39c0a529f106e6d60d637227a831c0b704fb4c4413f2841bcb81458`
+- Archive SHA-256: `140a1e6c56a05175af2524467f2099f274834232aa89785a62cec3e1f839c97a`
+- Rollback: the pre-deployment candidate remains intact and was proven by an automatic rollback before the successful switch.
+- Public HTTP: `/up`, `/`, `/demo`, `/demo/calendar`, and `/demo/slots` returned 200; a POST to `/demo/calendar` returned 405.
+- Response boundary: `noindex, nofollow, noarchive` and `no-store` were verified from outside the server; no public page contained a POST form, password field, browser credential, or `LOCAL ONLY` marker.
+- Data boundary: the `Public Demo Reader` retained exactly `operations.finance.read` and `operations.schedule.read`; the production seed flag remained false after the one-time fictional seed command.
+- Browser acceptance: all three public pages rendered correctly at desktop width with no horizontal overflow or console errors. The exact source artifact had already passed 390px QA before deployment.
+- Interaction acceptance: a real browser click on an available GET simulation rendered `SIMULATED_SELECTED` and the GET-preview notice; the SQLite SHA-256 remained unchanged before and after the click.
+- Runtime acceptance: Nginx configuration passed, PHP-FPM and the queue worker were active, and the worker resolved to the deployed release.
+
+The first switch attempt returned 500 during live acceptance because the privileged preview process had created file-cache entries with the wrong owner. The deployment guard automatically restored the previous candidate. Runtime ownership was corrected, the preview was repeated under the production web user, and the second atomic switch passed. No new application error was recorded during the final external GET and browser acceptance runs.
+
+This remains a candidate deployment. It is not merged to `main`, has no release Tag, has no formal open-source license grant, does not accept real bookings, and does not freeze the real Plan A / Plan B operating times.
