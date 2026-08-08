@@ -49,8 +49,46 @@ class HoldApplicationActionsTest extends TestCase
         $this->assertSame(1, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
     }
 
+    public function test_create_action_rejects_invalid_expired_and_equal_now_expiry_without_partial_writes(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Invalid Direct Expiry');
+        $action = app(CreateHoldAction::class);
+
+        foreach (['not-a-date', '2026-07-31T23:59:59Z', '2026-08-01T00:00:00Z'] as $index => $expiresAt) {
+            $input = $this->holdInput($boatId, $templateId, 'INVALID-EXPIRY-'.$index);
+            $input['expires_at'] = $expiresAt;
+
+            $result = $action->execute(
+                $organizationId,
+                $input,
+                'invalid-expiry-key-'.$index,
+                HoldActor::apiClient(82),
+            );
+
+            $this->assertSame(422, $result->status);
+            $this->assertFalse($result->changed);
+            $this->assertSame(
+                ['code', 'retryable', 'manual_action_required', 'message'],
+                array_keys(array_diff_key($result->payload, ['request_id' => true])),
+            );
+            $this->assertSame('VALIDATION_FAILED', $result->payload['code']);
+            $this->assertFalse($result->payload['retryable']);
+            $this->assertFalse($result->payload['manual_action_required']);
+            $this->assertSame('The request payload is invalid.', $result->payload['message']);
+        }
+
+        $this->assertDatabaseCount('holds', 0);
+        $this->assertDatabaseCount('allocations', 0);
+        $this->assertDatabaseCount('idempotency_keys', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
+        $this->assertDatabaseCount('outbox_events', 0);
+        $this->assertSame(0, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+    }
+
     public function test_create_action_rejects_foreign_resources_without_disclosure_or_partial_writes(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
         [$organizationA] = $this->inventory('Fictional Scope A');
         [, $foreignBoat, $foreignTemplate] = $this->inventory('Fictional Scope B');
 
@@ -74,6 +112,7 @@ class HoldApplicationActionsTest extends TestCase
 
     public function test_create_action_normalizes_unavailable_overlap_without_partial_writes(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
         [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Direct Overlap');
         DB::table('allocations')->insert([
             'organization_id' => $organizationId,
@@ -183,6 +222,41 @@ class HoldApplicationActionsTest extends TestCase
         ]);
         $this->assertSame(1, DB::table('outbox_events')->where('event_type', 'hold.expired.v1')->count());
         $this->assertSame(2, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+    }
+
+    public function test_expiry_coordinator_drains_successive_batches_in_one_execute_call(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Batched Expiry');
+        $holdIds = [];
+
+        foreach ([0, 1, 2] as $index) {
+            $input = $this->holdInput($boatId, $templateId, 'BATCHED-EXPIRY-'.$index);
+            $input['starts_at'] = sprintf('2026-09-01T%02d:00:00Z', 10 + ($index * 3));
+            $input['ends_at'] = sprintf('2026-09-01T%02d:00:00Z', 12 + ($index * 3));
+            $input['expires_at'] = '2026-08-01T00:05:00Z';
+            $created = app(CreateHoldAction::class)->execute(
+                $organizationId,
+                $input,
+                'batched-expiry-create-'.$index,
+                HoldActor::apiClient(88),
+            );
+            $this->assertSame(201, $created->status);
+            $holdIds[] = (int) $created->payload['hold_id'];
+        }
+
+        $expiredCount = app(ExpireDueHolds::class)->execute(
+            CarbonImmutable::parse('2026-08-01T00:06:00Z'),
+            2,
+        );
+
+        $this->assertSame(3, $expiredCount);
+        $this->assertSame(3, DB::table('holds')->whereIn('id', $holdIds)->where('status', 'EXPIRED')->count());
+        $this->assertSame(3, DB::table('allocations')->whereIn('hold_id', $holdIds)->where('status', 'EXPIRED')->count());
+        $this->assertSame(3, DB::table('audit_logs')->where('action', 'hold.expired')->whereIn('object_id', $holdIds)->count());
+        $this->assertSame(3, DB::table('outbox_events')->where('event_type', 'hold.expired.v1')->whereIn('aggregate_id', $holdIds)->count());
+        $this->assertSame([4, 5, 6], DB::table('outbox_events')->where('event_type', 'hold.expired.v1')->orderBy('inventory_revision')->pluck('inventory_revision')->map(fn ($revision): int => (int) $revision)->all());
+        $this->assertSame(6, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
     }
 
     public function test_api_create_and_release_adapters_translate_shared_action_results(): void

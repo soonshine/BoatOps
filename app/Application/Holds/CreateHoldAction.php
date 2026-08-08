@@ -19,6 +19,19 @@ class CreateHoldAction
     /** @param array<string, mixed> $input */
     public function execute(int $organizationId, array $input, string $idempotencyKey, HoldActor $actor): HoldActionResult
     {
+        $actionNow = CarbonImmutable::now('UTC');
+        try {
+            if (! isset($input['expires_at']) || ! is_string($input['expires_at'])) {
+                throw new \InvalidArgumentException;
+            }
+            $expiresAt = CarbonImmutable::parse($input['expires_at'], 'UTC')->utc();
+        } catch (\Throwable) {
+            return $this->error('VALIDATION_FAILED', 'The request payload is invalid.', 422);
+        }
+        if (! $expiresAt->greaterThan($actionNow)) {
+            return $this->error('VALIDATION_FAILED', 'The request payload is invalid.', 422);
+        }
+
         $operation = 'createHold';
         $requestHash = $this->canonicalHash($input);
         $existing = $this->replay($organizationId, $operation, $idempotencyKey, $requestHash);
@@ -37,8 +50,6 @@ class CreateHoldAction
         } catch (SlotCatalogException $exception) {
             return $this->error($exception->errorCode, $exception->getMessage(), $exception->httpStatus, $exception->manualActionRequired);
         }
-        $expiresAt = CarbonImmutable::parse($input['expires_at'])->utc();
-
         try {
             return DB::transaction(function () use ($organization, $input, $idempotencyKey, $actor, $operation, $requestHash, $slot, $expiresAt): HoldActionResult {
                 DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
