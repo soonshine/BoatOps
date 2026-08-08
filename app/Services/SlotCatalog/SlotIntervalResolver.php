@@ -12,11 +12,16 @@ final class SlotIntervalResolver
 {
     /**
      * Resolve either a server-owned slot identity or the legacy caller-owned interval.
+     * Operational blocks disable boat buffers to preserve their established occupied interval.
      *
      * @param  array<string, mixed>  $input
      */
-    public function resolve(object $organization, object $boat, array $input): ResolvedSlot
-    {
+    public function resolve(
+        object $organization,
+        object $boat,
+        array $input,
+        bool $applyBoatBuffers = true,
+    ): ResolvedSlot {
         $slotOfferingId = isset($input['slot_offering_id']) ? (int) $input['slot_offering_id'] : null;
         $customSlotInstanceId = isset($input['custom_slot_instance_id'])
             ? (int) $input['custom_slot_instance_id']
@@ -31,7 +36,7 @@ final class SlotIntervalResolver
         }
 
         if ($slotOfferingId === null && $customSlotInstanceId === null) {
-            return $this->resolveLegacyInterval($organization, $boat, $input);
+            return $this->resolveLegacyInterval($organization, $boat, $input, $applyBoatBuffers);
         }
 
         $entryId = $customSlotInstanceId ?? $slotOfferingId;
@@ -150,8 +155,12 @@ final class SlotIntervalResolver
     /**
      * @param  array<string, mixed>  $input
      */
-    private function resolveLegacyInterval(object $organization, object $boat, array $input): ResolvedSlot
-    {
+    private function resolveLegacyInterval(
+        object $organization,
+        object $boat,
+        array $input,
+        bool $applyBoatBuffers,
+    ): ResolvedSlot {
         if (! isset($input['starts_at'], $input['ends_at'])) {
             throw new SlotCatalogException(
                 'VALIDATION_FAILED',
@@ -174,8 +183,12 @@ final class SlotIntervalResolver
         return new ResolvedSlot(
             serviceStart: $serviceStart,
             serviceEnd: $serviceEnd,
-            occupiedStart: $serviceStart->subMinutes((int) $boat->buffer_before_minutes),
-            occupiedEnd: $serviceEnd->addMinutes((int) $boat->buffer_after_minutes),
+            occupiedStart: $applyBoatBuffers
+                ? $serviceStart->subMinutes((int) $boat->buffer_before_minutes)
+                : $serviceStart,
+            occupiedEnd: $applyBoatBuffers
+                ? $serviceEnd->addMinutes((int) $boat->buffer_after_minutes)
+                : $serviceEnd,
             serviceDate: $serviceDate,
             slotOfferingId: null,
             customSlotInstanceId: null,

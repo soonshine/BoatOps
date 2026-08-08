@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\Internal\V1;
 
+use App\Application\Blocks\CreateBlockAction;
+use App\Application\Blocks\ReleaseBlockAction;
+use App\Application\Holds\HoldActor;
 use App\Http\Controllers\Controller;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +14,11 @@ use Illuminate\Support\Str;
 
 class OperationsCommandController extends Controller
 {
+    public function __construct(
+        private readonly CreateBlockAction $createBlockAction,
+        private readonly ReleaseBlockAction $releaseBlockAction,
+    ) {}
+
     public function createBlock(Request $request): JsonResponse
     {
         if (! in_array('operations.write', $request->attributes->get('api_client_scopes', []), true)) {
@@ -33,156 +40,14 @@ class OperationsCommandController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
         $organization = $request->attributes->get('organization');
-        $operation = 'createBlock';
-        $requestHash = hash('sha256', json_encode($this->canonicalize($input), JSON_THROW_ON_ERROR));
-        $businessStart = CarbonImmutable::parse($input['starts_at'])->utc();
-        $businessEnd = CarbonImmutable::parse($input['ends_at'])->utc();
+        $result = $this->createBlockAction->execute(
+            (int) $organization->id,
+            $input,
+            $idempotencyKey,
+            HoldActor::apiClient((int) $request->attributes->get('api_client_id')),
+        );
 
-        try {
-            return DB::transaction(function () use ($request, $organization, $input, $idempotencyKey, $operation, $requestHash, $businessStart, $businessEnd): JsonResponse {
-                DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
-                $replayed = $this->replayIdempotency($organization->id, $operation, $idempotencyKey, $requestHash);
-
-                if ($replayed) {
-                    return $replayed;
-                }
-
-                $boatExists = DB::table('boats')
-                    ->where('organization_id', $organization->id)
-                    ->where('status', 'ACTIVE')
-                    ->where('id', $input['boat_id'])
-                    ->exists();
-
-                if (! $boatExists) {
-                    return $this->error('AUTHORIZATION_FAILED', 'The requested inventory resource is not accessible.', 403);
-                }
-
-                if (DB::table('blocks')->where('organization_id', $organization->id)->where('external_reference', $input['external_reference'])->exists()) {
-                    return $this->error('DUPLICATE_EXTERNAL_REFERENCE', 'The external reference already exists.', 409, true);
-                }
-
-                $overlapExists = DB::table('allocations')
-                    ->where('organization_id', $organization->id)
-                    ->where('boat_id', $input['boat_id'])
-                    ->where('status', 'ACTIVE')
-                    ->where('occupied_start', '<', $businessEnd)
-                    ->where('occupied_end', '>', $businessStart)
-                    ->lockForUpdate()
-                    ->exists();
-
-                if ($overlapExists) {
-                    return $this->error('SLOT_UNAVAILABLE', 'The requested slot is unavailable.', 409);
-                }
-
-                $now = now()->utc();
-                $blockId = DB::table('blocks')->insertGetId([
-                    'organization_id' => $organization->id,
-                    'boat_id' => $input['boat_id'],
-                    'external_reference' => $input['external_reference'],
-                    'status' => 'ACTIVE',
-                    'reason_code' => $input['reason_code'],
-                    'reason' => $input['reason'] ?? null,
-                    'business_start' => $businessStart,
-                    'business_end' => $businessEnd,
-                    'occupied_start' => $businessStart,
-                    'occupied_end' => $businessEnd,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                $allocationId = DB::table('allocations')->insertGetId([
-                    'organization_id' => $organization->id,
-                    'boat_id' => $input['boat_id'],
-                    'allocation_type' => 'BLOCKED',
-                    'status' => 'ACTIVE',
-                    'business_start' => $businessStart,
-                    'business_end' => $businessEnd,
-                    'occupied_start' => $businessStart,
-                    'occupied_end' => $businessEnd,
-                    'block_id' => $blockId,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                DB::table('blocks')->where('id', $blockId)->update(['allocation_id' => $allocationId]);
-                DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
-                $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
-                $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
-                $payload = [
-                    'request_id' => (string) Str::uuid(),
-                    'idempotency_key' => $idempotencyKey,
-                    'organization_id' => $organization->id,
-                    'block_id' => $blockId,
-                    'external_reference' => $input['external_reference'],
-                    'status' => 'ACTIVE',
-                    'code' => 'RESOURCE_BLOCKED',
-                    'inventory_revision' => $revision,
-                    'occurred_at' => $occurredAt,
-                    'business_timezone' => $organization->timezone,
-                ];
-                $eventPayload = [
-                    'event_id' => (string) Str::uuid(),
-                    'event_type' => 'resource.blocked.v1',
-                    'event_version' => 1,
-                    'occurred_at' => $occurredAt,
-                    'organization_id' => $organization->id,
-                    'aggregate_type' => 'block',
-                    'aggregate_id' => $blockId,
-                    'boat_id' => $input['boat_id'],
-                    'inventory_revision' => $revision,
-                    'external_reference' => $input['external_reference'],
-                    'status' => 'ACTIVE',
-                    'occupied_start' => $businessStart->format('Y-m-d\TH:i:s\Z'),
-                    'occupied_end' => $businessEnd->format('Y-m-d\TH:i:s\Z'),
-                ];
-                DB::table('outbox_events')->insert([
-                    'event_id' => $eventPayload['event_id'],
-                    'organization_id' => $organization->id,
-                    'event_type' => $eventPayload['event_type'],
-                    'aggregate_type' => 'block',
-                    'aggregate_id' => $blockId,
-                    'inventory_revision' => $revision,
-                    'payload' => json_encode($eventPayload, JSON_THROW_ON_ERROR),
-                    'occurred_at' => $now,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                DB::table('audit_logs')->insert([
-                    'organization_id' => $organization->id,
-                    'actor_type' => 'api_client',
-                    'actor_id' => $request->attributes->get('api_client_id'),
-                    'action' => 'resource.blocked',
-                    'object_type' => 'block',
-                    'object_id' => $blockId,
-                    'after_values' => json_encode([
-                        'status' => 'ACTIVE',
-                        'boat_id' => $input['boat_id'],
-                        'reason_code' => $input['reason_code'],
-                        'reason' => $input['reason'] ?? null,
-                        'business_start' => $businessStart->format('Y-m-d\TH:i:s\Z'),
-                        'business_end' => $businessEnd->format('Y-m-d\TH:i:s\Z'),
-                    ], JSON_THROW_ON_ERROR),
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                DB::table('idempotency_keys')->insert([
-                    'organization_id' => $organization->id,
-                    'operation' => $operation,
-                    'idempotency_key' => $idempotencyKey,
-                    'request_hash' => $requestHash,
-                    'response_status' => 201,
-                    'response_body' => json_encode($payload, JSON_THROW_ON_ERROR),
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-
-                return response()->json($payload, 201);
-            }, 3);
-        } catch (QueryException $exception) {
-            if (str_contains(strtolower($exception->getMessage()), 'allocations_no_active_overlap')) {
-                return $this->error('SLOT_UNAVAILABLE', 'The requested slot is unavailable.', 409);
-            }
-
-            throw $exception;
-        }
+        return response()->json($result->payload, $result->status);
     }
 
     public function prepareTrip(Request $request, int $id): JsonResponse
@@ -644,111 +509,15 @@ class OperationsCommandController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
         $organization = $request->attributes->get('organization');
-        $operation = 'releaseBlock:'.$id;
-        $requestHash = hash('sha256', json_encode($this->canonicalize($input), JSON_THROW_ON_ERROR));
+        $result = $this->releaseBlockAction->execute(
+            (int) $organization->id,
+            $id,
+            $input,
+            $idempotencyKey,
+            HoldActor::apiClient((int) $request->attributes->get('api_client_id')),
+        );
 
-        return DB::transaction(function () use ($request, $organization, $id, $input, $idempotencyKey, $operation, $requestHash): JsonResponse {
-            DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
-            $replayed = $this->replayIdempotency($organization->id, $operation, $idempotencyKey, $requestHash);
-
-            if ($replayed) {
-                return $replayed;
-            }
-
-            $block = DB::table('blocks')
-                ->where('organization_id', $organization->id)
-                ->where('id', $id)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $block) {
-                return $this->error('AUTHORIZATION_FAILED', 'The requested block is not accessible.', 403);
-            }
-
-            if (! hash_equals($block->external_reference, $input['external_reference'])) {
-                return $this->error('VALIDATION_FAILED', 'The external reference does not match the block.', 422);
-            }
-
-            if ($block->status !== 'ACTIVE') {
-                return $this->error('INVALID_TRANSITION', 'Only an active block can be released.', 409);
-            }
-
-            $now = now()->utc();
-            DB::table('blocks')->where('id', $block->id)->update([
-                'status' => 'RELEASED',
-                'released_at' => $now,
-                'updated_at' => $now,
-            ]);
-            DB::table('allocations')->where('block_id', $block->id)->where('status', 'ACTIVE')->update([
-                'status' => 'RELEASED',
-                'updated_at' => $now,
-            ]);
-            DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
-            $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
-            $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
-            $payload = [
-                'request_id' => (string) Str::uuid(),
-                'idempotency_key' => $idempotencyKey,
-                'organization_id' => $organization->id,
-                'block_id' => $block->id,
-                'external_reference' => $input['external_reference'],
-                'status' => 'RELEASED',
-                'code' => 'RESOURCE_UNBLOCKED',
-                'inventory_revision' => $revision,
-                'occurred_at' => $occurredAt,
-                'business_timezone' => $organization->timezone,
-            ];
-            $eventPayload = [
-                'event_id' => (string) Str::uuid(),
-                'event_type' => 'resource.unblocked.v1',
-                'event_version' => 1,
-                'occurred_at' => $occurredAt,
-                'organization_id' => $organization->id,
-                'aggregate_type' => 'block',
-                'aggregate_id' => $block->id,
-                'boat_id' => $block->boat_id,
-                'inventory_revision' => $revision,
-                'external_reference' => $block->external_reference,
-                'status' => 'RELEASED',
-            ];
-            DB::table('outbox_events')->insert([
-                'event_id' => $eventPayload['event_id'],
-                'organization_id' => $organization->id,
-                'event_type' => $eventPayload['event_type'],
-                'aggregate_type' => 'block',
-                'aggregate_id' => $block->id,
-                'inventory_revision' => $revision,
-                'payload' => json_encode($eventPayload, JSON_THROW_ON_ERROR),
-                'occurred_at' => $now,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            DB::table('audit_logs')->insert([
-                'organization_id' => $organization->id,
-                'actor_type' => 'api_client',
-                'actor_id' => $request->attributes->get('api_client_id'),
-                'action' => 'resource.unblocked',
-                'object_type' => 'block',
-                'object_id' => $block->id,
-                'before_values' => json_encode(['status' => 'ACTIVE'], JSON_THROW_ON_ERROR),
-                'after_values' => json_encode(['status' => 'RELEASED'], JSON_THROW_ON_ERROR),
-                'reason' => $input['reason'] ?? null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            DB::table('idempotency_keys')->insert([
-                'organization_id' => $organization->id,
-                'operation' => $operation,
-                'idempotency_key' => $idempotencyKey,
-                'request_hash' => $requestHash,
-                'response_status' => 200,
-                'response_body' => json_encode($payload, JSON_THROW_ON_ERROR),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-
-            return response()->json($payload);
-        }, 3);
+        return response()->json($result->payload, $result->status);
     }
 
     private function replayIdempotency(int $organizationId, string $operation, string $idempotencyKey, string $requestHash): ?JsonResponse
