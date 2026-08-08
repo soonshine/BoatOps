@@ -28,6 +28,69 @@ class OperatorFoundationTest extends TestCase
         $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'fictional-password'])->assertSessionHasErrors('email');
     }
 
+    public function test_login_is_rate_limited_and_valid_login_still_succeeds(): void
+    {
+        $limited = $this->context();
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            $this->post('/operator/login', ['email' => $limited['user']->email, 'password' => 'wrong'])
+                ->assertSessionHasErrors('email');
+        }
+
+        $this->post('/operator/login', ['email' => $limited['user']->email, 'password' => 'wrong'])
+            ->assertStatus(429);
+
+        $valid = $this->context();
+        $this->post('/operator/login', ['email' => $valid['user']->email, 'password' => 'fictional-password'])
+            ->assertRedirect('/operator/calendar');
+        $this->assertAuthenticatedAs($valid['user']);
+    }
+
+    public function test_inactive_membership_session_can_recover_and_logout(): void
+    {
+        $loginRecovery = $this->context();
+        $this->actingAs($loginRecovery['user'])->withSession(['_token' => 'fictional-inactive-token']);
+        DB::table('operator_memberships')->where('user_id', $loginRecovery['user']->id)->update(['status' => 'INACTIVE']);
+
+        $this->get('/operator/login')->assertOk()->assertViewIs('operator.login');
+        $this->assertGuest();
+        $this->assertNotSame('fictional-inactive-token', session()->token());
+
+        DB::table('operator_memberships')->where('user_id', $loginRecovery['user']->id)->update(['status' => 'ACTIVE']);
+        $this->post('/operator/login', ['email' => $loginRecovery['user']->email, 'password' => 'fictional-password'])
+            ->assertRedirect('/operator/calendar');
+
+        $logoutRecovery = $this->context();
+        $this->actingAs($logoutRecovery['user'])->withSession(['_token' => 'fictional-inactive-logout-token']);
+        DB::table('operator_memberships')->where('user_id', $logoutRecovery['user']->id)->update(['status' => 'INACTIVE']);
+
+        $this->post('/operator/logout')->assertRedirect('/operator/login');
+        $this->assertGuest();
+        $this->assertNotSame('fictional-inactive-logout-token', session()->token());
+    }
+
+    public function test_removed_membership_session_can_recover_and_logout_and_guest_logout_is_harmless(): void
+    {
+        $loginRecovery = $this->context();
+        $this->actingAs($loginRecovery['user'])->withSession(['_token' => 'fictional-removed-token']);
+        DB::table('operator_memberships')->where('user_id', $loginRecovery['user']->id)->delete();
+
+        $this->get('/operator/login')->assertOk()->assertViewIs('operator.login');
+        $this->assertGuest();
+        $this->assertNotSame('fictional-removed-token', session()->token());
+
+        $logoutRecovery = $this->context();
+        $this->actingAs($logoutRecovery['user'])->withSession(['_token' => 'fictional-removed-logout-token']);
+        DB::table('operator_memberships')->where('user_id', $logoutRecovery['user']->id)->delete();
+
+        $this->post('/operator/logout')->assertRedirect('/operator/login');
+        $this->assertGuest();
+        $this->assertNotSame('fictional-removed-logout-token', session()->token());
+
+        $this->post('/operator/logout')->assertRedirect('/operator/login');
+        $this->assertGuest();
+    }
+
     public function test_inactive_removed_user_and_permissions_fail_closed(): void
     {
         $c = $this->context(false, false, false);
@@ -68,8 +131,18 @@ class OperatorFoundationTest extends TestCase
         $key = (string) Str::uuid();
         $p = $this->payload($c, $key);
         $rev = DB::table('organizations')->where('id', $c['organization_id'])->value('inventory_revision');
-        $first = $this->post('/operator/inquiries', $p)->assertRedirect();
-        $this->post('/operator/inquiries', array_reverse($p, true))->assertRedirect($first->headers->get('Location'));
+        $first = $this->post('/operator/inquiries', $p)->assertStatus(303);
+        $inquiryId = (int) DB::table('inquiries')->value('id');
+        $target = route('operator.inquiries.show', $inquiryId);
+        $first->assertHeader('Location', $target);
+        $replay = $this->post('/operator/inquiries', array_reverse($p, true))->assertStatus(303);
+        $replay->assertHeader('Location', $target);
+        $this->assertDatabaseHas('idempotency_keys', [
+            'organization_id' => $c['organization_id'],
+            'operation' => 'operator.inquiries.create',
+            'idempotency_key' => $key,
+            'response_status' => 303,
+        ]);
         $this->assertDatabaseCount('inquiries', 1);
         $this->assertDatabaseHas('audit_logs', ['actor_type' => 'operator_user', 'actor_id' => $c['user']->id, 'action' => 'INQUIRY_CREATED']);
         foreach (['allocations', 'holds', 'bookings', 'blocks'] as $t) {
@@ -78,6 +151,23 @@ class OperatorFoundationTest extends TestCase
         $this->post('/operator/inquiries', [...$p, 'notes' => 'changed'])->assertConflict();
         DB::table('operator_memberships')->where('user_id', $c['user']->id)->update(['status' => 'INACTIVE']);
         $this->post('/operator/inquiries', $p)->assertForbidden();
+    }
+
+    public function test_inquiry_reference_is_neutral_safe_and_bounded(): void
+    {
+        $c = $this->context();
+        $this->actingAs($c['user']);
+        $accepted = $this->payload($c, (string) Str::uuid());
+        $accepted['reference'] = 'SAMPLE-NEUTRAL_001.test';
+
+        $this->post('/operator/inquiries', $accepted)->assertStatus(303);
+        $this->assertDatabaseHas('inquiries', ['reference' => 'SAMPLE-NEUTRAL_001.test']);
+
+        foreach (['SAMPLE INQUIRY', 'SAMPLE/INQUIRY', '-SAMPLE', str_repeat('S', 101)] as $reference) {
+            $payload = $this->payload($c, (string) Str::uuid());
+            $payload['reference'] = $reference;
+            $this->post('/operator/inquiries', $payload)->assertSessionHasErrors('reference');
+        }
     }
 
     public function test_foreign_ids_are_non_disclosing(): void
@@ -122,6 +212,6 @@ class OperatorFoundationTest extends TestCase
 
     private function payload(array $c, string $key): array
     {
-        return ['idempotency_key' => $key, 'reference' => 'FICTIONAL-INQUIRY-001', 'boat_id' => $c['boat_id'], 'trip_template_id' => $c['product_id'], 'slot_offering_id' => $c['slot_id'], 'service_date' => '2026-09-01', 'notes' => 'Neutral fictional note'];
+        return ['idempotency_key' => $key, 'reference' => 'SAMPLE-INQUIRY-001', 'boat_id' => $c['boat_id'], 'trip_template_id' => $c['product_id'], 'slot_offering_id' => $c['slot_id'], 'service_date' => '2026-09-01', 'notes' => 'Neutral fictional note'];
     }
 }

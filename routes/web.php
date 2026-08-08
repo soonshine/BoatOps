@@ -12,8 +12,8 @@ Route::view('/', 'home');
 
 Route::prefix('operator')->name('operator.')->group(function (): void {
     Route::get('/login', [OperatorSessionController::class, 'create'])->name('login');
-    Route::post('/login', [OperatorSessionController::class, 'store'])->name('login.store');
-    Route::post('/logout', [OperatorSessionController::class, 'destroy'])->middleware('operator.membership')->name('logout');
+    Route::post('/login', [OperatorSessionController::class, 'store'])->middleware('throttle:operator-login')->name('login.store');
+    Route::post('/logout', [OperatorSessionController::class, 'destroy'])->name('logout');
     Route::get('/calendar', [OperatorCalendarController::class, 'index'])->middleware('operator.membership:calendar_read')->name('calendar');
     Route::get('/inquiries', [InquiryController::class, 'index'])->middleware('operator.membership:booking_workflow')->name('inquiries.index');
     Route::get('/inquiries/create', [InquiryController::class, 'create'])->middleware('operator.membership:booking_workflow')->name('inquiries.create');
