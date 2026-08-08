@@ -1,0 +1,133 @@
+schema_version: 1
+project: BoatOps
+updated_at: "2026-08-08T13:50:53+07:00"
+
+phase: post-public-demo
+current_gate:
+  id: G0_PROJECT_ALIGNMENT
+  status: BLOCKED_FOR_REMEDIATION
+  objective: >-
+    Align governance and make the 0.0.7 development baseline safe before any
+    Operator MVP business work begins.
+
+current_objective: >-
+  Preserve the isolated public Demo while closing the reviewed read-only and
+  data-isolation gaps, then decide whether 0.0.7 may become the new main baseline.
+
+repository:
+  url: "https://github.com/soonshine/BoatOps"
+  reviewed_branch: codex/boatops-v0.0.7-public-demo
+  reviewed_head: "c10f3a2eb2769a2f30f346906131b3c07c95e111"
+  governance_branch: codex/boatops-g0-project-alignment
+  governance_base: "c10f3a2eb2769a2f30f346906131b3c07c95e111"
+  implementation_commit: "011cd81c7fd7907086178db735dbebc28abe7b61"
+  main_commit: "c920043950e80a0a60ca88a83e440fc3b9882b94"
+  merge_base: "c920043950e80a0a60ca88a83e440fc3b9882b94"
+  worktree_clean_at_review: true
+
+public_demo:
+  url: "https://boatops.ayany.com/demo"
+  status: DEPLOYED_CANDIDATE
+  externally_checked_at: "2026-08-08T13:44:00+07:00"
+  http_get:
+    health: 200
+    home: 200
+    demo: 200
+    calendar: 200
+    slots: 200
+  demo_post_status: 405
+  headers_verified:
+    x_robots_tag: "noindex, nofollow, noarchive"
+    cache_control_contains: no-store
+  html_scan:
+    post_forms: 0
+    password_fields: 0
+    credential_markers: 0
+    local_only_markers: 0
+  data_boundary:
+    receipt_claim: dedicated_fictional_sqlite
+    independently_reproven_from_outside_server: false
+  artifact_identity:
+    receipt_commit: "011cd81c7fd7907086178db735dbebc28abe7b61"
+    independently_reproven_from_runtime: false
+
+p0_security:
+  id: P0-SEC-001
+  status: COMPLETE
+  rotated_new_credential_verified: true
+  old_credential_revoked_verified: true
+  hermes_profile: boatops
+  hermes_model: gpt-5.6-sol
+  hermes_provider: backup-codex
+  hermes_oneshot_exit_code: 0
+  local_plaintext_rescan:
+    files: 444
+    bytes: 33271682480
+    old_credential_matches: 0
+    new_credential_matches: 0
+  boatops_git_history_matches:
+    old_credential: 0
+    new_credential: 0
+  note: "Credential values and local cleanup receipts are intentionally not stored in Git."
+
+independent_review:
+  reviewed_range: "c920043950e80a0a60ca88a83e440fc3b9882b94..c10f3a2eb2769a2f30f346906131b3c07c95e111"
+  result: NO_GO_MERGE
+  blockers:
+    - G0-REV-001
+    - G0-REV-002
+    - G0-REV-003
+    - G0-REV-004
+  local_quality:
+    phpunit: "PASS 121 tests / 1367 assertions"
+    pint: PASS
+    contracts: PASS
+    production_build: PASS
+    composer_validate_strict: PASS
+    composer_audit: "PASS 0 advisories"
+    npm_audit: "PASS 0 vulnerabilities"
+    tracked_and_history_secret_scan: "PASS 0 findings"
+  github_ci:
+    head: "c10f3a2eb2769a2f30f346906131b3c07c95e111"
+    result: success
+    run: "https://github.com/soonshine/BoatOps/actions/runs/31243002377"
+
+priority:
+  - close G0 review blockers
+  - preserve public Demo behavior and isolation
+  - re-review 0.0.7 baseline
+  - operator calendar
+  - inquiry
+  - hold
+  - confirm
+  - amend
+  - cancel
+  - block
+
+deferred:
+  - finance completion
+  - warehouse completion
+  - google sheet migration
+  - channelhub
+  - ota
+  - payments
+  - formal open-source release
+
+executor:
+  primary: hermes
+  optional_builder: claude-code
+reviewer:
+  primary: chatgpt
+  milestone_secondary: codex
+
+authorizations:
+  merge_authorized: false
+  deployment_authorized: false
+  tag_authorized: false
+  release_authorized: false
+  production_data_authorized: false
+
+next_task:
+  id: G0_READ_ONLY_ISOLATION_HARDENING
+  owner: hermes
+  scope: "Fix only G0-REV-001 through G0-REV-004 and their regression tests."
