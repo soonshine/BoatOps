@@ -2,6 +2,12 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Application\Holds\CreateHoldAction;
+use App\Application\Holds\ExpireDueHoldAction;
+use App\Application\Holds\HoldActionResult;
+use App\Application\Holds\HoldActor;
+use App\Application\Holds\HoldIdempotencyContext;
+use App\Application\Holds\ReleaseHoldAction;
 use App\Exceptions\SlotCatalogException;
 use App\Http\Controllers\Controller;
 use App\Services\SlotCatalog\SlotAvailabilityService;
@@ -18,6 +24,9 @@ class InventoryCommandController extends Controller
     public function __construct(
         private readonly SlotIntervalResolver $slotResolver,
         private readonly SlotAvailabilityService $slotAvailability,
+        private readonly CreateHoldAction $createHold,
+        private readonly ReleaseHoldAction $releaseHold,
+        private readonly ExpireDueHoldAction $expireDueHold,
     ) {}
 
     public function createHold(Request $request): JsonResponse
@@ -46,194 +55,14 @@ class InventoryCommandController extends Controller
             'expires_at' => ['required', 'date', 'after:now'],
         ]);
         $organization = $request->attributes->get('organization');
-        $operation = 'createHold';
-        $requestHash = hash('sha256', json_encode($this->canonicalize($input), JSON_THROW_ON_ERROR));
-        $existing = DB::table('idempotency_keys')
-            ->where('organization_id', $organization->id)
-            ->where('operation', $operation)
-            ->where('idempotency_key', $idempotencyKey)
-            ->first();
+        $result = $this->createHold->execute(
+            (int) $organization->id,
+            $input,
+            $idempotencyKey,
+            HoldActor::apiClient((int) $request->attributes->get('api_client_id')),
+        );
 
-        if ($existing) {
-            if (! hash_equals($existing->request_hash, $requestHash)) {
-                return $this->error('IDEMPOTENCY_CONFLICT', 'The idempotency key was used with another payload.', 409, true);
-            }
-
-            return response()->json(json_decode($existing->response_body, true, 512, JSON_THROW_ON_ERROR), $existing->response_status);
-        }
-
-        $boat = DB::table('boats')
-            ->where('organization_id', $organization->id)
-            ->where('status', 'ACTIVE')
-            ->find($input['boat_id']);
-        $templateExists = DB::table('trip_templates')
-            ->where('organization_id', $organization->id)
-            ->where('status', 'ACTIVE')
-            ->where('id', $input['trip_template_id'])
-            ->exists();
-
-        if (! $boat || ! $templateExists) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested inventory resource is not accessible.', 403);
-        }
-
-        try {
-            $slot = $this->slotResolver->resolve($organization, $boat, $input);
-        } catch (SlotCatalogException $exception) {
-            return $this->slotError($exception);
-        }
-
-        $expiresAt = CarbonImmutable::parse($input['expires_at'])->utc();
-
-        try {
-            return DB::transaction(function () use (
-                $request,
-                $organization,
-                $input,
-                $idempotencyKey,
-                $operation,
-                $requestHash,
-                $slot,
-                $expiresAt,
-            ): JsonResponse {
-                DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
-                $replayed = $this->replayIdempotency(
-                    $organization->id,
-                    $operation,
-                    $idempotencyKey,
-                    $requestHash,
-                );
-
-                if ($replayed) {
-                    return $replayed;
-                }
-
-                if (DB::table('holds')
-                    ->where('organization_id', $organization->id)
-                    ->where('external_reference', $input['external_reference'])
-                    ->exists()) {
-                    return $this->error(
-                        'DUPLICATE_EXTERNAL_REFERENCE',
-                        'The external reference already exists.',
-                        409,
-                        true,
-                    );
-                }
-
-                $decision = $this->slotAvailability->decide(
-                    (int) $organization->id,
-                    (int) $input['boat_id'],
-                    $slot,
-                    lockForUpdate: true,
-                );
-
-                if (! $decision['available']) {
-                    return $this->error($decision['code'], $decision['message'], 409);
-                }
-
-                $now = now()->utc();
-                $holdId = DB::table('holds')->insertGetId([
-                    'organization_id' => $organization->id,
-                    'boat_id' => $input['boat_id'],
-                    'trip_template_id' => $input['trip_template_id'],
-                    'external_reference' => $input['external_reference'],
-                    'status' => 'ACTIVE',
-                    ...$slot->databaseValues(),
-                    'expires_at' => $expiresAt,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                $allocationId = DB::table('allocations')->insertGetId([
-                    'organization_id' => $organization->id,
-                    'boat_id' => $input['boat_id'],
-                    'allocation_type' => 'HOLD',
-                    'status' => 'ACTIVE',
-                    ...$slot->databaseValues(),
-                    'hold_id' => $holdId,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                DB::table('holds')->where('id', $holdId)->update(['allocation_id' => $allocationId]);
-                DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
-                $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
-                $requestId = (string) Str::uuid();
-                $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
-                $payload = [
-                    'request_id' => $requestId,
-                    'idempotency_key' => $idempotencyKey,
-                    'organization_id' => $organization->id,
-                    'hold_id' => $holdId,
-                    'external_reference' => $input['external_reference'],
-                    'status' => 'ACTIVE',
-                    'code' => 'HOLD_CREATED',
-                    'inventory_revision' => $revision,
-                    'expires_at' => $expiresAt->format('Y-m-d\TH:i:s\Z'),
-                    ...$slot->responseValues(),
-                    'occurred_at' => $occurredAt,
-                    'business_timezone' => $organization->timezone,
-                ];
-                $eventPayload = [
-                    'event_id' => (string) Str::uuid(),
-                    'event_type' => 'hold.created.v1',
-                    'event_version' => 1,
-                    'occurred_at' => $occurredAt,
-                    'organization_id' => $organization->id,
-                    'aggregate_type' => 'hold',
-                    'aggregate_id' => $holdId,
-                    'inventory_revision' => $revision,
-                    'external_reference' => $input['external_reference'],
-                    'status' => 'ACTIVE',
-                ];
-                DB::table('outbox_events')->insert([
-                    'event_id' => $eventPayload['event_id'],
-                    'organization_id' => $organization->id,
-                    'event_type' => $eventPayload['event_type'],
-                    'aggregate_type' => 'hold',
-                    'aggregate_id' => $holdId,
-                    'inventory_revision' => $revision,
-                    'payload' => json_encode($eventPayload, JSON_THROW_ON_ERROR),
-                    'occurred_at' => $now,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                DB::table('audit_logs')->insert([
-                    'organization_id' => $organization->id,
-                    'actor_type' => 'api_client',
-                    'actor_id' => $request->attributes->get('api_client_id'),
-                    'action' => 'hold.created',
-                    'object_type' => 'hold',
-                    'object_id' => $holdId,
-                    'after_values' => json_encode([
-                        'status' => 'ACTIVE',
-                        'boat_id' => $input['boat_id'],
-                        'service_date' => $slot->serviceDate,
-                        'business_start' => $slot->serviceStart->format('Y-m-d\TH:i:s\Z'),
-                        'business_end' => $slot->serviceEnd->format('Y-m-d\TH:i:s\Z'),
-                        'slot_offering_id' => $slot->slotOfferingId,
-                        'custom_slot_instance_id' => $slot->customSlotInstanceId,
-                    ], JSON_THROW_ON_ERROR),
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                DB::table('idempotency_keys')->insert([
-                    'organization_id' => $organization->id,
-                    'operation' => $operation,
-                    'idempotency_key' => $idempotencyKey,
-                    'request_hash' => $requestHash,
-                    'response_status' => 201,
-                    'response_body' => json_encode($payload, JSON_THROW_ON_ERROR),
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-
-                return response()->json($payload, 201);
-            }, 3);
-        } catch (QueryException $exception) {
-            if (str_contains(strtolower($exception->getMessage()), 'allocations_no_active_overlap')) {
-                return $this->error('SLOT_UNAVAILABLE', 'The requested slot is unavailable.', 409);
-            }
-
-            throw $exception;
-        }
+        return $this->actionResponse($result);
     }
 
     public function releaseHold(Request $request, int $id): JsonResponse
@@ -248,136 +77,15 @@ class InventoryCommandController extends Controller
             'external_reference' => ['required', 'string', 'max:255'],
         ]);
         $organization = $request->attributes->get('organization');
-        $operation = 'releaseHold:'.$id;
-        $requestHash = hash('sha256', json_encode($this->canonicalize($input), JSON_THROW_ON_ERROR));
-        $existing = DB::table('idempotency_keys')
-            ->where('organization_id', $organization->id)
-            ->where('operation', $operation)
-            ->where('idempotency_key', $idempotencyKey)
-            ->first();
-
-        if ($existing) {
-            if (! hash_equals($existing->request_hash, $requestHash)) {
-                return $this->error('IDEMPOTENCY_CONFLICT', 'The idempotency key was used with another payload.', 409, true);
-            }
-
-            return response()->json(json_decode($existing->response_body, true, 512, JSON_THROW_ON_ERROR), $existing->response_status);
-        }
-
-        $hold = DB::table('holds')
-            ->where('organization_id', $organization->id)
-            ->where('id', $id)
-            ->first();
-
-        if (! $hold) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested HOLD is not accessible.', 403);
-        }
-
-        if (! hash_equals($hold->external_reference, $input['external_reference'])) {
-            return $this->error('VALIDATION_FAILED', 'The external reference does not match the HOLD.', 422);
-        }
-
-        return DB::transaction(function () use (
-            $request,
-            $organization,
-            $hold,
+        $result = $this->releaseHold->execute(
+            (int) $organization->id,
+            $id,
             $input,
             $idempotencyKey,
-            $operation,
-            $requestHash,
-        ): JsonResponse {
-            DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
-            $replayed = $this->replayIdempotency(
-                $organization->id,
-                $operation,
-                $idempotencyKey,
-                $requestHash,
-            );
+            HoldActor::apiClient((int) $request->attributes->get('api_client_id')),
+        );
 
-            if ($replayed) {
-                return $replayed;
-            }
-
-            $lockedHold = DB::table('holds')->where('id', $hold->id)->lockForUpdate()->first();
-
-            if ($lockedHold->status !== 'ACTIVE') {
-                return $this->error('INVALID_TRANSITION', 'Only an active HOLD can be released.', 409);
-            }
-
-            $now = now()->utc();
-            DB::table('holds')->where('id', $hold->id)->update([
-                'status' => 'RELEASED',
-                'updated_at' => $now,
-            ]);
-            DB::table('allocations')->where('hold_id', $hold->id)->where('status', 'ACTIVE')->update([
-                'status' => 'RELEASED',
-                'updated_at' => $now,
-            ]);
-            DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
-            $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
-            $requestId = (string) Str::uuid();
-            $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
-            $payload = [
-                'request_id' => $requestId,
-                'idempotency_key' => $idempotencyKey,
-                'organization_id' => $organization->id,
-                'hold_id' => $hold->id,
-                'external_reference' => $input['external_reference'],
-                'status' => 'RELEASED',
-                'code' => 'HOLD_RELEASED',
-                'inventory_revision' => $revision,
-                'occurred_at' => $occurredAt,
-                'business_timezone' => $organization->timezone,
-            ];
-            $eventPayload = [
-                'event_id' => (string) Str::uuid(),
-                'event_type' => 'inventory.revision.changed.v1',
-                'event_version' => 1,
-                'occurred_at' => $occurredAt,
-                'organization_id' => $organization->id,
-                'aggregate_type' => 'inventory',
-                'aggregate_id' => $organization->id,
-                'inventory_revision' => $revision,
-                'external_reference' => $input['external_reference'],
-                'status' => 'RELEASED',
-            ];
-            DB::table('outbox_events')->insert([
-                'event_id' => $eventPayload['event_id'],
-                'organization_id' => $organization->id,
-                'event_type' => $eventPayload['event_type'],
-                'aggregate_type' => 'inventory',
-                'aggregate_id' => $organization->id,
-                'inventory_revision' => $revision,
-                'payload' => json_encode($eventPayload, JSON_THROW_ON_ERROR),
-                'occurred_at' => $now,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            DB::table('audit_logs')->insert([
-                'organization_id' => $organization->id,
-                'actor_type' => 'api_client',
-                'actor_id' => $request->attributes->get('api_client_id'),
-                'action' => 'hold.released',
-                'object_type' => 'hold',
-                'object_id' => $hold->id,
-                'before_values' => json_encode(['status' => 'ACTIVE'], JSON_THROW_ON_ERROR),
-                'after_values' => json_encode(['status' => 'RELEASED'], JSON_THROW_ON_ERROR),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            DB::table('idempotency_keys')->insert([
-                'organization_id' => $organization->id,
-                'operation' => $operation,
-                'idempotency_key' => $idempotencyKey,
-                'request_hash' => $requestHash,
-                'response_status' => 200,
-                'response_body' => json_encode($payload, JSON_THROW_ON_ERROR),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-
-            return response()->json($payload);
-        }, 3);
+        return $this->actionResponse($result);
     }
 
     public function confirmBooking(Request $request): JsonResponse
@@ -460,8 +168,16 @@ class InventoryCommandController extends Controller
                 return $this->error('INVALID_TRANSITION', 'Only an active HOLD can be confirmed.', 409);
             }
 
-            if (CarbonImmutable::parse($lockedHold->expires_at)->utc()->lessThanOrEqualTo(now()->utc())) {
-                return $this->expireHold($request, $organization, $lockedHold, $idempotencyKey, $operation, $requestHash);
+            $expiry = $this->expireDueHold->execute(
+                (int) $lockedHold->id,
+                CarbonImmutable::now('UTC'),
+                HoldActor::apiClient((int) $request->attributes->get('api_client_id')),
+                (int) $organization->id,
+                new HoldIdempotencyContext($operation, $idempotencyKey, $requestHash),
+            );
+
+            if ($expiry->changed) {
+                return $this->actionResponse($expiry);
             }
 
             $now = now()->utc();
@@ -994,81 +710,9 @@ class InventoryCommandController extends Controller
         }, 3);
     }
 
-    private function expireHold(
-        Request $request,
-        object $organization,
-        object $hold,
-        string $idempotencyKey,
-        string $operation,
-        string $requestHash,
-    ): JsonResponse {
-        $now = now()->utc();
-        DB::table('holds')->where('id', $hold->id)->update([
-            'status' => 'EXPIRED',
-            'updated_at' => $now,
-        ]);
-        DB::table('allocations')->where('hold_id', $hold->id)->where('status', 'ACTIVE')->update([
-            'status' => 'EXPIRED',
-            'updated_at' => $now,
-        ]);
-        DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
-        $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
-        $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
-        $eventPayload = [
-            'event_id' => (string) Str::uuid(),
-            'event_type' => 'hold.expired.v1',
-            'event_version' => 1,
-            'occurred_at' => $occurredAt,
-            'organization_id' => $organization->id,
-            'aggregate_type' => 'hold',
-            'aggregate_id' => $hold->id,
-            'inventory_revision' => $revision,
-            'external_reference' => $hold->external_reference,
-            'status' => 'EXPIRED',
-        ];
-        DB::table('outbox_events')->insert([
-            'event_id' => $eventPayload['event_id'],
-            'organization_id' => $organization->id,
-            'event_type' => $eventPayload['event_type'],
-            'aggregate_type' => 'hold',
-            'aggregate_id' => $hold->id,
-            'inventory_revision' => $revision,
-            'payload' => json_encode($eventPayload, JSON_THROW_ON_ERROR),
-            'occurred_at' => $now,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-        DB::table('audit_logs')->insert([
-            'organization_id' => $organization->id,
-            'actor_type' => 'api_client',
-            'actor_id' => $request->attributes->get('api_client_id'),
-            'action' => 'hold.expired',
-            'object_type' => 'hold',
-            'object_id' => $hold->id,
-            'before_values' => json_encode(['status' => 'ACTIVE'], JSON_THROW_ON_ERROR),
-            'after_values' => json_encode(['status' => 'EXPIRED'], JSON_THROW_ON_ERROR),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-        $payload = [
-            'request_id' => (string) Str::uuid(),
-            'code' => 'HOLD_EXPIRED',
-            'retryable' => false,
-            'manual_action_required' => true,
-            'message' => 'The HOLD has expired.',
-        ];
-        DB::table('idempotency_keys')->insert([
-            'organization_id' => $organization->id,
-            'operation' => $operation,
-            'idempotency_key' => $idempotencyKey,
-            'request_hash' => $requestHash,
-            'response_status' => 409,
-            'response_body' => json_encode($payload, JSON_THROW_ON_ERROR),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-
-        return response()->json($payload, 409);
+    private function actionResponse(HoldActionResult $result): JsonResponse
+    {
+        return response()->json($result->payload, $result->status);
     }
 
     private function replayIdempotency(
