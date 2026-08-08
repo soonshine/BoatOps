@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
     {
         $token = getenv('BOATOPS_DEMO_TOKEN');
         if (! is_string($token) || strlen($token) < 24) {
-            throw new RuntimeException('BOATOPS_DEMO_TOKEN must be set to at least 24 characters for local demo seeding.');
+            throw new RuntimeException('BOATOPS_DEMO_TOKEN must be set to at least 24 characters for fictional demo seeding.');
         }
 
         $this->call([

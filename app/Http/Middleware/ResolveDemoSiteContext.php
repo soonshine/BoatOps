@@ -5,40 +5,76 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveDemoSiteContext
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! config('demo_site.enabled') || ! app()->environment(['local', 'testing'])) {
+        $mode = (string) config('demo_site.mode');
+        if (! config('demo_site.enabled') || ! in_array($mode, ['local_write', 'public_read_only'], true)) {
             abort(404);
+        }
+        if ($mode === 'local_write' && ! app()->environment(['local', 'testing'])) {
+            abort(404);
+        }
+        if ($mode === 'public_read_only' && ! app()->environment('production')) {
+            abort(404);
+        }
+        if ($mode === 'public_read_only' && ! $request->isMethod('GET')) {
+            abort(405);
+        }
+        if ($mode === 'public_read_only') {
+            $key = 'boatops-demo-get:'.sha1((string) $request->ip());
+            $maxAttempts = (int) config('demo_site.public_rate_limit_per_minute');
+            if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+                abort(429);
+            }
+            RateLimiter::hit($key, 60);
         }
         $organizations = DB::table('organizations')->where('name', config('demo_site.organization_name'))->limit(2)->get();
         if ($organizations->count() !== 1) {
             abort(404);
         }
         $organization = $organizations->first();
+        $actorName = $mode === 'public_read_only'
+            ? config('demo_site.public_reader_name')
+            : config('demo_site.actor_name');
         $actors = DB::table('api_clients')->where('organization_id', $organization->id)
-            ->where('name', config('demo_site.actor_name'))->where('active', true)->limit(2)->get();
+            ->where('name', $actorName)->where('active', true)->limit(2)->get();
         if ($actors->count() !== 1) {
             abort(404);
         }
         $actor = $actors->first();
-        $requiredScopes = [
-            'operations.finance.read',
-            'operations.finance.write',
-            'operations.schedule.read',
-            'operations.schedule.write',
-        ];
+        $requiredScopes = $mode === 'public_read_only'
+            ? config('demo_site.public_reader_scopes')
+            : ['operations.finance.read', 'operations.finance.write', 'operations.schedule.read', 'operations.schedule.write'];
         $scopes = json_decode($actor->scopes ?? '[]', true);
-        if (! is_array($scopes) || array_diff($requiredScopes, $scopes) !== []) {
+        if (! is_array($scopes)) {
+            abort(404);
+        }
+        if ($mode === 'public_read_only') {
+            $normalizedScopes = array_values(array_map('strval', $scopes));
+            $normalizedRequiredScopes = array_values(array_map('strval', $requiredScopes));
+            sort($normalizedScopes);
+            sort($normalizedRequiredScopes);
+            if ($normalizedScopes !== $normalizedRequiredScopes) {
+                abort(404);
+            }
+        } elseif (array_diff($requiredScopes, $scopes) !== []) {
             abort(404);
         }
         $request->attributes->set('organization', $organization);
         $request->attributes->set('api_client_id', (int) $actor->id);
         $request->attributes->set('api_client_scopes', $scopes);
 
-        return $next($request);
+        $response = $next($request);
+        if ($mode === 'public_read_only') {
+            $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+            $response->headers->set('Cache-Control', 'no-store');
+        }
+
+        return $response;
     }
 }

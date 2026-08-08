@@ -16,12 +16,18 @@ class DemoSiteSeeder extends Seeder
 {
     public function run(): void
     {
-        if (! app()->environment(['local', 'testing'])) {
-            throw new RuntimeException('DemoSiteSeeder may run only in local or testing environments.');
+        $isLocalSeed = app()->environment(['local', 'testing']);
+        $isExplicitPublicProductionSeed = app()->environment('production')
+            && config('demo_site.enabled') === true
+            && config('demo_site.mode') === 'public_read_only'
+            && config('demo_site.allow_production_seed') === true;
+
+        if (! $isLocalSeed && ! $isExplicitPublicProductionSeed) {
+            throw new RuntimeException('DemoSiteSeeder is allowed only in local/testing, or in production with the enabled public_read_only demo and the one-time production seed flag.');
         }
         $token = getenv('BOATOPS_DEMO_TOKEN');
         if (! is_string($token) || strlen($token) < 24) {
-            throw new RuntimeException('BOATOPS_DEMO_TOKEN must be set to at least 24 characters for local demo seeding.');
+            throw new RuntimeException('BOATOPS_DEMO_TOKEN must be set to at least 24 characters for fictional demo seeding.');
         }
 
         DB::transaction(function () use ($token): void {
@@ -48,6 +54,9 @@ class DemoSiteSeeder extends Seeder
             $actorId = $this->upsertId('api_clients', [
                 'organization_id' => $organizationId, 'name' => config('demo_site.actor_name'),
             ], ['token_hash' => hash('sha256', 'demo-site-actor:'.$token), 'scopes' => json_encode($siteScopes, JSON_THROW_ON_ERROR), 'active' => true], $now);
+            $this->upsertId('api_clients', [
+                'organization_id' => $organizationId, 'name' => config('demo_site.public_reader_name'),
+            ], ['token_hash' => hash('sha256', 'public-demo-reader:'.$token), 'scopes' => json_encode(config('demo_site.public_reader_scopes'), JSON_THROW_ON_ERROR), 'active' => true], $now);
 
             $boatIds = [];
             foreach (config('demo_site.boat_names') as $name) {

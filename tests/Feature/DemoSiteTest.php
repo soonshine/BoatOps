@@ -6,6 +6,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\DemoSiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -38,9 +39,60 @@ class DemoSiteTest extends TestCase
         }
     }
 
+    public function test_public_read_only_is_production_get_only_and_sets_public_headers(): void
+    {
+        config([
+            'demo_site.enabled' => true,
+            'demo_site.mode' => 'public_read_only',
+            'demo_site.public_rate_limit_per_minute' => 2,
+        ]);
+        putenv('BOATOPS_DEMO_TOKEN='.$this->token);
+        $this->seed(DemoSiteSeeder::class);
+        $this->app->detectEnvironment(fn (): string => 'production');
+        $rateLimitKey = 'boatops-demo-get:'.sha1('127.0.0.1');
+        RateLimiter::clear($rateLimitKey);
+        try {
+            $response = $this->get('/demo')->assertOk()
+                ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive')
+                ->assertSee('人工虚构数据')->assertSee('公开只读演示')->assertDontSee('LOCAL ONLY');
+            $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+            $this->get('/demo/slots')->assertOk();
+            $this->get('/demo')->assertStatus(429);
+            $this->post('/demo/fuel', [])->assertStatus(405);
+        } finally {
+            RateLimiter::clear($rateLimitKey);
+            $this->app->detectEnvironment(fn (): string => 'testing');
+        }
+    }
+
+    public function test_public_reader_has_exact_read_scopes(): void
+    {
+        config(['demo_site.enabled' => true, 'demo_site.mode' => 'local_write']);
+        putenv('BOATOPS_DEMO_TOKEN='.$this->token);
+        $this->seed(DemoSiteSeeder::class);
+        $scopes = json_decode((string) DB::table('api_clients')->where('name', config('demo_site.public_reader_name'))->value('scopes'), true);
+        $this->assertSame(['operations.finance.read', 'operations.schedule.read'], $scopes);
+
+        config(['demo_site.mode' => 'public_read_only']);
+        $this->app->detectEnvironment(fn (): string => 'production');
+        try {
+            DB::table('api_clients')->where('name', config('demo_site.public_reader_name'))->update([
+                'scopes' => json_encode(['operations.schedule.read', 'operations.finance.read'], JSON_THROW_ON_ERROR),
+            ]);
+            $this->get('/demo')->assertOk();
+
+            DB::table('api_clients')->where('name', config('demo_site.public_reader_name'))->update([
+                'scopes' => json_encode(['operations.schedule.read', 'operations.finance.read', 'operations.schedule.write'], JSON_THROW_ON_ERROR),
+            ]);
+            $this->get('/demo')->assertNotFound();
+        } finally {
+            $this->app->detectEnvironment(fn (): string => 'testing');
+        }
+    }
+
     public function test_demo_site_fails_closed_without_exact_organization_or_actor(): void
     {
-        config(['demo_site.enabled' => true]);
+        config(['demo_site.enabled' => true, 'demo_site.mode' => 'local_write']);
         $this->get('/demo')->assertNotFound();
         $organizationId = DB::table('organizations')->insertGetId([
             'name' => config('demo_site.organization_name'), 'timezone' => 'Asia/Bangkok',
@@ -72,7 +124,8 @@ class DemoSiteTest extends TestCase
         $response = $this->get('/demo')->assertOk()
             ->assertSee('Plan A（虚构演示船）')->assertSee('Plan B（虚构演示船）')
             ->assertSee('DEMO-PLAN-A-DAY-1')->assertSee('DEMO-PLAN-B-DAY-6')
-            ->assertSee('虚构演示 / 非生产数据')->assertDontSee('Isolated Secret Boat')
+            ->assertSee('虚构演示 / 非生产数据')->assertSee('LOCAL ONLY')->assertDontSee('公开只读演示')
+            ->assertDontSee('Isolated Secret Boat')
             ->assertSee('每日现金活动（只读派生）')->assertSee('不可手工编辑')
             ->assertSee('今日流出')->assertSee('今日流入')->assertSee('今日净变动')->assertSee('今日记账笔数')
             ->assertSee('营业日 2026-08-04')->assertSee('THB 1,200.00')
@@ -449,7 +502,7 @@ class DemoSiteTest extends TestCase
     private function enableAndSeed(): void
     {
         CarbonImmutable::setTestNow('2026-08-04 01:00:00 UTC');
-        config(['demo_site.enabled' => true]);
+        config(['demo_site.enabled' => true, 'demo_site.mode' => 'local_write']);
         putenv('BOATOPS_DEMO_TOKEN='.$this->token);
         $this->seed(DemoSiteSeeder::class);
     }

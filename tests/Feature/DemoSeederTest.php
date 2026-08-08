@@ -2,13 +2,81 @@
 
 namespace Tests\Feature;
 
+use Database\Seeders\DemoSiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 use Tests\TestCase;
 
 class DemoSeederTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_production_demo_seeding_requires_every_explicit_public_seed_gate(): void
+    {
+        $originalEnvironment = $this->app->environment();
+        $originalConfig = config('demo_site');
+        $token = 'fictional-production-seed-gate-test-token';
+        putenv('BOATOPS_DEMO_TOKEN='.$token);
+
+        $invalidCases = [
+            ['environment' => 'production', 'enabled' => false, 'mode' => 'public_read_only', 'allow' => true],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'disabled', 'allow' => true],
+            ['environment' => 'production', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => false],
+            ['environment' => 'staging', 'enabled' => true, 'mode' => 'public_read_only', 'allow' => true],
+        ];
+
+        try {
+            foreach ($invalidCases as $case) {
+                $this->app->detectEnvironment(fn (): string => $case['environment']);
+                config([
+                    'demo_site.enabled' => $case['enabled'],
+                    'demo_site.mode' => $case['mode'],
+                    'demo_site.allow_production_seed' => $case['allow'],
+                ]);
+
+                try {
+                    $this->runDemoSiteSeeder();
+                    $this->fail('The fictional production seeder accepted an incomplete gate set.');
+                } catch (RuntimeException $exception) {
+                    $this->assertStringContainsString('one-time production seed flag', $exception->getMessage());
+                }
+            }
+        } finally {
+            $this->app->detectEnvironment(fn (): string => $originalEnvironment);
+            config(['demo_site' => $originalConfig]);
+            putenv('BOATOPS_DEMO_TOKEN');
+        }
+
+        $this->assertDatabaseCount('organizations', 0);
+    }
+
+    public function test_production_demo_seeding_is_allowed_only_with_all_public_seed_gates(): void
+    {
+        $originalEnvironment = $this->app->environment();
+        $originalConfig = config('demo_site');
+        $token = 'fictional-production-public-demo-token';
+        putenv('BOATOPS_DEMO_TOKEN='.$token);
+
+        try {
+            $this->app->detectEnvironment(fn (): string => 'production');
+            config([
+                'demo_site.enabled' => true,
+                'demo_site.mode' => 'public_read_only',
+                'demo_site.allow_production_seed' => true,
+            ]);
+
+            $this->runDemoSiteSeeder();
+        } finally {
+            $this->app->detectEnvironment(fn (): string => $originalEnvironment);
+            config(['demo_site' => $originalConfig]);
+            putenv('BOATOPS_DEMO_TOKEN');
+        }
+
+        $this->assertDatabaseHas('organizations', ['name' => 'Fictional Andaman Charter Lab']);
+        $this->assertDatabaseHas('api_clients', ['name' => 'Public Demo Reader']);
+        $this->assertDatabaseCount('boats', 2);
+    }
 
     public function test_demo_seeder_creates_idempotent_fictional_inventory_without_storing_plain_token(): void
     {
@@ -28,9 +96,10 @@ class DemoSeederTest extends TestCase
         $this->assertDatabaseHas('boats', ['name' => 'Plan B（虚构演示船）', 'buffer_before_minutes' => 30, 'buffer_after_minutes' => 30]);
         $this->assertDatabaseCount('trip_templates', 1);
         $this->assertDatabaseHas('trip_templates', ['code' => 'DEMO-4H', 'name' => 'Fictional Four Hour Whole-Boat Charter']);
-        $this->assertDatabaseCount('api_clients', 2);
+        $this->assertDatabaseCount('api_clients', 3);
         $this->assertDatabaseHas('api_clients', ['name' => 'Local Demo API Client', 'token_hash' => hash('sha256', $token)]);
         $this->assertDatabaseHas('api_clients', ['name' => 'Local Demo Site Actor', 'token_hash' => hash('sha256', 'demo-site-actor:'.$token)]);
+        $this->assertDatabaseHas('api_clients', ['name' => 'Public Demo Reader', 'token_hash' => hash('sha256', 'public-demo-reader:'.$token)]);
         $this->assertSame([
             'operations.write',
             'operations.finance.read',
@@ -44,7 +113,12 @@ class DemoSeederTest extends TestCase
             'operations.schedule.read',
             'operations.schedule.write',
         ], json_decode((string) DB::table('api_clients')->where('name', 'Local Demo Site Actor')->value('scopes'), true, 512, JSON_THROW_ON_ERROR));
+        $this->assertSame([
+            'operations.finance.read',
+            'operations.schedule.read',
+        ], json_decode((string) DB::table('api_clients')->where('name', 'Public Demo Reader')->value('scopes'), true, 512, JSON_THROW_ON_ERROR));
         $this->assertStringNotContainsString($token, (string) DB::table('api_clients')->where('name', 'Local Demo Site Actor')->value('token_hash'));
+        $this->assertStringNotContainsString($token, (string) DB::table('api_clients')->where('name', 'Public Demo Reader')->value('token_hash'));
         $this->assertDatabaseCount('allocations', 6);
         $this->assertDatabaseCount('holds', 1);
         $this->assertDatabaseCount('blocks', 1);
@@ -85,5 +159,12 @@ class DemoSeederTest extends TestCase
         $this->assertSame(7, (int) DB::table('organizations')->value('inventory_revision'));
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'slot.retired')->count());
         $this->assertSame(1, DB::table('audit_logs')->where('object_type', 'slot_compatibility_rule')->count());
+    }
+
+    private function runDemoSiteSeeder(): void
+    {
+        $seeder = $this->app->make(DemoSiteSeeder::class);
+        $seeder->setContainer($this->app);
+        $seeder();
     }
 }

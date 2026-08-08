@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\ResolveDemoSiteContext;
+use App\Services\SlotCatalog\SlotCalendarReadModel;
 use Carbon\CarbonImmutable;
 use Database\Seeders\DemoSiteSeeder;
 use Database\Seeders\SlotCatalogSeeder;
@@ -35,6 +36,7 @@ class DemoScheduleTest extends TestCase
             ->assertSee('BUFFER CONFLICT')->assertSee('SLOT_UNAVAILABLE')->assertSee('SLOT_COMPATIBILITY_CONFLICT')
             ->assertSee('演示默认档期；真实起止时间和周转缓冲尚未冻结。')
             ->assertSee('DEMO_FULL_DAY_6H_20260807')
+            ->assertDontSee('SIMULATED_SELECTION')
             ->assertDontSee('organization_id', false);
         $this->assertStringNotContainsString($this->token, $calendar->getContent());
         $this->assertSame(14, substr_count($calendar->getContent(), 'data-business-date="2026-08-'));
@@ -219,10 +221,98 @@ class DemoScheduleTest extends TestCase
         }
     }
 
+    public function test_get_simulation_reuses_calendar_rules_without_persisting_inventory_changes(): void
+    {
+        $this->enableAndSeed();
+        $boatId = (int) DB::table('boats')->where('name', config('demo_site.boat_names.0'))->value('id');
+        $otherBoatId = (int) DB::table('boats')->where('name', config('demo_site.boat_names.1'))->value('id');
+        $slotId = (int) DB::table('slot_offerings')->where('code', 'FULL_DAY_8H')->value('id');
+        $organization = DB::table('organizations')->where('name', config('demo_site.organization_name'))->first();
+        $readModel = app(SlotCalendarReadModel::class);
+        $baseline = $readModel->read($organization, '2026-08-04', '2026-08-10');
+        $simulated = $readModel->read($organization, '2026-08-04', '2026-08-10', $boatId, $slotId, '2026-08-04');
+        $baselineOtherBoat = collect($baseline['boats'])->firstWhere('boat_id', $otherBoatId);
+        $simulatedOtherBoat = collect($simulated['boats'])->firstWhere('boat_id', $otherBoatId);
+        $this->assertSame($baselineOtherBoat, $simulatedOtherBoat, 'A simulation on one boat must not alter the other boat projection.');
+        $baselineSelectedDay = collect(collect($baseline['boats'])->firstWhere('boat_id', $boatId)['dates'])->firstWhere('date', '2026-08-04');
+        $simulatedSelectedDay = collect(collect($simulated['boats'])->firstWhere('boat_id', $boatId)['dates'])->firstWhere('date', '2026-08-04');
+        $this->assertSame(
+            $baselineSelectedDay['allocations'],
+            $simulatedSelectedDay['allocations'],
+            'A GET simulation must not be presented as an authority allocation.',
+        );
+        $baselineJson = json_encode($baseline, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $this->assertStringContainsString('The requested slot is unavailable.', $baselineJson);
+        $this->assertStringNotContainsString('该船在所选时间已有', $baselineJson);
+        $snapshot = [
+            DB::table('allocations')->count(), DB::table('holds')->count(), DB::table('bookings')->count(),
+            DB::table('audit_logs')->count(), DB::table('organizations')->value('inventory_revision'),
+        ];
+        $response = $this->get('/demo/calendar?from=2026-08-04&boat_id='.$boatId.'&selected_slot='.$slotId.'&selected_date=2026-08-04')->assertOk();
+        $response->assertSee('SIMULATED_SELECTED')->assertSee('SIMULATED_SELECTION')->assertSee('GET 预演')
+            ->assertSee('同一船只和营业日的档期兼容规则不允许组合。')
+            ->assertSee('simulated selection occupied:')
+            ->assertDontSee('authority allocation #-1');
+        $simulatedCalendar = $this->get('/demo/calendar?from=2026-08-04&boat_id='.$boatId.'&selected_slot='.$slotId.'&selected_date=2026-08-04')->assertOk()->getContent();
+        $this->assertSame(2, substr_count($simulatedCalendar, 'SIMULATED_SELECTED'));
+        $this->assertStringContainsString('data-boat-id="1"', $simulatedCalendar);
+        $this->assertStringContainsString('data-boat-id="2"', $simulatedCalendar);
+        $this->assertSame($snapshot, [
+            DB::table('allocations')->count(), DB::table('holds')->count(), DB::table('bookings')->count(),
+            DB::table('audit_logs')->count(), DB::table('organizations')->value('inventory_revision'),
+        ]);
+    }
+
+    public function test_get_simulation_rejects_invalid_or_unavailable_selection(): void
+    {
+        $this->enableAndSeed();
+        $boatId = (int) DB::table('boats')->where('name', config('demo_site.boat_names.0'))->value('id');
+        $this->get('/demo/calendar?from=2026-08-04&boat_id='.$boatId.'&selected_slot=999999&selected_date=2026-08-04')
+            ->assertStatus(422);
+
+        $otherBoatId = (int) DB::table('boats')->where('name', config('demo_site.boat_names.1'))->value('id');
+        $unavailableSlotId = (int) DB::table('slot_offerings')->where('code', 'FULL_DAY_8H')->value('id');
+        $this->get('/demo/calendar?from=2026-08-04&boat_id='.$otherBoatId.'&selected_slot='.$unavailableSlotId.'&selected_date=2026-08-09')
+            ->assertStatus(422);
+    }
+
+    public function test_public_read_only_hides_all_write_ui_and_rejects_demo_posts(): void
+    {
+        $this->enableAndSeed();
+        config(['demo_site.mode' => 'public_read_only']);
+        $this->app->detectEnvironment(fn (): string => 'production');
+        try {
+            $snapshot = [
+                DB::table('allocations')->count(), DB::table('holds')->count(), DB::table('bookings')->count(),
+                DB::table('audit_logs')->count(), DB::table('organizations')->value('inventory_revision'),
+                DB::table('cash_postings')->count(), DB::table('stock_movements')->count(),
+            ];
+            foreach (['/demo', '/demo/calendar?from=2026-08-04', '/demo/slots'] as $uri) {
+                $response = $this->get($uri)->assertOk()
+                    ->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+                $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+                $html = $response->getContent();
+                $this->assertDoesNotMatchRegularExpression('/<form[^>]+method="post"/i', $html);
+            }
+            foreach (['/demo/slots/reusable', '/demo/slots/instances', '/demo/slots/compatibility', '/demo/fuel', '/demo/expenses', '/demo/stock', '/demo/reversals'] as $uri) {
+                $this->post($uri, [])->assertStatus(405);
+            }
+            $this->post('/demo/slots/1:activate', [])->assertStatus(405);
+            $this->post('/demo/slots/1:retire', [])->assertStatus(405);
+            $this->assertSame($snapshot, [
+                DB::table('allocations')->count(), DB::table('holds')->count(), DB::table('bookings')->count(),
+                DB::table('audit_logs')->count(), DB::table('organizations')->value('inventory_revision'),
+                DB::table('cash_postings')->count(), DB::table('stock_movements')->count(),
+            ]);
+        } finally {
+            $this->app->detectEnvironment(fn (): string => 'testing');
+        }
+    }
+
     private function enableAndSeed(): void
     {
         CarbonImmutable::setTestNow('2026-08-04 01:00:00 UTC');
-        config(['demo_site.enabled' => true]);
+        config(['demo_site.enabled' => true, 'demo_site.mode' => 'local_write']);
         putenv('BOATOPS_DEMO_TOKEN='.$this->token);
         $this->seed(DemoSiteSeeder::class);
     }

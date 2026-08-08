@@ -4,7 +4,7 @@ BoatOps Community 是一个可自托管的船务运营系统项目，面向中�
 
 > **当前状态：** `ALPHA_CANDIDATE / CANDIDATE_DEPLOYED / NOT_RELEASED`
 > 首个候选实例已部署到 `https://boatops.ayany.com`，但仍未完成全部验收门禁，也没有正式版本、Tag 或公开发行许可证。
-> 本地 `0.0.2 operations-finance`、`0.0.3 finance-reversals`、`0.0.4 cash-activity-local`、`0.0.5 slot-catalog` 与 `0.0.6 operator-calendar` 均为候选。它们都是 `LOCAL_WORKTREE / NOT_DEPLOYED / NOT_RELEASED`，不能据此更新公网 `0.0.1 deployed alpha candidate` 状态。
+> 本地 `0.0.2 operations-finance`、`0.0.3 finance-reversals`、`0.0.4 cash-activity-local`、`0.0.5 slot-catalog`、`0.0.6 operator-calendar` 与 `0.0.7 public-demo` 均为候选。它们都是 `LOCAL_WORKTREE / NOT_DEPLOYED / NOT_RELEASED`，不能据此更新公网 `0.0.1 deployed alpha candidate` 状态。
 
 ## 产品职责
 
@@ -65,6 +65,7 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 10. 本地 `0.0.4` Gate B 在 `/demo` 为每个启用的虚构现金账户显示组织时区今日摘要和最近 7 个本地营业日（最多 200 条）的只读派生现金流水；页面通过既有 Operations controller 正式读方法读取，不提供手工现金记账或编辑。
 11. 本地 `0.0.5` 已加入组织级档期目录、五种演示预设、可复用与指定日期自定义档期、占用区间/缓冲和默认 fail-closed 的档期兼容规则；真实运营时间尚未冻结。
 12. 本地 `0.0.6` Gate B1 已加入 Schedule API、最多 31 天的库存日历投影以及 `/demo/calendar`、`/demo/slots` 运营页面；日历只做投影，HOLD/确认仍由 BoatOps 事务重新裁决。
+13. 本地 `0.0.7` Gate D0 候选加入 `disabled / local_write / public_read_only` 三态门禁、专用只读 actor、公网写入口早期拒绝、无写入档期模拟和可解释冲突展示；尚未部署或发布。
 
 仍未闭环：
 
@@ -75,7 +76,7 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 - CSV/XLSX 导入导出及正式迁移流程；
 - 正式许可证、独立安全审查和第二运营商安装验证。
 
-已部署候选记录见 `docs/releases/0.0.1-deployed-alpha-candidate.md`；后续本地候选依次见 `docs/releases/0.0.2-operations-finance-local-candidate.md`、`docs/releases/0.0.3-finance-reversals-local-candidate.md`、`docs/releases/0.0.4-cash-activity-local-candidate.md`、`docs/releases/0.0.5-slot-catalog-local-candidate.md` 与 `docs/releases/0.0.6-operator-calendar-local-candidate.md`。
+已部署候选记录见 `docs/releases/0.0.1-deployed-alpha-candidate.md`；后续本地候选依次见 `docs/releases/0.0.2-operations-finance-local-candidate.md`、`docs/releases/0.0.3-finance-reversals-local-candidate.md`、`docs/releases/0.0.4-cash-activity-local-candidate.md`、`docs/releases/0.0.5-slot-catalog-local-candidate.md`、`docs/releases/0.0.6-operator-calendar-local-candidate.md` 与 `docs/releases/0.0.7-public-demo-mvp-plan.md`。
 
 ## 非目标
 
@@ -97,24 +98,23 @@ BoatOps 保存 **Inventory Provider API** 的权威、版本化契约，当前�
 
 ## 下一步门禁
 
-1. 完成 `0.0.6` Gate B1 的 CI、候选 PR 和独立审查；在明确批准前不合并、不部署；
-2. 开发运营端完整订单管理：询价、HOLD、确认、改期、取消、封船，以及与日历联动的确认单 HTML/PDF；
-3. 从运营资料冻结 Plan A / Plan B 的真实档期起止时间和周转缓冲，并执行 PostgreSQL 并发、备份恢复及库存复算；
-4. 完成凭证文件、真实收付款/退款、现金日结、利润和审批后台；
-5. 完成 Google Sheet dry-run、冲突清单和逐单对账；
-6. 再完成公网 UI/API QA、不可变归档、manifest、SHA-256 和回滚记录；
-7. 冻结许可证并加入正式 LICENSE/SPDX 边界，通过验收后再创建 Tag 或 GitHub Release；
-8. ChannelHub 暂停开发，等 BoatOps 闭环和 Inventory Provider 契约形成可引用版本后再启动。
+1. 完成 `0.0.7` Gate D0 的代码复核、GitHub CI 和只读安全证据；在明确批准前不合并；
+2. 使用隔离的纯虚构数据库把 Gate D0 候选部署到 `boatops.ayany.com/demo`，保留部署前版本和可验证回滚点；
+3. 完成公网桌面/手机视觉 QA、GET 限流、全部 Demo POST 不可写和无真实数据验收；
+4. Demo 验收后再开发运营端完整订单管理：询价、HOLD、确认、改期、取消、封船，以及与日历联动的确认单 HTML/PDF；
+5. 从运营资料冻结 Plan A / Plan B 的真实档期起止时间和周转缓冲，并执行 PostgreSQL 并发、备份恢复及库存复算；
+6. 再完成财务闭环、Google Sheet dry-run、许可证与正式发布门禁；
+7. ChannelHub 暂停开发，等 BoatOps 闭环和 Inventory Provider 契约形成可引用版本后再启动。
 
 ## 安全与数据
 
 禁止提交 API Key、Token、密码、Cookie、Webhook Secret、数据库连接串、服务器登录信息、真实客户资料、合同、报价、财务流水和生产备份。公开示例必须使用人工虚构数据，并通过 secret 与 PII 扫描。
 
 
-## 本地虚构演示站
+## 虚构演示站模式
 
 > **LOCAL_WORKTREE / NOT_DEPLOYED / NOT_RELEASED**
 
-本工作树提供基于 Laravel Blade 的 `/demo` 本地测试站，展示同一虚构组织下的 Plan A（虚构演示船）与 Plan B（虚构演示船）两艘整船资源、未来 7 天 `allocations` / `trips` 排期、运营费用、移动平均库存流水、近期燃油/费用/库存流水与行内冲销操作，以及按启用现金账户分组的今日现金摘要和最近 7 个本地营业日派生流水。`/demo/calendar` 展示库存日历投影，`/demo/slots` 管理虚构档期目录与兼容规则；两页都明确标注演示时间未经运营冻结。现金区只读，不能手工记账或编辑。所有内容均为人工虚构演示，不连接 Google Sheet、生产库、真实客户或真实财务，也不对接 ChannelHub、OTA 或 WordPress。
+本工作树提供基于 Laravel Blade 的 `/demo` 虚构演示站，展示同一虚构组织下的 Plan A（虚构演示船）与 Plan B（虚构演示船）两艘整船资源、7 天库存日历、五种预设和指定日期自定义档期、HOLD / CONFIRMED / BLOCK 投影，以及运营费用、燃油、库存和现金活动摘要。GET 模拟选择不会创建占位或改变库存；最终 HOLD/确认仍由 BoatOps 事务重新裁决。所有内容均为人工虚构演示，不连接 Google Sheet、真实客户、真实财务、ChannelHub、OTA 或 WordPress。
 
-入口默认 fail closed；仅在 `BOATOPS_DEMO_SITE_ENABLED=true`、环境为 `local/testing` 且精确虚构组织和最小权限 actor 均存在时开放。浏览器不接收 Bearer Token 或 `BOATOPS_DEMO_TOKEN`。迁移、幂等 seed、启动和验证步骤见 `docs/demo-site-local.md`。
+入口默认 `disabled` 并 fail closed。`local_write` 只允许 `local/testing` 的虚构写入测试；`public_read_only` 只允许 `production` 的公开 GET，并要求专用只读 actor、写入口早期 405、`noindex/no-store` 和限流。浏览器不接收 Bearer Token 或 `BOATOPS_DEMO_TOKEN`。本地步骤见 `docs/demo-site-local.md`，公网只读候选边界见 `docs/demo-site-public-read-only.md`。

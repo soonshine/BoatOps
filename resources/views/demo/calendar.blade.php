@@ -9,7 +9,13 @@
 </style>
 </head>
 <body data-demo-page="calendar" data-verified-mobile-width="390">
-<div class="banner">DEMO DATA ONLY · LOCAL ONLY · 非生产库存日历</div>
+<div class="banner">
+@if(config('demo_site.mode') === 'public_read_only')
+人工虚构数据 · 公开只读演示 · 非生产库存日历
+@else
+DEMO DATA ONLY · LOCAL ONLY · 非生产库存日历
+@endif
+</div>
 <main class="wrap">
 <header class="topbar">
 <div><h1>运营库存日历</h1><p class="meta"><strong>{{ $organization->name }}</strong> · {{ $calendar['business_timezone'] }} · 整船库存（不按座位扣减）</p></div>
@@ -53,7 +59,14 @@
 <p class="interval"><strong>occupied local:</strong> {{ $slot['occupied_start_local'] }} → {{ $slot['occupied_end_local'] }}</p>
 @if($slot['buffer_conflict'])<p><span class="pill blocked">BUFFER CONFLICT</span> service interval 不重叠，但 occupied interval 因周转缓冲重叠。</p>@endif
 @if($slot['conflict_code'])<p><strong>{{ $slot['conflict_code'] }}</strong> · {{ $slot['conflict_message'] }}</p>@endif
-@if($slot['authority'])<p class="interval">authority allocation #{{ $slot['authority']['allocation_id'] }} actual occupied: {{ $slot['authority']['occupied_start'] }} → {{ $slot['authority']['occupied_end'] }}</p>@endif
+@if($slot['selectable'])<form method="get" action="{{ route('demo.calendar') }}"><input type="hidden" name="from" value="{{ $calendar['from'] }}"><input type="hidden" name="boat_id" value="{{ $boat['boat_id'] }}"><input type="hidden" name="selected_slot" value="{{ $slot['definition_id'] }}"><input type="hidden" name="selected_date" value="{{ $day['date'] }}"><button class="button" type="submit">模拟选择此档期（GET，无写入）</button></form>@elseif($selectedSlotId === $slot['definition_id'] && $selectedDate === $day['date'] && (int) $boat['boat_id'] === $selectedBoatId)<p class="notice"><strong>当前模拟选择</strong>：仅为 GET 预演，不是占位；最终 HOLD / 确认仍由 BoatOps 事务重新裁决。</p>@endif
+@if($slot['authority'])
+@if((int) $slot['authority']['allocation_id'] === -1)
+<p class="interval">simulated selection occupied: {{ $slot['authority']['occupied_start'] }} → {{ $slot['authority']['occupied_end'] }}</p>
+@else
+<p class="interval">authority allocation #{{ $slot['authority']['allocation_id'] }} actual occupied: {{ $slot['authority']['occupied_start'] }} → {{ $slot['authority']['occupied_end'] }}</p>
+@endif
+@endif
 <p class="meta">{{ $slot['operating_time_notice'] }}</p>
 </article>
 @empty<p class="empty">本船本日没有适用的档期定义。</p>@endforelse

@@ -30,6 +30,8 @@ final class SlotCalendarReadModel
         string $from,
         string $to,
         ?int $boatId = null,
+        ?int $selectedSlotId = null,
+        ?string $selectedDate = null,
     ): array {
         $fromDate = $this->exactDate($from, 'from');
         $toDate = $this->exactDate($to, 'to');
@@ -53,7 +55,7 @@ final class SlotCalendarReadModel
             ->orderBy('name')
             ->orderBy('id');
 
-        if ($boatId !== null) {
+        if ($boatId !== null && ! ($selectedSlotId !== null && $selectedDate !== null)) {
             $boatsQuery->where('id', $boatId);
             $boats = $boatsQuery->get();
 
@@ -134,6 +136,41 @@ final class SlotCalendarReadModel
                 ]);
         $allocationsByBoat = $allocations->groupBy('boat_id');
         $policies = $this->compatibility->policiesForOrganization((int) $organization->id);
+        $selectedEntry = null;
+        $selectedResolved = null;
+        if ($selectedSlotId !== null && $selectedDate !== null) {
+            $selectedBoat = $boats->firstWhere('id', $boatId);
+            $selectedEntry = $entries->firstWhere('id', $selectedSlotId);
+            $selectedDateStart = CarbonImmutable::createFromFormat('!Y-m-d', $selectedDate, $timezone);
+            $selectedDateEnd = $selectedDateStart?->addDay();
+            $selectedDateAllocations = $allocationsByBoat->get($boatId, collect())
+                ->filter(fn (object $allocation): bool => $selectedDateStart !== null
+                    && $selectedDateEnd !== null
+                    && $this->overlapsUtcDay($allocation, $selectedDateStart, $selectedDateEnd))
+                ->values();
+
+            if ($selectedBoat === null || $selectedEntry === null || $selectedEntry->status !== 'ACTIVE'
+                || ! $this->entryAppliesOnDate($selectedEntry, $selectedDate)
+                || (! $selectedEntry->applies_to_all_boats && ! $boatScope->get($selectedEntry->id, collect())
+                    ->pluck('boat_id')->map(static fn (mixed $id): int => (int) $id)->contains((int) $boatId))) {
+                throw new SlotCatalogException('VALIDATION_FAILED', 'The selected slot is not valid for this fictional organization, boat, or date.', 422);
+            }
+
+            $selectedResolved = $this->intervalResolver->resolveLoadedCatalogEntry(
+                $organization,
+                $selectedBoat,
+                $selectedEntry,
+                $selectedDate,
+            );
+            $selectedDecision = $this->availability->calendarDecision(
+                $selectedResolved,
+                $selectedDateAllocations,
+                $policies,
+            );
+            if (! $selectedDecision['available']) {
+                throw new SlotCatalogException('VALIDATION_FAILED', 'The selected slot is not selectable before simulation.', 422);
+            }
+        }
         $dates = [];
 
         for ($date = $fromDate; $date->lessThanOrEqualTo($toDate); $date = $date->addDay()) {
@@ -180,9 +217,32 @@ final class SlotCalendarReadModel
                         $entry,
                         $date,
                     );
+                    $decisionAllocations = $dateAllocations;
+                    $isSimulationDate = $selectedSlotId !== null && $selectedDate === $date;
+                    if ($isSimulationDate && (int) $boat->id === $boatId && (int) $entry->id !== $selectedSlotId) {
+                        if ($selectedResolved !== null) {
+                            $decisionAllocations = $decisionAllocations->concat([(object) [
+                                'id' => -1,
+                                'boat_id' => $boat->id,
+                                'allocation_type' => 'SIMULATED_SELECTION',
+                                'service_date' => $date,
+                                'service_start' => $selectedResolved->serviceStart,
+                                'service_end' => $selectedResolved->serviceEnd,
+                                'business_start' => $selectedResolved->serviceStart,
+                                'business_end' => $selectedResolved->serviceEnd,
+                                'occupied_start' => $selectedResolved->occupiedStart,
+                                'occupied_end' => $selectedResolved->occupiedEnd,
+                                'slot_offering_id' => $selectedResolved->slotOfferingId,
+                                'custom_slot_instance_id' => $selectedResolved->customSlotInstanceId,
+                                'slot_code_snapshot' => null,
+                                'slot_name_snapshot' => null,
+                                'slot_duration_minutes_snapshot' => null,
+                            ]]);
+                        }
+                    }
                     $decision = $this->availability->calendarDecision(
                         $resolved,
-                        $dateAllocations,
+                        $decisionAllocations,
                         $policies,
                     );
 
@@ -198,12 +258,20 @@ final class SlotCalendarReadModel
                         ];
                     }
 
-                    $slots[] = $this->serializeSlot(
+                    $serialized = $this->serializeSlot(
                         $entry,
                         $resolved,
                         $decision,
                         $timezone,
                     );
+                    if ($selectedSlotId === (int) $entry->id && $selectedDate === $date && (int) $boat->id === $boatId
+                        && $entry->status === 'ACTIVE') {
+                        $serialized['status'] = 'SIMULATED_SELECTED';
+                        $serialized['selectable'] = false;
+                        $serialized['conflict_code'] = 'SIMULATED_SELECTION';
+                        $serialized['conflict_message'] = '当前仅为 GET 模拟选择，不会创建占位或改变库存。';
+                    }
+                    $slots[] = $serialized;
                 }
 
                 usort($slots, static fn (array $first, array $second): int => [

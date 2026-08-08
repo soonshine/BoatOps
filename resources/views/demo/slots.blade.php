@@ -9,14 +9,20 @@
 </style>
 </head>
 <body data-demo-page="slots" data-verified-mobile-width="390">
-<div class="banner">DEMO DATA ONLY · LOCAL ONLY · 档期目录与兼容规则</div>
+<div class="banner">
+@if(config('demo_site.mode') === 'public_read_only')
+人工虚构数据 · 公开只读演示 · 档期目录与兼容规则
+@else
+DEMO DATA ONLY · LOCAL ONLY · 档期目录与兼容规则
+@endif
+</div>
 <main class="wrap">
 <header class="topbar"><div><h1>运营端档期目录</h1><p class="muted"><strong>{{ $organization->name }}</strong> · {{ $organization->timezone }} · 仅限 DemoSiteSeeder 虚构组织与虚构船</p></div><nav class="nav" aria-label="演示站导航"><a class="button secondary" href="{{ route('demo.index') }}">财务演示</a><a class="button" href="{{ route('demo.calendar') }}">7 天库存日历</a></nav></header>
 <div class="warning">演示默认档期；真实起止时间和周转缓冲尚未冻结。<br>FULL_DAY_8H / FULL_DAY_6H / AM_4H / PM_4H / PM_2_5H 的 seed clock time 仅为 DEMO DEFAULT / UNVERIFIED OPERATING TIME，不是 Ayany、Plan A 或 Plan B 的正式规则。</div>
 @if(session('status'))<div class="notice">{{ session('status') }}</div>@endif
 @if($errors->any())<div class="errors"><strong>表单未保存：</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
-<section class="grid" aria-label="档期创建表单">
+@if(config('demo_site.mode') === 'local_write')<section class="grid" aria-label="档期创建表单">
 <form class="card" method="post" action="{{ route('demo.slots.reusable') }}">@csrf
 <h2>创建 reusable custom slot</h2><p class="muted">服务端固定创建为 DRAFT；启用需单独审计动作。</p>
 <div class="form-grid">
@@ -61,7 +67,7 @@
 <label>Reason<input name="reason" value="Fictional demo compatibility decision" minlength="3" maxlength="500" required></label>
 </div><button type="submit">保存 canonical rule</button>
 </form>
-</section>
+</section>@endif
 
 <h2 class="section-title">档期定义（ACTIVE / DRAFT / RETIRED）</h2>
 <section class="catalog-list">
@@ -73,7 +79,7 @@
 <p>extra buffer {{ $offering['additional_buffer_before_minutes'] }} / {{ $offering['additional_buffer_after_minutes'] }} min</p>
 <p>scope: @if($offering['applies_to_all_boats']) ALL DEMO BOATS @else boat IDs {{ implode(', ', $offering['boat_ids']) }} @endif</p>
 <p class="muted"><strong>{{ $offering['operating_time_notice'] }}</strong></p>
-<div class="actions">@if($offering['status']==='DRAFT')<form method="post" action="{{ route('demo.slots.activate',$offering['id']) }}">@csrf<button>启用 ACTIVE</button></form>@endif @if(in_array($offering['status'],['DRAFT','ACTIVE'],true))<form method="post" action="{{ route('demo.slots.retire',$offering['id']) }}">@csrf<button class="danger">停用 RETIRED</button></form>@endif</div>
+@if(config('demo_site.mode') === 'local_write')<div class="actions">@if($offering['status']==='DRAFT')<form method="post" action="{{ route('demo.slots.activate',$offering['id']) }}">@csrf<button>启用 ACTIVE</button></form>@endif @if(in_array($offering['status'],['DRAFT','ACTIVE'],true))<form method="post" action="{{ route('demo.slots.retire',$offering['id']) }}">@csrf<button class="danger">停用 RETIRED</button></form>@endif</div>@endif
 </article>
 @endforeach
 </section>
