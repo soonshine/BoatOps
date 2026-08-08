@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DemoScheduleController;
 use App\Http\Controllers\DemoSiteController;
+use App\Http\Controllers\Operator\BlockController;
 use App\Http\Controllers\Operator\BookingWorkflowController;
 use App\Http\Controllers\Operator\InquiryController;
 use App\Http\Controllers\Operator\OperatorCalendarController;
@@ -16,6 +17,9 @@ Route::prefix('operator')->name('operator.')->group(function (): void {
     Route::post('/login', [OperatorSessionController::class, 'store'])->middleware('throttle:operator-login')->name('login.store');
     Route::post('/logout', [OperatorSessionController::class, 'destroy'])->name('logout');
     Route::get('/calendar', [OperatorCalendarController::class, 'index'])->middleware('operator.membership:calendar_read')->name('calendar');
+    Route::get('/blocks', [BlockController::class, 'index'])->middleware('operator.membership:block')->name('blocks.index');
+    Route::post('/blocks', [BlockController::class, 'store'])->middleware('operator.membership:block')->name('blocks.store');
+    Route::post('/blocks/{block}/release', [BlockController::class, 'release'])->whereNumber('block')->middleware('operator.membership:block')->name('blocks.release');
     Route::get('/inquiries', [InquiryController::class, 'index'])->middleware('operator.membership:booking_workflow')->name('inquiries.index');
     Route::get('/inquiries/create', [InquiryController::class, 'create'])->middleware('operator.membership:booking_workflow')->name('inquiries.create');
     Route::post('/inquiries', [InquiryController::class, 'store'])->middleware('operator.membership:booking_workflow')->name('inquiries.store');
