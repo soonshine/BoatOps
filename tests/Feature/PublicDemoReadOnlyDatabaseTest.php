@@ -94,7 +94,6 @@ class PublicDemoReadOnlyDatabaseTest extends TestCase
     {
         $counts = $this->databaseRowCounts();
         $rowsHash = $this->databaseRowsHash();
-        DB::statement('PRAGMA wal_checkpoint(TRUNCATE)');
         DB::purge('sqlite');
 
         return [
