@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DemoScheduleController;
 use App\Http\Controllers\DemoSiteController;
+use App\Http\Controllers\Operator\BookingWorkflowController;
 use App\Http\Controllers\Operator\InquiryController;
 use App\Http\Controllers\Operator\OperatorCalendarController;
 use App\Http\Controllers\Operator\OperatorSessionController;
@@ -21,6 +22,9 @@ Route::prefix('operator')->name('operator.')->group(function (): void {
     Route::get('/inquiries/{inquiry}', [InquiryController::class, 'show'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.show');
     Route::post('/inquiries/{inquiry}/hold', [InquiryController::class, 'createHold'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.hold.create');
     Route::post('/inquiries/{inquiry}/hold/release', [InquiryController::class, 'releaseHold'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.hold.release');
+    Route::post('/inquiries/{inquiry}/holds/{hold}/confirm', [BookingWorkflowController::class, 'confirm'])->whereNumber(['inquiry', 'hold'])->middleware('operator.membership:booking_workflow')->name('inquiries.booking.confirm');
+    Route::post('/inquiries/{inquiry}/bookings/{booking}/amend', [BookingWorkflowController::class, 'amend'])->whereNumber(['inquiry', 'booking'])->middleware('operator.membership:booking_workflow')->name('inquiries.booking.amend');
+    Route::post('/inquiries/{inquiry}/bookings/{booking}/cancel', [BookingWorkflowController::class, 'cancel'])->whereNumber(['inquiry', 'booking'])->middleware('operator.membership:booking_workflow')->name('inquiries.booking.cancel');
 });
 
 Route::get('/api-docs', function () {

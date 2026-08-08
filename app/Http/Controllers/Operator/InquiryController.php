@@ -90,13 +90,30 @@ final class InquiryController extends Controller
             ->where('id', $record->hold_id)
             ->first();
 
+        $booking = $hold === null ? null : DB::table('bookings')
+            ->where('organization_id', $organization->id)
+            ->where('hold_id', $hold->id)
+            ->first();
+        $trip = $booking === null ? null : DB::table('trips')
+            ->where('organization_id', $organization->id)
+            ->where('booking_id', $booking->id)
+            ->first();
+
         return view('operator.inquiries.show', [
             'organization' => $organization,
             'inquiry' => $record,
             'hold' => $hold,
+            'booking' => $booking,
+            'trip' => $trip,
+            'boats' => DB::table('boats')->where('organization_id', $organization->id)->where('status', 'ACTIVE')->orderBy('name')->get(),
+            'products' => DB::table('trip_templates')->where('organization_id', $organization->id)->where('status', 'ACTIVE')->orderBy('name')->get(),
+            'slots' => DB::table('slot_offerings')->where('organization_id', $organization->id)->where('status', 'ACTIVE')->whereIn('kind', ['PRESET', 'CUSTOM_TEMPLATE'])->orderBy('name')->get(),
             'holdTtlConfigured' => $this->ttlPolicy->minutes((int) $organization->id) !== null,
             'holdIdempotencyKey' => (string) Str::uuid(),
             'releaseIdempotencyKey' => (string) Str::uuid(),
+            'confirmIdempotencyKey' => (string) Str::uuid(),
+            'amendIdempotencyKey' => (string) Str::uuid(),
+            'cancelIdempotencyKey' => (string) Str::uuid(),
         ]);
     }
 

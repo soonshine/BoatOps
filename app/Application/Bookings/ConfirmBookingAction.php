@@ -82,13 +82,15 @@ class ConfirmBookingAction
             }
 
             $now = now()->utc();
-            $rateSnapshot = $input['rate_snapshot'];
-            $quotedAt = CarbonImmutable::parse($rateSnapshot['quoted_at'])->utc();
+            $rateSnapshot = $input['rate_snapshot'] ?? null;
+            $quotedAt = $rateSnapshot === null
+                ? null
+                : CarbonImmutable::parse($rateSnapshot['quoted_at'])->utc();
             $validUntil = isset($rateSnapshot['valid_until'])
                 ? CarbonImmutable::parse($rateSnapshot['valid_until'])->utc()
                 : null;
 
-            if ($quotedAt->greaterThan($now)) {
+            if ($quotedAt?->greaterThan($now)) {
                 return $this->error('VALIDATION_FAILED', 'The rate quote time cannot be in the future.', 422);
             }
 
@@ -120,28 +122,31 @@ class ConfirmBookingAction
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-            $rateSnapshotId = DB::table('rate_snapshots')->insertGetId([
-                'organization_id' => $organization->id,
-                'booking_id' => $bookingId,
-                'schema_version' => 1,
-                'source_reference' => $rateSnapshot['source_reference'],
-                'currency' => $rateSnapshot['currency'],
-                'selling_amount_minor' => $rateSnapshot['selling_amount_minor'],
-                'tax_amount_minor' => $rateSnapshot['tax_amount_minor'],
-                'commission_amount_minor' => $rateSnapshot['commission_amount_minor'],
-                'fx_rate' => $rateSnapshot['fx_rate'] ?? null,
-                'fx_base_currency' => $rateSnapshot['fx_base_currency'] ?? null,
-                'fx_quote_currency' => $rateSnapshot['fx_quote_currency'] ?? null,
-                'quoted_at' => $quotedAt,
-                'valid_until' => $validUntil,
-                'canonical_hash' => $this->canonicalHash($rateSnapshot),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            DB::table('bookings')->where('id', $bookingId)->update([
-                'rate_snapshot_id' => $rateSnapshotId,
-                'updated_at' => $now,
-            ]);
+            $rateSnapshotId = null;
+            if ($rateSnapshot !== null) {
+                $rateSnapshotId = DB::table('rate_snapshots')->insertGetId([
+                    'organization_id' => $organization->id,
+                    'booking_id' => $bookingId,
+                    'schema_version' => 1,
+                    'source_reference' => $rateSnapshot['source_reference'],
+                    'currency' => $rateSnapshot['currency'],
+                    'selling_amount_minor' => $rateSnapshot['selling_amount_minor'],
+                    'tax_amount_minor' => $rateSnapshot['tax_amount_minor'],
+                    'commission_amount_minor' => $rateSnapshot['commission_amount_minor'],
+                    'fx_rate' => $rateSnapshot['fx_rate'] ?? null,
+                    'fx_base_currency' => $rateSnapshot['fx_base_currency'] ?? null,
+                    'fx_quote_currency' => $rateSnapshot['fx_quote_currency'] ?? null,
+                    'quoted_at' => $quotedAt,
+                    'valid_until' => $validUntil,
+                    'canonical_hash' => $this->canonicalHash($rateSnapshot),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+                DB::table('bookings')->where('id', $bookingId)->update([
+                    'rate_snapshot_id' => $rateSnapshotId,
+                    'updated_at' => $now,
+                ]);
+            }
             DB::table('holds')->where('id', $hold->id)->update([
                 'status' => 'CONFIRMED',
                 'updated_at' => $now,
