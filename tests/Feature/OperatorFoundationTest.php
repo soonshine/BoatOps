@@ -189,10 +189,12 @@ class OperatorFoundationTest extends TestCase
         try {
             $this->app->detectEnvironment(fn () => 'production');
             config(['demo_site.mode' => 'public_read_only', 'demo_site.isolated_dataset' => true, 'database.default' => 'sqlite', 'database.connections.sqlite.url' => null, 'cache.default' => 'file', 'cache.limiter' => 'file', 'session.driver' => 'file', 'queue.default' => 'sync']);
-            foreach (['/operator/login', '/operator/calendar', '/operator/inquiries', '/operator/inquiries/create', '/operator/inquiries/9'] as $p) {
+            foreach (['/operator/login', '/operator/calendar', '/operator/inquiries', '/operator/inquiries/create', '/operator/inquiries/9', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release'] as $p) {
                 $this->get($p)->assertNotFound();
             }$this->get('/api/v1/inventory/revision')->assertNotFound();
-            $this->post('/operator/login')->assertStatus(405)->assertHeader('Allow', 'GET');
+            foreach (['/operator/login', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release'] as $path) {
+                $this->post($path)->assertStatus(405)->assertHeader('Allow', 'GET');
+            }
         } finally {
             $this->app->detectEnvironment(fn () => $env);
         }

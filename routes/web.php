@@ -19,6 +19,8 @@ Route::prefix('operator')->name('operator.')->group(function (): void {
     Route::get('/inquiries/create', [InquiryController::class, 'create'])->middleware('operator.membership:booking_workflow')->name('inquiries.create');
     Route::post('/inquiries', [InquiryController::class, 'store'])->middleware('operator.membership:booking_workflow')->name('inquiries.store');
     Route::get('/inquiries/{inquiry}', [InquiryController::class, 'show'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.show');
+    Route::post('/inquiries/{inquiry}/hold', [InquiryController::class, 'createHold'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.hold.create');
+    Route::post('/inquiries/{inquiry}/hold/release', [InquiryController::class, 'releaseHold'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.hold.release');
 });
 
 Route::get('/api-docs', function () {

@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Operator;
 
+use App\Application\Holds\CreateInquiryHoldAction;
+use App\Application\Holds\HoldActor;
+use App\Application\Holds\OrganizationHoldTtlPolicy;
+use App\Application\Holds\ReleaseHoldAction;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +18,12 @@ use Illuminate\View\View;
 final class InquiryController extends Controller
 {
     private const OP = 'operator.inquiries.create';
+
+    public function __construct(
+        private readonly CreateInquiryHoldAction $createInquiryHold,
+        private readonly ReleaseHoldAction $releaseHoldAction,
+        private readonly OrganizationHoldTtlPolicy $ttlPolicy,
+    ) {}
 
     public function index(Request $r): View
     {
@@ -73,10 +83,83 @@ final class InquiryController extends Controller
 
     public function show(Request $r, int $inquiry): View
     {
-        $o = $r->attributes->get('organization');
-        $record = DB::table('inquiries')->where('organization_id', $o->id)->where('id', $inquiry)->first();
+        $organization = $r->attributes->get('organization');
+        $record = $this->scopedInquiry((int) $organization->id, $inquiry);
+        $hold = $record->hold_id === null ? null : DB::table('holds')
+            ->where('organization_id', $organization->id)
+            ->where('id', $record->hold_id)
+            ->first();
+
+        return view('operator.inquiries.show', [
+            'organization' => $organization,
+            'inquiry' => $record,
+            'hold' => $hold,
+            'holdTtlConfigured' => $this->ttlPolicy->minutes((int) $organization->id) !== null,
+            'holdIdempotencyKey' => (string) Str::uuid(),
+            'releaseIdempotencyKey' => (string) Str::uuid(),
+        ]);
+    }
+
+    public function createHold(Request $r, int $inquiry): RedirectResponse
+    {
+        $input = $r->validate(['idempotency_key' => ['required', 'uuid']]);
+        $organization = $r->attributes->get('organization');
+        $this->scopedInquiry((int) $organization->id, $inquiry);
+        $result = $this->createInquiryHold->execute(
+            (int) $organization->id,
+            $inquiry,
+            $input['idempotency_key'],
+            HoldActor::operatorUser((int) Auth::id()),
+        );
+
+        if ($result->status === 201) {
+            return redirect()->route('operator.inquiries.show', $inquiry, 303);
+        }
+
+        return redirect()->route('operator.inquiries.show', $inquiry, 303)
+            ->withErrors(['hold' => $result->payload['message']]);
+    }
+
+    public function releaseHold(Request $r, int $inquiry): RedirectResponse
+    {
+        $input = $r->validate(['idempotency_key' => ['required', 'uuid']]);
+        $organization = $r->attributes->get('organization');
+        $record = $this->scopedInquiry((int) $organization->id, $inquiry);
+
+        if ($record->hold_id === null) {
+            return redirect()->route('operator.inquiries.show', $inquiry, 303)
+                ->withErrors(['hold' => 'This inquiry has no linked HOLD.']);
+        }
+
+        $hold = DB::table('holds')
+            ->where('organization_id', $organization->id)
+            ->where('id', $record->hold_id)
+            ->first();
+        abort_if(! $hold, 404);
+        $result = $this->releaseHoldAction->execute(
+            (int) $organization->id,
+            (int) $hold->id,
+            ['external_reference' => (string) $hold->external_reference],
+            $input['idempotency_key'],
+            HoldActor::operatorUser((int) Auth::id()),
+        );
+
+        if ($result->status === 200) {
+            return redirect()->route('operator.inquiries.show', $inquiry, 303);
+        }
+
+        return redirect()->route('operator.inquiries.show', $inquiry, 303)
+            ->withErrors(['hold' => $result->payload['message']]);
+    }
+
+    private function scopedInquiry(int $organizationId, int $inquiry): object
+    {
+        $record = DB::table('inquiries')
+            ->where('organization_id', $organizationId)
+            ->where('id', $inquiry)
+            ->first();
         abort_if(! $record, 404);
 
-        return view('operator.inquiries.show', ['organization' => $o, 'inquiry' => $record]);
+        return $record;
     }
 }
