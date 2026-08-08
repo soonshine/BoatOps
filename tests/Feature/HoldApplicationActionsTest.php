@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Application\Bookings\AmendBookingAction;
+use App\Application\Bookings\BookingActionResult;
+use App\Application\Bookings\CancelBookingAction;
+use App\Application\Bookings\ConfirmBookingAction;
 use App\Application\Holds\CreateHoldAction;
 use App\Application\Holds\ExpireDueHoldAction;
 use App\Application\Holds\ExpireDueHolds;
@@ -224,6 +228,156 @@ class HoldApplicationActionsTest extends TestCase
         $this->assertSame(2, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
     }
 
+    public function test_confirm_booking_action_owns_success_replay_conflict_and_exact_side_effects(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Direct Confirm');
+        $created = app(CreateHoldAction::class)->execute(
+            $organizationId,
+            $this->holdInput($boatId, $templateId, 'DIRECT-CONFIRM-001'),
+            'confirm-hold-key',
+            HoldActor::apiClient(101),
+        );
+        $input = [
+            'hold_id' => $created->payload['hold_id'],
+            'external_reference' => 'DIRECT-CONFIRM-001',
+            'rate_snapshot' => $this->rateSnapshot(),
+        ];
+        $action = app(ConfirmBookingAction::class);
+
+        $confirmed = $action->execute($organizationId, $input, 'direct-confirm-key', HoldActor::operatorUser(102));
+        $replayed = $action->execute($organizationId, $input, 'direct-confirm-key', HoldActor::operatorUser(102));
+        $changed = $input;
+        $changed['rate_snapshot']['selling_amount_minor'] = 54321;
+        $conflict = $action->execute($organizationId, $changed, 'direct-confirm-key', HoldActor::operatorUser(102));
+        $terminal = $action->execute($organizationId, $input, 'direct-confirm-new', HoldActor::operatorUser(102));
+
+        $this->assertSame(201, $confirmed->status);
+        $this->assertTrue($confirmed->changed);
+        $this->assertSame($confirmed->payload, $replayed->payload);
+        $this->assertFalse($replayed->changed);
+        $this->assertSame('IDEMPOTENCY_CONFLICT', $conflict->payload['code']);
+        $this->assertSame('INVALID_TRANSITION', $terminal->payload['code']);
+        $bookingId = (int) $confirmed->payload['booking_id'];
+        $this->assertDatabaseHas('holds', ['id' => $input['hold_id'], 'status' => 'CONFIRMED']);
+        $this->assertDatabaseHas('bookings', ['id' => $bookingId, 'status' => 'CONFIRMED']);
+        $this->assertDatabaseHas('allocations', ['hold_id' => $input['hold_id'], 'booking_id' => $bookingId, 'allocation_type' => 'BOOKING', 'status' => 'ACTIVE']);
+        $this->assertDatabaseHas('trips', ['booking_id' => $bookingId, 'status' => 'PLANNED']);
+        $this->assertDatabaseHas('rate_snapshots', ['booking_id' => $bookingId, 'source_reference' => 'FICTIONAL-RATE-001', 'selling_amount_minor' => 12345]);
+        $this->assertDatabaseHas('audit_logs', ['actor_type' => 'operator_user', 'actor_id' => 102, 'action' => 'booking.confirmed']);
+        $this->assertDatabaseHas('outbox_events', ['event_type' => 'booking.confirmed.v1', 'aggregate_id' => $bookingId, 'inventory_revision' => 2]);
+        $this->assertSame(2, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+        $this->assertDatabaseCount('bookings', 1);
+        $this->assertDatabaseCount('trips', 1);
+        $this->assertDatabaseCount('rate_snapshots', 1);
+    }
+
+    public function test_confirm_booking_action_preserves_expired_hold_and_cross_organization_behavior(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Expired Confirm');
+        [$foreignOrganization] = $this->inventory('Fictional Foreign Confirm');
+        $holdInput = $this->holdInput($boatId, $templateId, 'EXPIRED-CONFIRM-001');
+        $holdInput['expires_at'] = '2026-08-01T00:05:00Z';
+        $created = app(CreateHoldAction::class)->execute($organizationId, $holdInput, 'expired-hold-key', HoldActor::apiClient(103));
+        $input = ['hold_id' => $created->payload['hold_id'], 'external_reference' => 'EXPIRED-CONFIRM-001', 'rate_snapshot' => $this->rateSnapshot()];
+        $action = app(ConfirmBookingAction::class);
+
+        $foreign = $action->execute($foreignOrganization, $input, 'foreign-confirm-key', HoldActor::operatorUser(104));
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:06:00Z'));
+        $expired = $action->execute($organizationId, $input, 'expired-confirm-key', HoldActor::operatorUser(104));
+        $replayed = $action->execute($organizationId, $input, 'expired-confirm-key', HoldActor::operatorUser(104));
+
+        $this->assertSame(403, $foreign->status);
+        $this->assertSame('AUTHORIZATION_FAILED', $foreign->payload['code']);
+        $this->assertSame(409, $expired->status);
+        $this->assertTrue($expired->changed);
+        $this->assertSame('HOLD_EXPIRED', $expired->payload['code']);
+        $this->assertSame($expired->payload, $replayed->payload);
+        $this->assertFalse($replayed->changed);
+        $this->assertDatabaseHas('holds', ['id' => $input['hold_id'], 'status' => 'EXPIRED']);
+        $this->assertDatabaseHas('allocations', ['hold_id' => $input['hold_id'], 'status' => 'EXPIRED']);
+        $this->assertDatabaseHas('audit_logs', ['actor_type' => 'operator_user', 'actor_id' => 104, 'action' => 'hold.expired']);
+        $this->assertDatabaseHas('outbox_events', ['event_type' => 'hold.expired.v1', 'inventory_revision' => 2]);
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertDatabaseCount('trips', 0);
+        $this->assertDatabaseCount('rate_snapshots', 0);
+        $this->assertSame(0, DB::table('idempotency_keys')->where('organization_id', $foreignOrganization)->count());
+    }
+
+    public function test_amend_booking_action_preserves_allocation_overlap_atomicity_replay_and_audit(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Direct Amend');
+        $created = app(CreateHoldAction::class)->execute($organizationId, $this->holdInput($boatId, $templateId, 'DIRECT-AMEND-001'), 'amend-hold-key', HoldActor::apiClient(105));
+        $confirmed = app(ConfirmBookingAction::class)->execute($organizationId, ['hold_id' => $created->payload['hold_id'], 'external_reference' => 'DIRECT-AMEND-001', 'rate_snapshot' => $this->rateSnapshot()], 'amend-confirm-key', HoldActor::apiClient(105));
+        $bookingId = (int) $confirmed->payload['booking_id'];
+        $input = ['external_reference' => 'DIRECT-AMEND-001', 'boat_id' => $boatId, 'trip_template_id' => $templateId, 'starts_at' => '2026-09-01T14:00:00Z', 'ends_at' => '2026-09-01T16:00:00Z'];
+        $action = app(AmendBookingAction::class);
+
+        $amended = $action->execute($organizationId, $bookingId, $input, 'direct-amend-key', HoldActor::operatorUser(106));
+        $replayed = $action->execute($organizationId, $bookingId, $input, 'direct-amend-key', HoldActor::operatorUser(106));
+        $changed = $input;
+        $changed['ends_at'] = '2026-09-01T17:00:00Z';
+        $conflict = $action->execute($organizationId, $bookingId, $changed, 'direct-amend-key', HoldActor::operatorUser(106));
+        DB::table('allocations')->insert([
+            'organization_id' => $organizationId, 'boat_id' => $boatId, 'allocation_type' => 'BLOCKED', 'status' => 'ACTIVE',
+            'business_start' => '2026-09-01 18:00:00', 'business_end' => '2026-09-01 20:00:00',
+            'occupied_start' => '2026-09-01 18:00:00', 'occupied_end' => '2026-09-01 20:00:00',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $blocked = [...$input, 'starts_at' => '2026-09-01T18:30:00Z', 'ends_at' => '2026-09-01T19:30:00Z'];
+        $revision = (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision');
+        $failed = $action->execute($organizationId, $bookingId, $blocked, 'blocked-amend-key', HoldActor::operatorUser(106));
+
+        $this->assertSame(200, $amended->status);
+        $this->assertTrue($amended->changed);
+        $this->assertSame($amended->payload, $replayed->payload);
+        $this->assertFalse($replayed->changed);
+        $this->assertSame('IDEMPOTENCY_CONFLICT', $conflict->payload['code']);
+        $this->assertSame('SLOT_UNAVAILABLE', $failed->payload['code']);
+        $this->assertDatabaseHas('bookings', ['id' => $bookingId, 'business_start' => '2026-09-01 14:00:00', 'business_end' => '2026-09-01 16:00:00']);
+        $this->assertDatabaseHas('allocations', ['booking_id' => $bookingId, 'business_start' => '2026-09-01 14:00:00', 'business_end' => '2026-09-01 16:00:00', 'status' => 'ACTIVE']);
+        $this->assertDatabaseHas('trips', ['booking_id' => $bookingId, 'planned_start' => '2026-09-01 14:00:00', 'planned_end' => '2026-09-01 16:00:00']);
+        $this->assertDatabaseHas('audit_logs', ['actor_type' => 'operator_user', 'actor_id' => 106, 'action' => 'booking.amended']);
+        $this->assertDatabaseHas('outbox_events', ['event_type' => 'booking.amended.v1', 'aggregate_id' => $bookingId, 'inventory_revision' => 3]);
+        $this->assertSame($revision, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+        $this->assertSame(0, DB::table('idempotency_keys')->where('idempotency_key', 'blocked-amend-key')->count());
+    }
+
+    public function test_cancel_booking_action_owns_replay_conflict_terminal_and_organization_scope(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Direct Cancel');
+        [$foreignOrganization] = $this->inventory('Fictional Foreign Cancel');
+        $created = app(CreateHoldAction::class)->execute($organizationId, $this->holdInput($boatId, $templateId, 'DIRECT-CANCEL-001'), 'cancel-hold-key', HoldActor::apiClient(107));
+        $confirmed = app(ConfirmBookingAction::class)->execute($organizationId, ['hold_id' => $created->payload['hold_id'], 'external_reference' => 'DIRECT-CANCEL-001', 'rate_snapshot' => $this->rateSnapshot()], 'cancel-confirm-key', HoldActor::apiClient(107));
+        $bookingId = (int) $confirmed->payload['booking_id'];
+        $input = ['external_reference' => 'DIRECT-CANCEL-001', 'reason' => 'FICTIONAL_CUSTOMER_REQUEST'];
+        $action = app(CancelBookingAction::class);
+
+        $foreign = $action->execute($foreignOrganization, $bookingId, $input, 'foreign-cancel-key', HoldActor::operatorUser(108));
+        $cancelled = $action->execute($organizationId, $bookingId, $input, 'direct-cancel-key', HoldActor::operatorUser(108));
+        $replayed = $action->execute($organizationId, $bookingId, $input, 'direct-cancel-key', HoldActor::operatorUser(108));
+        $conflict = $action->execute($organizationId, $bookingId, [...$input, 'reason' => 'FICTIONAL_CHANGED_REASON'], 'direct-cancel-key', HoldActor::operatorUser(108));
+        $terminal = $action->execute($organizationId, $bookingId, $input, 'direct-cancel-new', HoldActor::operatorUser(108));
+
+        $this->assertSame('AUTHORIZATION_FAILED', $foreign->payload['code']);
+        $this->assertSame(200, $cancelled->status);
+        $this->assertTrue($cancelled->changed);
+        $this->assertSame($cancelled->payload, $replayed->payload);
+        $this->assertFalse($replayed->changed);
+        $this->assertSame('IDEMPOTENCY_CONFLICT', $conflict->payload['code']);
+        $this->assertSame('INVALID_TRANSITION', $terminal->payload['code']);
+        $this->assertDatabaseHas('bookings', ['id' => $bookingId, 'status' => 'CANCELLED']);
+        $this->assertDatabaseHas('allocations', ['booking_id' => $bookingId, 'status' => 'CANCELLED']);
+        $this->assertDatabaseHas('trips', ['booking_id' => $bookingId, 'status' => 'CANCELLED']);
+        $this->assertDatabaseHas('audit_logs', ['actor_type' => 'operator_user', 'actor_id' => 108, 'action' => 'booking.cancelled', 'reason' => 'FICTIONAL_CUSTOMER_REQUEST']);
+        $this->assertDatabaseHas('outbox_events', ['event_type' => 'booking.cancelled.v1', 'aggregate_id' => $bookingId, 'inventory_revision' => 3]);
+        $this->assertSame(3, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+        $this->assertSame(0, DB::table('idempotency_keys')->where('organization_id', $foreignOrganization)->count());
+    }
+
     public function test_expiry_coordinator_drains_successive_batches_in_one_execute_call(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
@@ -288,6 +442,47 @@ class HoldApplicationActionsTest extends TestCase
         $this->assertDatabaseCount('allocations', 0);
     }
 
+    public function test_api_booking_adapters_only_validate_delegate_and_translate_action_results(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Booking Adapters');
+        $token = $this->apiClient($organizationId, 109);
+        $actor = fn (HoldActor $value): bool => $value->type === 'api_client' && $value->id === 109;
+        $confirmInput = ['hold_id' => 777, 'external_reference' => 'ADAPTER-CONFIRM-001', 'rate_snapshot' => $this->rateSnapshot()];
+        $confirm = Mockery::mock(ConfirmBookingAction::class);
+        $confirm->shouldReceive('execute')->once()->with($organizationId, $confirmInput, 'adapter-confirm-key', Mockery::on($actor))
+            ->andReturn(new BookingActionResult(201, ['code' => 'SHARED_CONFIRM_PATH']));
+        $this->app->instance(ConfirmBookingAction::class, $confirm);
+        $this->withToken($token)->withHeader('Idempotency-Key', 'adapter-confirm-key')
+            ->postJson('/api/v1/bookings:confirm', $confirmInput)
+            ->assertCreated()->assertExactJson(['code' => 'SHARED_CONFIRM_PATH']);
+
+        $amendInput = ['external_reference' => 'ADAPTER-AMEND-001', 'boat_id' => $boatId, 'trip_template_id' => $templateId, 'starts_at' => '2026-09-01T14:00:00Z', 'ends_at' => '2026-09-01T16:00:00Z'];
+        $amend = Mockery::mock(AmendBookingAction::class);
+        $amend->shouldReceive('execute')->once()->with($organizationId, 778, $amendInput, 'adapter-amend-key', Mockery::on($actor))
+            ->andReturn(new BookingActionResult(200, ['code' => 'SHARED_AMEND_PATH']));
+        $this->app->instance(AmendBookingAction::class, $amend);
+        $this->withToken($token)->withHeader('Idempotency-Key', 'adapter-amend-key')
+            ->postJson('/api/v1/bookings/778:amend', $amendInput)
+            ->assertOk()->assertExactJson(['code' => 'SHARED_AMEND_PATH']);
+
+        $cancelInput = ['external_reference' => 'ADAPTER-CANCEL-001', 'reason' => 'FICTIONAL_REASON'];
+        $cancel = Mockery::mock(CancelBookingAction::class);
+        $cancel->shouldReceive('execute')->once()->with($organizationId, 779, $cancelInput, 'adapter-cancel-key', Mockery::on($actor))
+            ->andReturn(new BookingActionResult(200, ['code' => 'SHARED_CANCEL_PATH']));
+        $this->app->instance(CancelBookingAction::class, $cancel);
+        $this->withToken($token)->withHeader('Idempotency-Key', 'adapter-cancel-key')
+            ->postJson('/api/v1/bookings/779:cancel', $cancelInput)
+            ->assertOk()->assertExactJson(['code' => 'SHARED_CANCEL_PATH']);
+
+        $this->assertDatabaseCount('holds', 0);
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertDatabaseCount('allocations', 0);
+        $this->assertDatabaseCount('trips', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
+        $this->assertDatabaseCount('outbox_events', 0);
+    }
+
     public function test_expire_command_delegates_to_bounded_shared_coordinator(): void
     {
         $coordinator = Mockery::mock(ExpireDueHolds::class);
@@ -340,6 +535,20 @@ class HoldApplicationActionsTest extends TestCase
             'starts_at' => '2026-09-01T10:00:00Z',
             'ends_at' => '2026-09-01T12:00:00Z',
             'expires_at' => '2026-08-01T00:20:00Z',
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function rateSnapshot(): array
+    {
+        return [
+            'source_reference' => 'FICTIONAL-RATE-001',
+            'currency' => 'USD',
+            'selling_amount_minor' => 12345,
+            'tax_amount_minor' => 0,
+            'commission_amount_minor' => 0,
+            'quoted_at' => '2026-07-31T23:00:00Z',
+            'valid_until' => '2026-08-02T00:00:00Z',
         ];
     }
 
