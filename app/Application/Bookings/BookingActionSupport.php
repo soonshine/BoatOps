@@ -122,6 +122,13 @@ trait BookingActionSupport
 
     private function matchingTimestamp(mixed $left, mixed $right): bool
     {
+        if ($left === null || $right === null) {
+            return $left === null && $right === null;
+        }
+        if ((is_string($left) && trim($left) === '') || (is_string($right) && trim($right) === '')) {
+            return false;
+        }
+
         return CarbonImmutable::parse((string) $left, 'UTC')->utc()->equalTo(
             CarbonImmutable::parse((string) $right, 'UTC')->utc(),
         );

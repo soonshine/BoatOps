@@ -149,6 +149,41 @@ class G1StateIntegrityRemediationTest extends TestCase
         $this->assertSame($before, $this->snapshot());
     }
 
+    public function test_cancel_accepts_matching_null_optional_integrity_timestamps(): void
+    {
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Matching Null Timestamps');
+        $reference = 'CANCEL-MATCHING-NULL-TIMESTAMPS';
+        $bookingId = $this->confirmedBooking($organizationId, $boatId, $templateId, $reference);
+        $allocationId = (int) DB::table('bookings')->where('id', $bookingId)->value('allocation_id');
+        DB::table('allocations')->where('id', $allocationId)->update(['service_start' => null]);
+        DB::table('bookings')->where('id', $bookingId)->update(['service_start' => null]);
+
+        $result = app(CancelBookingAction::class)->execute($organizationId, $bookingId, [
+            'external_reference' => $reference,
+        ], 'cancel-matching-null-timestamps', HoldActor::operatorUser(506));
+
+        $this->assertSame(200, $result->status);
+        $this->assertDatabaseHas('bookings', ['id' => $bookingId, 'status' => 'CANCELLED']);
+    }
+
+    public function test_cancel_rejects_one_null_optional_integrity_timestamp_even_when_other_is_now(): void
+    {
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional One Null Timestamp');
+        $reference = 'CANCEL-ONE-NULL-TIMESTAMP';
+        $bookingId = $this->confirmedBooking($organizationId, $boatId, $templateId, $reference);
+        $allocationId = (int) DB::table('bookings')->where('id', $bookingId)->value('allocation_id');
+        DB::table('allocations')->where('id', $allocationId)->update(['service_start' => null]);
+        DB::table('bookings')->where('id', $bookingId)->update(['service_start' => CarbonImmutable::now('UTC')]);
+        $before = $this->snapshot();
+
+        $result = app(CancelBookingAction::class)->execute($organizationId, $bookingId, [
+            'external_reference' => $reference,
+        ], 'cancel-one-null-timestamp', HoldActor::operatorUser(506));
+
+        $this->assertIntegrityFailure($result->status, $result->payload);
+        $this->assertSame($before, $this->snapshot());
+    }
+
     #[DataProvider('tripCorruptions')]
     public function test_amend_rejects_corrupt_trip_relationships_without_partial_writes(string $corruption): void
     {

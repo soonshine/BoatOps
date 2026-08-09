@@ -88,13 +88,25 @@ trait BlockActionSupport
         }
 
         foreach (['business_start', 'business_end', 'occupied_start', 'occupied_end'] as $field) {
-            if (! CarbonImmutable::parse((string) $allocation->{$field}, 'UTC')->utc()->equalTo(
-                CarbonImmutable::parse((string) $block->{$field}, 'UTC')->utc(),
-            )) {
+            if (! $this->matchingTimestamp($allocation->{$field}, $block->{$field})) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private function matchingTimestamp(mixed $left, mixed $right): bool
+    {
+        if ($left === null || $right === null) {
+            return $left === null && $right === null;
+        }
+        if ((is_string($left) && trim($left) === '') || (is_string($right) && trim($right) === '')) {
+            return false;
+        }
+
+        return CarbonImmutable::parse((string) $left, 'UTC')->utc()->equalTo(
+            CarbonImmutable::parse((string) $right, 'UTC')->utc(),
+        );
     }
 }
