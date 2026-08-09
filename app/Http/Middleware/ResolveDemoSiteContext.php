@@ -15,25 +15,25 @@ class ResolveDemoSiteContext
     public function handle(Request $request, Closure $next): Response
     {
         $mode = (string) config('demo_site.mode');
-        if (config('demo_site.enabled') !== true || ! in_array($mode, ['local_write', 'public_read_only'], true)) {
+        if (config('demo_site.enabled') !== true || ! in_array($mode, ['local_write', 'public_read_only', 'isolated_operator_demo'], true)) {
             abort(404);
         }
         if ($mode === 'local_write' && ! app()->environment(['local', 'testing'])) {
             abort(404);
         }
-        if ($mode === 'public_read_only' && ! app()->environment('production')) {
+        if (in_array($mode, ['public_read_only', 'isolated_operator_demo'], true) && ! app()->environment('production')) {
             abort(404);
         }
-        if ($mode === 'public_read_only' && ! $this->hasIsolatedSqliteContract()) {
+        if (in_array($mode, ['public_read_only', 'isolated_operator_demo'], true) && ! $this->hasIsolatedSqliteContract()) {
             abort(404);
         }
-        if ($mode === 'public_read_only' && ! $this->hasApprovedReadOnlyStateDrivers()) {
+        if (in_array($mode, ['public_read_only', 'isolated_operator_demo'], true) && ! $this->hasApprovedReadOnlyStateDrivers()) {
             abort(404);
         }
-        if ($mode === 'public_read_only' && $request->getRealMethod() !== 'GET') {
+        if (in_array($mode, ['public_read_only', 'isolated_operator_demo'], true) && $request->getRealMethod() !== 'GET') {
             abort(405, 'The public Demo accepts GET requests only.', ['Allow' => 'GET']);
         }
-        if ($mode === 'public_read_only') {
+        if (in_array($mode, ['public_read_only', 'isolated_operator_demo'], true)) {
             $key = 'boatops-demo-get:'.sha1((string) $request->ip());
             $maxAttempts = (int) config('demo_site.public_rate_limit_per_minute');
             if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
@@ -46,7 +46,7 @@ class ResolveDemoSiteContext
             abort(404);
         }
         $organization = $organizations->first();
-        $actorName = $mode === 'public_read_only'
+        $actorName = in_array($mode, ['public_read_only', 'isolated_operator_demo'], true)
             ? config('demo_site.public_reader_name')
             : config('demo_site.actor_name');
         $actors = DB::table('api_clients')->where('organization_id', $organization->id)
@@ -55,14 +55,14 @@ class ResolveDemoSiteContext
             abort(404);
         }
         $actor = $actors->first();
-        $requiredScopes = $mode === 'public_read_only'
+        $requiredScopes = in_array($mode, ['public_read_only', 'isolated_operator_demo'], true)
             ? config('demo_site.public_reader_scopes')
             : ['operations.finance.read', 'operations.finance.write', 'operations.schedule.read', 'operations.schedule.write'];
         $scopes = json_decode($actor->scopes ?? '[]', true);
         if (! is_array($scopes)) {
             abort(404);
         }
-        if ($mode === 'public_read_only') {
+        if (in_array($mode, ['public_read_only', 'isolated_operator_demo'], true)) {
             $normalizedScopes = array_values(array_map('strval', $scopes));
             $normalizedRequiredScopes = array_values(array_map('strval', $requiredScopes));
             sort($normalizedScopes);
@@ -78,7 +78,7 @@ class ResolveDemoSiteContext
         $request->attributes->set('api_client_scopes', $scopes);
 
         $response = $next($request);
-        if ($mode === 'public_read_only') {
+        if (in_array($mode, ['public_read_only', 'isolated_operator_demo'], true)) {
             $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
             $response->headers->set('Cache-Control', 'no-store');
         }
