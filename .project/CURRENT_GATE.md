@@ -1,66 +1,78 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-09 17:40 Asia/Bangkok
+Updated: 2026-08-09 18:20 Asia/Bangkok
 
 ## Current authoritative decision
 
-`REAL_OPERATIONS_PILOT_MVP_IMPLEMENTATION = AUTHORIZED`
+`WP1 = COMPLETE_MERGED / WP2 = AUTHORIZED_TO_START / WP3 = WAIT_FOR_WP2_REVIEW`
 
-The Owner has authorized business-code implementation of the already frozen Real Operations Pilot MVP scope.
+The Owner explicitly authorized merging WP1 after primary review, and that one-time merge authorization has been consumed.
 
-This authorization does **not** authorize business-code merge, deployment, production enablement, real data, migration/cutover, Tag or GitHub Release.
+WP1 canonical evidence:
 
-Canonical implementation baseline:
+- PR: `#8`
+- reviewed head: `973e0456bf3c8672ae4ba03c61ac0a1c88cfd416`
+- primary review: `PASS`
+- exact-head CI: Run `31310148095` = `SUCCESS`
+- merged main: `1114307d358e67d91ebcf742a26e9d7469209e67`
+- post-merge main CI: Run `31310579582` = `SUCCESS`
 
-`ae62d26f418ab841a67497387d03a904e33e9064`
+No deployment, real data, production enablement, migration/cutover, Tag or GitHub Release is authorized.
 
 Canonical scope contract:
 
 `docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md`
 
-## Execution discipline
-
-Implementation is staged:
-
-`WP1 -> primary review -> WP2 -> primary review -> WP3 -> primary review`
-
-Only WP1 is authorized to start now.
-
-WP2 and WP3 remain inside the approved MVP scope, but executors must not begin them until the primary reviewer closes the preceding slice.
-
-## Current authorized slice — WP1
+## Closed slice — WP1
 
 ### Minimal Operational Booking Dossier
 
-Implement only the frozen minimum structured service/order information needed for real daily execution while preserving existing authoritative Inventory/Booking actions.
+WP1 is complete and merged.
 
-Required minimum:
+Accepted implementation includes the minimum structured operational dossier, organization scoping, safe validation, PII-safe generic audit behavior, editable dossier after Inquiry/HOLD/Confirm, and no change to authoritative Inventory/Booking lifecycle semantics.
 
-- customer/contact name;
-- contact method and contact value;
-- party size;
-- pickup / meeting point;
-- optional dropoff / service location;
-- sales source / optional agent or partner reference;
-- customer/service notes separated from internal operations notes;
-- optional currency and selling amount using the existing rate-snapshot foundation where appropriate.
+The implementation did not create a rate snapshot or fake unknown tax/commission values.
 
-Required properties:
+Non-blocking Pilot UX backlog:
 
-- organization scoped;
-- safe validation;
-- explicit PII handling;
-- ordinary audit output must not leak contact values;
-- existing Inventory Provider API contract must not be broken;
-- existing HOLD / Confirm / Amend / Cancel authority must be reused;
+- selling amount is currently entered in minor units; reconsider operator-facing amount UX only from real Pilot feedback or a later bounded product decision.
+
+## Current authorized slice — WP2
+
+### Minimal Operator Booking Workbench
+
+WP2 is now authorized to start.
+
+Business outcome:
+
+> An operator can find and manage real operational bookings directly from BoatOps without relying on the Inquiry list or an external spreadsheet.
+
+Minimum frozen surfaces:
+
+- organization-scoped booking list;
+- booking detail;
+- today / upcoming / all views or equivalent filters;
+- date filter;
+- status filter;
+- reference/customer search;
+- pagination;
+- display of WP1 dossier, vessel/service timing, booking state and Trip state;
+- reuse existing Amend and Cancel actions from the booking context.
+
+Rules:
+
+- do not introduce a second Booking lifecycle;
+- derive lifecycle from existing Inquiry/HOLD/Booking/Trip relationships;
+- existing authoritative Inventory actions remain the only mutation path;
+- reuse WP1 dossier rather than copy customer fields into a second competing model;
+- organization isolation and `booking_workflow` permission remain mandatory;
 - synthetic/fictional fixtures only.
 
-## Not authorized in WP1
+## Not authorized in WP2
 
 Do not implement:
 
-- Booking Workbench (WP2);
-- Trip Desk or Trip refactor (WP3);
+- WP3 Trip Desk/refactor/safety repair;
 - new `PREPARED` Trip state;
 - ChannelHub;
 - OTA;
@@ -74,15 +86,11 @@ Do not implement:
 - SaaS super-admin;
 - production deployment or real data.
 
-## Frozen later slices
+## Frozen later slice — WP3
 
-### WP2 — Minimal Operator Booking Workbench
+### Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
 
-Frozen, but `WAIT_FOR_WP1_REVIEW`.
-
-### WP3 — Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
-
-Frozen, but `WAIT_FOR_WP2_REVIEW`.
+Status: `WAIT_FOR_WP2_REVIEW`.
 
 Trip status remains:
 
@@ -90,21 +98,13 @@ Trip status remains:
 
 No `PREPARED` state is authorized.
 
-A successful Trip-plan amendment must invalidate stored readiness before later departure.
+## Merge and deployment boundary
 
-## Must reuse
+WP1 merge authorization is consumed.
 
-- Availability / occupied intervals;
-- HOLD / release / expiry;
-- Confirm / Amend / Cancel;
-- BLOCK / release;
-- Inventory revision / idempotency / audit / outbox;
-- Slot catalog / compatibility / calendar projection;
-- Operator auth/membership and existing Inquiry workflow;
-- existing Trip schema/core semantics;
-- PostgreSQL exclusion/concurrency protection.
+Future business-code merge remains separately gated:
 
-## Deployment separation
+`merge_authorized=false`
 
 Real Operations Deployment remains a separate later gate requiring PostgreSQL, actual organization/vessels/rules/operators, scheduler, backup/restore, health/logging, PII protection, explicit real-data authorization and cutover.
 
@@ -114,11 +114,11 @@ D1 SQLite is not the Pilot production database baseline.
 
 - readiness audit = `COMPLETE`
 - MVP scope = `FROZEN`
-- WP1 business-code implementation = `AUTHORIZED`
-- WP2 start = `WAIT_FOR_WP1_REVIEW`
+- WP1 = `COMPLETE_MERGED`
+- WP2 business-code implementation = `AUTHORIZED`
 - WP3 start = `WAIT_FOR_WP2_REVIEW`
 - implementation branch/commit/PR = `AUTHORIZED`
-- business-code merge = `NOT_AUTHORIZED`
+- future business-code merge = `NOT_AUTHORIZED`
 - deployment = `NOT_AUTHORIZED`
 - production enablement = `NOT_AUTHORIZED`
 - production data = `NOT_AUTHORIZED`
@@ -127,6 +127,6 @@ D1 SQLite is not the Pilot production database baseline.
 
 ## Next allowed action
 
-`HERMES_IMPLEMENT_PILOT_MVP_WP1`
+`HERMES_IMPLEMENT_PILOT_MVP_WP2`
 
-`PILOT_MVP_IMPLEMENTATION_AUTHORIZED / WP1_ONLY / NO_DEPLOYMENT / NO_REAL_DATA / NO_MERGE`
+`WP1_COMPLETE_MERGED / WP2_AUTHORIZED / WP3_WAIT / NO_DEPLOYMENT / NO_REAL_DATA / NO_FUTURE_MERGE_AUTHORIZATION`
