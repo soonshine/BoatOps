@@ -1,8 +1,8 @@
-schema_version: 5
+schema_version: 6
 project: BoatOps
-updated_at: "2026-08-09T17:40:00+07:00"
+updated_at: "2026-08-09T18:20:00+07:00"
 
-phase: real-operations-pilot-mvp-implementation-authorized
+phase: real-operations-pilot-mvp-wp2-authorized
 
 product_positioning:
   product: "Reusable organization-scoped vessel inventory and operations platform"
@@ -16,10 +16,10 @@ product_positioning:
 current_gate:
   id: REAL_OPERATIONS_PILOT_MVP_IMPLEMENTATION
   status: IMPLEMENTATION_AUTHORIZED
-  decision: OWNER_AUTHORIZED_IMPLEMENTATION_ONLY
+  decision: OWNER_AUTHORIZED_STAGED_IMPLEMENTATION
   implementation_authorized: true
   implementation_sequence: "WP1 -> review -> WP2 -> review -> WP3 -> review"
-  current_authorized_slice: "WP1 Minimal Operational Booking Dossier"
+  current_authorized_slice: "WP2 Minimal Operator Booking Workbench"
   merge_authorized: false
   deployment_authorized: false
   production_data_authorized: false
@@ -28,14 +28,9 @@ current_gate:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  canonical_main_at_implementation_authorization_start: "ae62d26f418ab841a67497387d03a904e33e9064"
+  canonical_main_after_wp1: "1114307d358e67d91ebcf742a26e9d7469209e67"
   d1_product_source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
   scope_bounded_business_code_authorized: true
-  source_change_in_d1_deployment: false
-  main_ci_for_scope_freeze:
-    run_id: 31308764313
-    head: "ae62d26f418ab841a67497387d03a904e33e9064"
-    result: success
   tags: 0
   github_releases: 0
   github_deployments: 0
@@ -43,57 +38,25 @@ repository:
   main_branch_protected: false
   repository_rulesets: 0
 
-g1:
-  id: G1_OPERATOR_MVP
-  status: COMPLETE
-  base_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
-  reviewed_code_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-  main_governance_receipt_head: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
-  deployed_in_d1_fictional_demo: true
-  production_deployed: false
-  preserved_p2:
-    - "Audit rows lack an explicit request/idempotency correlation field."
-    - "The coarse organization write lock may limit same-organization throughput."
-    - "Existing inquiry/block/audit MVP surfaces may need broader pagination/UX work outside the frozen booking workbench."
-
-d0_1:
-  id: D0.1_G0_HARDENED_DEMO_DEPLOYMENT
-  status: COMPLETE
-  release_id: D0_1_20260808T140625Z
-  source_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
-  sqlite_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
-  dataset: fictional
-  production: false
-  actual_rollback_test: PASS
-  canonical_receipt: "docs/releases/d0-1-g0-fictional-demo-deployment-receipt.md"
-
-d1:
-  id: D1_G1_FICTIONAL_DEMO_DEPLOYMENT
-  status: COMPLETE
-  release_id: D1_G1_20260809T045741Z
-  source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
-  source_changed_for_deployment: false
-  dataset: fictional
+wp1:
+  id: PILOT_MVP_WP1_MINIMAL_OPERATIONAL_BOOKING_DOSSIER
+  status: COMPLETE_MERGED
+  branch: "hermes/pilot-mvp-wp1-booking-dossier"
+  pr: 8
+  reviewed_head_sha: "973e0456bf3c8672ae4ba03c61ac0a1c88cfd416"
+  primary_review: PASS
+  exact_head_ci:
+    run_id: 31310148095
+    result: success
+  merged_main_sha: "1114307d358e67d91ebcf742a26e9d7469209e67"
+  post_merge_main_ci:
+    run_id: 31310579582
+    result: success
+  merge_authorization_consumed: true
+  deployment: false
   real_data: false
-  production_enabled: false
-  public_runtime:
-    mode: public_read_only
-    database: sqlite
-  private_operator_runtime:
-    access: "SSH tunnel to loopback only"
-    bind: "127.0.0.1:18082"
-    public_exposure: false
-  database:
-    d1_sqlite_sha256: "62299484458b8e6f63ca7f457ae713d6d3812e31b654ada8847a6d302596b08f"
-    integrity_check: ok
-    foreign_key_violations: 0
-  rollback:
-    authoritative_script_sha256: "0f785385bd57c8165470f436e71009a11e4971b2687a48d1da36e5e2bacad11a"
-    actual_d1_to_d0: PASS
-    actual_d0_to_d1_restore: PASS
-  evidence_closure:
-    status: CLOSED
-    checksums: "PASS 25/25"
+  non_blocking_backlog:
+    - "Operator selling amount currently uses minor-unit entry; revisit UX from real Pilot feedback before expanding Finance semantics."
 
 mvp_readiness_audit:
   id: REAL_OPERATIONS_PILOT_MVP_READINESS_AUDIT
@@ -115,10 +78,10 @@ real_operations_pilot_mvp:
   work_packages:
     wp1:
       name: "Minimal Operational Booking Dossier"
-      status: AUTHORIZED_TO_START
+      status: COMPLETE_MERGED
     wp2:
       name: "Minimal Operator Booking Workbench"
-      status: WAIT_FOR_WP1_REVIEW
+      status: AUTHORIZED_TO_START
     wp3:
       name: "Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
       status: WAIT_FOR_WP2_REVIEW
@@ -145,8 +108,9 @@ real_operations_pilot_mvp:
     - public semantic-version release
 
 accepted_boundaries:
-  - "Implementation authorization is limited to the frozen Real Operations Pilot MVP scope."
-  - "Execution is staged: only WP1 may start now; WP2 and WP3 wait for prior-slice review."
+  - "WP1 is reviewed, merged, and closed; its one-time merge authorization is consumed."
+  - "WP2 may now be implemented inside the frozen MVP scope; WP3 must wait for WP2 primary review."
+  - "Future business-code merges remain separately authorized; current merge_authorized=false."
   - "D1 remains fictional Demo validation only."
   - "Real operations deployment is a separate gate and must use PostgreSQL as inventory authority."
   - "Historical automated migration is not required for the first Pilot unless later evidence proves otherwise."
@@ -172,10 +136,10 @@ authorizations:
   ota_authorized: false
 
 next_task:
-  id: START_PILOT_MVP_WP1
+  id: START_PILOT_MVP_WP2
   owner: hermes
   status: AUTHORIZED_NOT_STARTED
   rule: >-
-    Implement only WP1 Minimal Operational Booking Dossier against exact current main.
-    Preserve existing inventory and booking mutation paths, use only synthetic/fictional
-    fixtures, open a bounded PR, and stop for primary review before starting WP2.
+    Implement only WP2 Minimal Operator Booking Workbench against exact canonical main
+    after WP1. Reuse existing Inquiry/HOLD/Booking actions and WP1 dossier; use only
+    synthetic/fictional fixtures; open a bounded PR and stop for primary review before WP3.
