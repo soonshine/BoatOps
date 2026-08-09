@@ -1,8 +1,8 @@
-schema_version: 3
+schema_version: 4
 project: BoatOps
-updated_at: "2026-08-09T16:52:00+07:00"
+updated_at: "2026-08-09T17:28:00+07:00"
 
-phase: d1-complete-real-operations-pilot-candidate
+phase: real-operations-pilot-mvp-scope-frozen
 
 product_positioning:
   product: "Reusable organization-scoped vessel inventory and operations platform"
@@ -14,34 +14,28 @@ product_positioning:
   iteration_principle: "Time-to-real-use over feature completeness; iterate from actual operations."
 
 current_gate:
-  id: D1_G1_FICTIONAL_DEMO_DEPLOYMENT
-  status: COMPLETE
-  decision: APPROVED
-  next_product_gate: REAL_OPERATIONS_PILOT_MVP
-  next_product_gate_status: PROPOSED_NOT_AUTHORIZED
-  next_product_gate_authorized: false
+  id: REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE
+  status: SCOPE_FROZEN
+  decision: APPROVED_SCOPE_ONLY
+  implementation_authorized: false
+  deployment_authorized: false
+  production_data_authorized: false
+  scope_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  canonical_main_at_roadmap_sync_start: "ff5345da4ace8bb9301d172ac68fb437a1ca154c"
+  canonical_main_at_scope_freeze_start: "185ebaaac7c5d9f2435eea9faff2f6beeb6f78fe"
   d1_product_source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
-  governance_alignment_base_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
   business_code_frozen: true
   source_change_in_d1_deployment: false
   main_ci_for_d1_source:
     run_id: 31294685662
     head: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
     result: success
-    quality_job:
-      id: 93197737212
-      result: success
-    postgresql_concurrency_job:
-      id: 93197737241
-      result: success
-  governance_main_ci:
-    run_id: 31306111586
-    head: "ff5345da4ace8bb9301d172ac68fb437a1ca154c"
+  governance_main_ci_before_scope_freeze:
+    run_id: 31307128822
+    head: "185ebaaac7c5d9f2435eea9faff2f6beeb6f78fe"
     result: success
   tags: 0
   github_releases: 0
@@ -55,19 +49,13 @@ g1:
   status: COMPLETE
   base_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
   reviewed_code_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-  governance_head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
   main_governance_receipt_head: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
   deployed_in_d1_fictional_demo: true
   production_deployed: false
-  p0: 0
-  p1: 0
-  p2:
+  preserved_p2:
     - "Audit rows lack an explicit request/idempotency correlation field."
     - "The coarse organization write lock may limit same-organization throughput."
     - "Operator inquiry/block/audit listings remain unpaginated MVP surfaces."
-  architecture:
-    shared_application_domain_actions_for_inventory: true
-    parallel_inventory_rule_path_found: false
 
 d0_1:
   id: D0.1_G0_HARDENED_DEMO_DEPLOYMENT
@@ -91,112 +79,84 @@ d1:
   production_enabled: false
   public_runtime:
     mode: public_read_only
-    current_target: "/www/wwwroot/boatops.ayany.com/releases/D1_G1_20260809T045741Z/public-runtime"
     database: sqlite
   private_operator_runtime:
     access: "SSH tunnel to loopback only"
     bind: "127.0.0.1:18082"
-    active: true
-    enabled: true
     public_exposure: false
   database:
     d1_sqlite_sha256: "62299484458b8e6f63ca7f457ae713d6d3812e31b654ada8847a6d302596b08f"
     integrity_check: ok
     foreign_key_violations: 0
-    row_counts:
-      organizations: 1
-      users: 1
-      inquiries: 2
-      holds: 3
-      bookings: 6
-      trips: 6
-      blocks: 3
-      allocations: 10
-      audit_logs: 24
-      idempotency_keys: 19
-      outbox_events: 12
-      rate_snapshots: 0
-      expenses: 0
-  synthetic_operator_email: "operator.d1.synthetic@fictional.invalid"
-  workflow_refs:
-    pre_switch: D1-PREFLIGHT-EFC8506040C3
-    live: D1-LIVE-43C5C393E126
-  final_workflow_state:
-    booking_6: CANCELLED
-    allocation_9: CANCELLED
-    trip_6: CANCELLED
-    block_3: RELEASED
-    allocation_10: RELEASED
-    rate_snapshot: NONE
   rollback:
     authoritative_script_sha256: "0f785385bd57c8165470f436e71009a11e4971b2687a48d1da36e5e2bacad11a"
-    stale_orphaned_expected_sha256: "2a5a4f93306d0a360299f34085f6ddf626fbfc3339e19225e25d185b3c4febc9"
-    hash_reconciled: true
     actual_d1_to_d0: PASS
     actual_d0_to_d1_restore: PASS
-    d0_source_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
-    d0_sqlite_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
   evidence_closure:
     status: CLOSED
-    metadata_sha256: "88f6d500acef3bc24761dcd4467cdc46a4ebce495a98eb7c5d8842b6339b5f4d"
-    receipt_sha256: "cac020f04f719c0c6885e3ea9abdb67eb15d1b913729d8878c50564a33aaa5c1"
-    sha256sums_sha256: "1ffc9cbded300c166cefd7cae96d7fdbc22e1c4bcd2e2e346a0d02476200c18b"
     checksums: "PASS 25/25"
 
-accepted_boundaries:
-  - "D1 is fictional Demo validation only."
-  - "D1 live database is SQLite; PostgreSQL concurrency is CI evidence, not live D1 evidence."
-  - "Demo HOLD TTL and operating times are fictional validation settings, not production policy."
-  - "Current vessel ownership is not asserted as Ayany ownership."
-  - "Ayany is not a hard-coded tenant, vessel owner, or required integration."
-  - "ChannelHub remains separate and paused."
+mvp_readiness_audit:
+  id: REAL_OPERATIONS_PILOT_MVP_READINESS_AUDIT
+  status: COMPLETE
+  mode: READ_ONLY
+  independent_reviewer: Codex
+  independent_decision: PILOT_MVP_SCOPE_CAN_BE_FROZEN
+  primary_review: APPROVE_WITH_CORRECTION
+  correction: >-
+    Do not add PREPARED Trip status. Existing Operations API contract intentionally
+    keeps prepared Trips PLANNED. Invalidate stored crew/checklist readiness atomically
+    after a successful Trip-plan amendment and require re-prepare before departure.
+  verified_findings:
+    - "Operational Booking Dossier is structurally insufficient for real daily use."
+    - "Dedicated Operator booking list/detail workbench is missing."
+    - "Trip mutations exist but remain controller-contained and Operator Trip Desk is missing."
+    - "Prepare->amend can retain obsolete readiness unless explicitly invalidated."
+    - "Trip actual timestamp validation requires safety tightening."
+    - "Inventory and Schedule foundations must be reused, not rebuilt."
 
-real_operations_pilot_candidate:
+real_operations_pilot_mvp:
   id: REAL_OPERATIONS_PILOT_MVP
-  status: PROPOSED_NOT_AUTHORIZED
-  objective: "Reach the smallest version usable for actual vessel operations, then iterate from real usage."
+  status: SCOPE_FROZEN_IMPLEMENTATION_NOT_AUTHORIZED
   roadmap: "docs/product/REAL_OPERATIONS_PILOT_MVP.md"
-  steps:
-    - "1. Read-only MVP readiness audit."
-    - "2. Minimal Operational Booking Dossier."
-    - "3. Minimal Operator Trip Desk using shared Trip Application Actions."
-    - "4. Separate real-operations deployment readiness with PostgreSQL and real configuration."
-    - "5. Small controlled cutover, preferring new/future operational records over historical migration."
-    - "6. Usage-driven iteration."
-  first_slice_focus:
-    - "Operational booking details sufficient for daily execution."
-    - "Operator booking list/detail surfaces."
-    - "Trip execution UI over existing backend capabilities."
+  scope_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
+  work_packages:
+    - "WP1 Minimal Operational Booking Dossier"
+    - "WP2 Minimal Operator Booking Workbench"
+    - "WP3 Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
+  trip_status_contract:
+    add_prepared_status: false
+    preserved_flow: "PLANNED -> DEPARTED -> RETURNED -> COMPLETED"
+    preparation_semantics: "Readiness attached to PLANNED; amendment invalidates readiness."
   explicit_exclusions:
     - ChannelHub
     - OTA
     - WordPress inventory integration
     - payment gateway
-    - full accounting/receivables
-    - profit dashboard
+    - full accounting/receivables/refunds/profit
     - broad stock/fuel UI expansion
+    - CRM
     - complex SaaS administration
     - automated historical migration
     - notification center
     - reporting platform
     - maintenance management
-    - second-operator onboarding
+    - vessel document management
+    - complex passenger manifest
+    - second-company onboarding
     - public semantic-version release
 
-owner_decision_required_before_real_operations:
-  - "Identify the actual operating organization/tenant for a real deployment."
-  - "Define vessel/operator/owner relationships where required by the deployment."
-  - "Freeze actual schedules and operating windows."
-  - "Freeze buffer values."
-  - "Freeze HOLD TTL, extension, and re-HOLD rules."
-  - "Freeze slot combination and mutual-exclusion rules."
-  - "Freeze weather and custom-slot policy."
-  - "Define production Operator identities and permissions."
-  - "Authorize and map real products, prices, customers, and orders."
-  - "Authorize production PostgreSQL and real-data migration/cutover separately."
+accepted_boundaries:
+  - "D1 remains fictional Demo validation only."
+  - "Real operations deployment is a separate gate and must use PostgreSQL as inventory authority."
+  - "Historical automated migration is not required for the first Pilot unless later evidence proves otherwise."
+  - "Current vessel ownership is not asserted as Ayany ownership."
+  - "Ayany is not a hard-coded tenant, vessel owner, or required integration."
+  - "ChannelHub remains separate and paused."
 
 authorizations:
-  mvp_readiness_audit_authorized: false
+  mvp_readiness_audit_authorized: true
+  mvp_readiness_audit_complete: true
   business_code_change_authorized: false
   merge_authorized: false
   deployment_authorized: false
@@ -209,11 +169,10 @@ authorizations:
   ota_authorized: false
 
 next_task:
-  id: AUTHORIZE_AND_RUN_MVP_READINESS_AUDIT
+  id: OWNER_AUTHORIZE_PILOT_MVP_IMPLEMENTATION
   owner: owner
   status: NOT_STARTED
   rule: >-
-    The product direction is now the Real Operations Pilot MVP, but its exact
-    implementation gate remains unapproved. Run a bounded read-only readiness
-    audit first; then freeze the smallest acceptance contract before authorizing
-    business-code development.
+    The MVP scope is frozen. No executor may change business code until the Owner
+    explicitly authorizes implementation. Deployment, production data and cutover
+    remain separate later authorizations.
