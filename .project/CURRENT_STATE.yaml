@@ -1,8 +1,8 @@
-schema_version: 4
+schema_version: 5
 project: BoatOps
-updated_at: "2026-08-09T17:28:00+07:00"
+updated_at: "2026-08-09T17:40:00+07:00"
 
-phase: real-operations-pilot-mvp-scope-frozen
+phase: real-operations-pilot-mvp-implementation-authorized
 
 product_positioning:
   product: "Reusable organization-scoped vessel inventory and operations platform"
@@ -14,10 +14,13 @@ product_positioning:
   iteration_principle: "Time-to-real-use over feature completeness; iterate from actual operations."
 
 current_gate:
-  id: REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE
-  status: SCOPE_FROZEN
-  decision: APPROVED_SCOPE_ONLY
-  implementation_authorized: false
+  id: REAL_OPERATIONS_PILOT_MVP_IMPLEMENTATION
+  status: IMPLEMENTATION_AUTHORIZED
+  decision: OWNER_AUTHORIZED_IMPLEMENTATION_ONLY
+  implementation_authorized: true
+  implementation_sequence: "WP1 -> review -> WP2 -> review -> WP3 -> review"
+  current_authorized_slice: "WP1 Minimal Operational Booking Dossier"
+  merge_authorized: false
   deployment_authorized: false
   production_data_authorized: false
   scope_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
@@ -25,17 +28,13 @@ current_gate:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  canonical_main_at_scope_freeze_start: "185ebaaac7c5d9f2435eea9faff2f6beeb6f78fe"
+  canonical_main_at_implementation_authorization_start: "ae62d26f418ab841a67497387d03a904e33e9064"
   d1_product_source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
-  business_code_frozen: true
+  scope_bounded_business_code_authorized: true
   source_change_in_d1_deployment: false
-  main_ci_for_d1_source:
-    run_id: 31294685662
-    head: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
-    result: success
-  governance_main_ci_before_scope_freeze:
-    run_id: 31307128822
-    head: "185ebaaac7c5d9f2435eea9faff2f6beeb6f78fe"
+  main_ci_for_scope_freeze:
+    run_id: 31308764313
+    head: "ae62d26f418ab841a67497387d03a904e33e9064"
     result: success
   tags: 0
   github_releases: 0
@@ -55,7 +54,7 @@ g1:
   preserved_p2:
     - "Audit rows lack an explicit request/idempotency correlation field."
     - "The coarse organization write lock may limit same-organization throughput."
-    - "Operator inquiry/block/audit listings remain unpaginated MVP surfaces."
+    - "Existing inquiry/block/audit MVP surfaces may need broader pagination/UX work outside the frozen booking workbench."
 
 d0_1:
   id: D0.1_G0_HARDENED_DEMO_DEPLOYMENT
@@ -107,23 +106,22 @@ mvp_readiness_audit:
     Do not add PREPARED Trip status. Existing Operations API contract intentionally
     keeps prepared Trips PLANNED. Invalidate stored crew/checklist readiness atomically
     after a successful Trip-plan amendment and require re-prepare before departure.
-  verified_findings:
-    - "Operational Booking Dossier is structurally insufficient for real daily use."
-    - "Dedicated Operator booking list/detail workbench is missing."
-    - "Trip mutations exist but remain controller-contained and Operator Trip Desk is missing."
-    - "Prepare->amend can retain obsolete readiness unless explicitly invalidated."
-    - "Trip actual timestamp validation requires safety tightening."
-    - "Inventory and Schedule foundations must be reused, not rebuilt."
 
 real_operations_pilot_mvp:
   id: REAL_OPERATIONS_PILOT_MVP
-  status: SCOPE_FROZEN_IMPLEMENTATION_NOT_AUTHORIZED
+  status: IMPLEMENTATION_AUTHORIZED
   roadmap: "docs/product/REAL_OPERATIONS_PILOT_MVP.md"
   scope_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
   work_packages:
-    - "WP1 Minimal Operational Booking Dossier"
-    - "WP2 Minimal Operator Booking Workbench"
-    - "WP3 Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
+    wp1:
+      name: "Minimal Operational Booking Dossier"
+      status: AUTHORIZED_TO_START
+    wp2:
+      name: "Minimal Operator Booking Workbench"
+      status: WAIT_FOR_WP1_REVIEW
+    wp3:
+      name: "Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
+      status: WAIT_FOR_WP2_REVIEW
   trip_status_contract:
     add_prepared_status: false
     preserved_flow: "PLANNED -> DEPARTED -> RETURNED -> COMPLETED"
@@ -147,6 +145,8 @@ real_operations_pilot_mvp:
     - public semantic-version release
 
 accepted_boundaries:
+  - "Implementation authorization is limited to the frozen Real Operations Pilot MVP scope."
+  - "Execution is staged: only WP1 may start now; WP2 and WP3 wait for prior-slice review."
   - "D1 remains fictional Demo validation only."
   - "Real operations deployment is a separate gate and must use PostgreSQL as inventory authority."
   - "Historical automated migration is not required for the first Pilot unless later evidence proves otherwise."
@@ -157,7 +157,10 @@ accepted_boundaries:
 authorizations:
   mvp_readiness_audit_authorized: true
   mvp_readiness_audit_complete: true
-  business_code_change_authorized: false
+  business_code_change_authorized: true
+  implementation_branch_authorized: true
+  implementation_commit_authorized: true
+  implementation_pr_authorized: true
   merge_authorized: false
   deployment_authorized: false
   tag_authorized: false
@@ -169,10 +172,10 @@ authorizations:
   ota_authorized: false
 
 next_task:
-  id: OWNER_AUTHORIZE_PILOT_MVP_IMPLEMENTATION
-  owner: owner
-  status: NOT_STARTED
+  id: START_PILOT_MVP_WP1
+  owner: hermes
+  status: AUTHORIZED_NOT_STARTED
   rule: >-
-    The MVP scope is frozen. No executor may change business code until the Owner
-    explicitly authorizes implementation. Deployment, production data and cutover
-    remain separate later authorizations.
+    Implement only WP1 Minimal Operational Booking Dossier against exact current main.
+    Preserve existing inventory and booking mutation paths, use only synthetic/fictional
+    fixtures, open a bounded PR, and stop for primary review before starting WP2.

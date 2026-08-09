@@ -1,8 +1,8 @@
 # BoatOps Review Queue
 
-Last updated: 2026-08-09 17:28 Asia/Bangkok
+Last updated: 2026-08-09 17:40 Asia/Bangkok
 
-Current decision: `PILOT_MVP_SCOPE_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED`
+Current decision: `PILOT_MVP_IMPLEMENTATION_AUTHORIZED / WP1_ONLY / NO_MERGE / NO_DEPLOYMENT`
 
 ## Frozen identities
 
@@ -13,52 +13,85 @@ Current decision: `PILOT_MVP_SCOPE_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED`
 | D1 source CI | Run `31294685662` | SUCCESS |
 | D1 release | `D1_G1_20260809T045741Z` | COMPLETE / FICTIONAL DEMO |
 | D1 SQLite | `62299484458b8e6f63ca7f457ae713d6d3812e31b654ada8847a6d302596b08f` | VERIFIED |
-| D0.1 source | `3826cb2c29aea4d2b92a90e04c14f8c218fbf45c` | FROZEN |
-| Pilot-roadmap canonical main | `185ebaaac7c5d9f2435eea9faff2f6beeb6f78fe` | SUCCESS / BUSINESS CODE UNCHANGED |
+| Pilot scope-freeze main | `ae62d26f418ab841a67497387d03a904e33e9064` | SUCCESS / IMPLEMENTATION BASELINE |
 | Pilot scope contract | `docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md` | FROZEN |
 
 ## Readiness audit closure
 
-The read-only readiness audit is complete.
+Independent Codex decision: `PILOT_MVP_SCOPE_CAN_BE_FROZEN`
 
-Independent Codex decision:
+Primary review: `APPROVE_WITH_CORRECTION`
 
-`PILOT_MVP_SCOPE_CAN_BE_FROZEN`
+Frozen correction:
 
-Primary review:
+- do not add a `PREPARED` Trip state;
+- preparation remains readiness attached to `PLANNED`;
+- successful amendment must invalidate stored readiness;
+- later departure must require re-prepare;
+- actual trip timestamps require safe ordering validation in WP3.
 
-`APPROVE_WITH_CORRECTION`
+## Owner authorization
 
-Verified P0 gaps:
+The Owner explicitly authorized implementation of the frozen Real Operations Pilot MVP.
 
-1. Minimal Operational Booking Dossier.
-2. Minimal Operator Booking Workbench.
-3. Shared Trip Actions + Minimal Operator Trip Desk + readiness/timestamp safety repair.
+Execution is staged to minimize scope and review risk:
 
-Reviewer correction:
+1. WP1 implementation now;
+2. primary review before WP2;
+3. WP2 implementation;
+4. primary review before WP3;
+5. WP3 implementation;
+6. primary review before any merge/deployment decision.
 
-- Do **not** add a `PREPARED` Trip state for this MVP.
-- Existing contract keeps preparation attached to `PLANNED`.
-- Successful amendment must invalidate stored crew/checklist readiness atomically.
-- Departure after amendment must require re-prepare.
+This authorization permits implementation branch, commits and PR creation inside the frozen scope. It does not authorize merge or deployment.
 
-## Frozen MVP scope
+## Active implementation queue
 
-### WP1 — Booking Dossier
+### ACTIVE — WP1 Minimal Operational Booking Dossier
 
-Minimum structured customer/contact, party size, pickup/meeting, optional service location, source, service/internal notes, and optional selling amount/currency.
+Status: `AUTHORIZED_TO_START`
 
-### WP2 — Booking Workbench
+Required minimum:
 
-Organization-scoped, paginated booking list/detail with today/upcoming/all, date/status/reference/customer filtering, lifecycle display, and reuse of existing Amend/Cancel actions.
+- structured customer/contact name;
+- contact method/value;
+- party size;
+- pickup/meeting point;
+- optional dropoff/service location;
+- sales source and optional agent/partner reference;
+- customer/service notes separated from internal operations notes;
+- optional selling amount/currency using existing rate-snapshot foundations where appropriate;
+- organization scoping, validation and PII-safe audit behavior.
 
-### WP3 — Trip Desk
+Required tests:
 
-Shared `Application/Trips` actions, Operator Today's Trips/detail, crew/checklist preparation, Depart/Return/Complete, amendment-readiness invalidation, and actual-time safety validation.
+- validation boundaries;
+- organization isolation / cross-org denial;
+- PII audit redaction/non-disclosure;
+- existing Inquiry/HOLD/Confirm/Amend/Cancel regression coverage;
+- migration round-trip;
+- existing contracts remain valid;
+- PostgreSQL CI remains green;
+- fictional/synthetic fixtures only.
 
-Canonical details and acceptance tests:
+Explicit WP1 exclusions:
 
-`docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md`
+- WP2 Booking Workbench;
+- WP3 Trip UI/refactor;
+- new Trip state;
+- Finance expansion;
+- ChannelHub/OTA/WordPress/payment;
+- CRM/manifest/maintenance/documents;
+- historical migration;
+- real data or deployment.
+
+### WAITING — WP2 Minimal Operator Booking Workbench
+
+Status: `WAIT_FOR_WP1_REVIEW`
+
+### WAITING — WP3 Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
+
+Status: `WAIT_FOR_WP2_REVIEW`
 
 ## Existing capability that must be reused
 
@@ -82,7 +115,7 @@ Canonical details and acceptance tests:
 
 ### GitHub governance
 
-1. `main` is unprotected; required checks are not enforced by branch protection.
+1. `main` remains unprotected; required checks are not enforced by branch protection.
 2. Repository rulesets = `0`.
 3. GitHub Environments / Deployments remain unused for the existing external Demo deployment.
 4. Superseded historical branches remain repository-hygiene work.
@@ -90,7 +123,7 @@ Canonical details and acceptance tests:
 
 ## Deployment remains separate
 
-Real Pilot deployment is not authorized by this scope freeze.
+Real Pilot deployment is not authorized.
 
 Minimum later deployment concerns include PostgreSQL, actual organization/vessels/rules, real Operators, HOLD expiry scheduler, backup/restore, health/logging, PII protection, physical Demo isolation and explicit real-data/cutover authorization.
 
@@ -100,7 +133,11 @@ Automated historical migration is not required for the first Pilot unless later 
 
 - readiness audit = complete
 - MVP scope = frozen
-- business_code_change_authorized=false
+- business_code_change_authorized=true
+- implementation_branch_authorized=true
+- implementation_commit_authorized=true
+- implementation_pr_authorized=true
+- current_authorized_slice=WP1
 - merge_authorized=false
 - deployment_authorized=false
 - tag_authorized=false
@@ -111,6 +148,6 @@ Automated historical migration is not required for the first Pilot unless later 
 - channelhub_authorized=false
 - ota_authorized=false
 
-Next task: `OWNER_AUTHORIZE_PILOT_MVP_IMPLEMENTATION`
+Next task: `HERMES_IMPLEMENT_PILOT_MVP_WP1`
 
-`D1_COMPLETE / PILOT_MVP_SCOPE_FROZEN / NO_REAL_DATA / NOT_RELEASED / IMPLEMENTATION_NOT_AUTHORIZED`
+`D1_COMPLETE / PILOT_MVP_SCOPE_FROZEN / IMPLEMENTATION_AUTHORIZED / WP1_ACTIVE / NO_REAL_DATA / NOT_RELEASED / NO_MERGE`

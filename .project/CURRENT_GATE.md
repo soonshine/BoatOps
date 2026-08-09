@@ -1,60 +1,96 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-09 17:28 Asia/Bangkok
+Updated: 2026-08-09 17:40 Asia/Bangkok
 
 ## Current authoritative decision
 
-`REAL_OPERATIONS_PILOT_MVP_SCOPE = FROZEN / APPROVED_SCOPE_ONLY`
+`REAL_OPERATIONS_PILOT_MVP_IMPLEMENTATION = AUTHORIZED`
 
-Implementation is **not authorized**.
+The Owner has authorized business-code implementation of the already frozen Real Operations Pilot MVP scope.
 
-D1 remains complete and frozen as fictional Demo validation only.
+This authorization does **not** authorize business-code merge, deployment, production enablement, real data, migration/cutover, Tag or GitHub Release.
 
-- D1 deployed product source: `f9503b598b174b7a6891fcde0d984514a3cd0fcd`
-- Canonical main at scope-freeze start: `185ebaaac7c5d9f2435eea9faff2f6beeb6f78fe`
-- Real data: `NONE`
-- Production PostgreSQL: `NOT_ENABLED`
-- Tag / GitHub Release: `NONE`
+Canonical implementation baseline:
+
+`ae62d26f418ab841a67497387d03a904e33e9064`
 
 Canonical scope contract:
 
 `docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md`
 
-## Audit closure
+## Execution discipline
 
-The bounded read-only MVP readiness audit is complete.
+Implementation is staged:
 
-Independent Codex decision:
+`WP1 -> primary review -> WP2 -> primary review -> WP3 -> primary review`
 
-`PILOT_MVP_SCOPE_CAN_BE_FROZEN`
+Only WP1 is authorized to start now.
 
-Primary reviewer decision:
+WP2 and WP3 remain inside the approved MVP scope, but executors must not begin them until the primary reviewer closes the preceding slice.
 
-`APPROVE_WITH_CORRECTION`
+## Current authorized slice — WP1
 
-Accepted correction:
+### Minimal Operational Booking Dossier
 
-> Do not add a new `PREPARED` Trip status in the Pilot. Existing Operations API semantics keep preparation attached to a `PLANNED` Trip. A successful amendment must invalidate stored readiness atomically and require re-prepare before departure.
+Implement only the frozen minimum structured service/order information needed for real daily execution while preserving existing authoritative Inventory/Booking actions.
 
-## Frozen work packages
+Required minimum:
 
-### WP1 — Minimal Operational Booking Dossier
+- customer/contact name;
+- contact method and contact value;
+- party size;
+- pickup / meeting point;
+- optional dropoff / service location;
+- sales source / optional agent or partner reference;
+- customer/service notes separated from internal operations notes;
+- optional currency and selling amount using the existing rate-snapshot foundation where appropriate.
 
-Structured minimum service/order data for real daily execution, organization-scoped and PII-safe.
+Required properties:
+
+- organization scoped;
+- safe validation;
+- explicit PII handling;
+- ordinary audit output must not leak contact values;
+- existing Inventory Provider API contract must not be broken;
+- existing HOLD / Confirm / Amend / Cancel authority must be reused;
+- synthetic/fictional fixtures only.
+
+## Not authorized in WP1
+
+Do not implement:
+
+- Booking Workbench (WP2);
+- Trip Desk or Trip refactor (WP3);
+- new `PREPARED` Trip state;
+- ChannelHub;
+- OTA;
+- WordPress inventory integration;
+- payment gateway;
+- receivables/refunds/full Finance/profit;
+- CRM;
+- complex passenger manifest;
+- maintenance/documents;
+- automated historical migration;
+- SaaS super-admin;
+- production deployment or real data.
+
+## Frozen later slices
 
 ### WP2 — Minimal Operator Booking Workbench
 
-Booking list/detail with today/upcoming/all, basic filters, pagination and reuse of existing authoritative Booking actions.
+Frozen, but `WAIT_FOR_WP1_REVIEW`.
 
 ### WP3 — Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
 
-Extract current Trip mutations into shared Application Actions, add Operator Trip surfaces, invalidate readiness after amendment, and enforce safe actual timestamp ordering.
+Frozen, but `WAIT_FOR_WP2_REVIEW`.
 
 Trip status remains:
 
 `PLANNED -> DEPARTED -> RETURNED -> COMPLETED`
 
-No `PREPARED` status is authorized.
+No `PREPARED` state is authorized.
+
+A successful Trip-plan amendment must invalidate stored readiness before later departure.
 
 ## Must reuse
 
@@ -68,15 +104,9 @@ No `PREPARED` status is authorized.
 - existing Trip schema/core semantics;
 - PostgreSQL exclusion/concurrency protection.
 
-## Explicit exclusions
-
-First Pilot excludes ChannelHub, OTA, WordPress inventory integration, payment gateway, complete Finance/accounting/refunds/profit, broad stock/fuel UI expansion, CRM, complex SaaS admin, automated historical migration, notification/reporting platforms, maintenance, vessel documents, complex manifest, second-company onboarding, and public Release.
-
 ## Deployment separation
 
-Scope freeze does not authorize deployment.
-
-Real Operations Deployment remains a later gate requiring PostgreSQL, actual organization/vessels/rules/operators, scheduler, backup/restore, health/logging, PII protection, explicit real-data authorization and cutover.
+Real Operations Deployment remains a separate later gate requiring PostgreSQL, actual organization/vessels/rules/operators, scheduler, backup/restore, health/logging, PII protection, explicit real-data authorization and cutover.
 
 D1 SQLite is not the Pilot production database baseline.
 
@@ -84,8 +114,11 @@ D1 SQLite is not the Pilot production database baseline.
 
 - readiness audit = `COMPLETE`
 - MVP scope = `FROZEN`
-- business code change = `NOT_AUTHORIZED`
-- business code merge = `NOT_AUTHORIZED`
+- WP1 business-code implementation = `AUTHORIZED`
+- WP2 start = `WAIT_FOR_WP1_REVIEW`
+- WP3 start = `WAIT_FOR_WP2_REVIEW`
+- implementation branch/commit/PR = `AUTHORIZED`
+- business-code merge = `NOT_AUTHORIZED`
 - deployment = `NOT_AUTHORIZED`
 - production enablement = `NOT_AUTHORIZED`
 - production data = `NOT_AUTHORIZED`
@@ -94,6 +127,6 @@ D1 SQLite is not the Pilot production database baseline.
 
 ## Next allowed action
 
-`OWNER_AUTHORIZE_PILOT_MVP_IMPLEMENTATION`
+`HERMES_IMPLEMENT_PILOT_MVP_WP1`
 
-`PILOT_MVP_SCOPE_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED / NO_DEPLOYMENT / NO_REAL_DATA`
+`PILOT_MVP_IMPLEMENTATION_AUTHORIZED / WP1_ONLY / NO_DEPLOYMENT / NO_REAL_DATA / NO_MERGE`
