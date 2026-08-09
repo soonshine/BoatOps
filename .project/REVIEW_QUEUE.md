@@ -1,8 +1,8 @@
 # BoatOps Review Queue
 
-Last updated: 2026-08-09 16:17 Asia/Bangkok
+Last updated: 2026-08-09 16:52 Asia/Bangkok
 
-Current decision: `D1_COMPLETE / NEXT_PRODUCT_GATE_UNDEFINED`
+Current decision: `D1_COMPLETE / REAL_OPERATIONS_PILOT_MVP_PROPOSED / NOT_AUTHORIZED`
 
 ## Frozen identities
 
@@ -16,6 +16,7 @@ Current decision: `D1_COMPLETE / NEXT_PRODUCT_GATE_UNDEFINED`
 | D1 rollback script | `0f785385bd57c8165470f436e71009a11e4971b2687a48d1da36e5e2bacad11a` | AUTHORITATIVE |
 | D0.1 source | `3826cb2c29aea4d2b92a90e04c14f8c218fbf45c` | FROZEN |
 | D0.1 SQLite | `97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4` | VERIFIED |
+| Canonical governance main before pilot-roadmap sync | `ff5345da4ace8bb9301d172ac68fb437a1ca154c` | SUCCESS / BUSINESS CODE UNCHANGED |
 
 ## Current product truth
 
@@ -27,6 +28,80 @@ Current decision: `D1_COMPLETE / NEXT_PRODUCT_GATE_UNDEFINED`
 - Production PostgreSQL is not enabled by D1.
 - Real data has not been authorized or migrated.
 - ChannelHub, OTA, payment, WordPress inventory integration, and Google Sheet migration remain outside the active gate.
+
+## Product direction now proposed
+
+The Owner has selected an iteration strategy centered on reaching real operational use quickly and improving BoatOps from actual operating feedback rather than attempting feature completeness first.
+
+The next product-gate candidate is:
+
+`REAL_OPERATIONS_PILOT_MVP`
+
+Status:
+
+`PROPOSED / NOT_AUTHORIZED`
+
+Canonical roadmap:
+
+`docs/product/REAL_OPERATIONS_PILOT_MVP.md`
+
+Six-step path:
+
+1. bounded read-only MVP readiness audit;
+2. Minimal Operational Booking Dossier;
+3. Minimal Operator Trip Desk over existing Trip engine;
+4. separate real-operations deployment readiness using PostgreSQL and actual configuration;
+5. small controlled cutover;
+6. usage-driven iteration.
+
+This direction does not authorize implementation. Exact acceptance criteria must be frozen after the readiness audit.
+
+## Existing capability that must be reused
+
+Current source already contains substantial foundations and the next implementation must not rebuild them without evidence of a missing invariant:
+
+- Inventory availability and occupied intervals;
+- HOLD / release / expiry;
+- Booking confirm / amend / cancel;
+- BLOCK / release;
+- Schedule / slot catalog / compatibility / calendar projection;
+- Operator auth, calendar, Inquiry/HOLD, Booking workflow, BLOCK and audit;
+- Trip crew/checklist and prepare/depart/return/complete backend transitions;
+- PostgreSQL concurrency validation;
+- finance/stock/cash candidate foundations.
+
+## Likely minimal pilot gaps to verify, not yet accepted as final scope
+
+### Operational Booking Dossier
+
+Verify the smallest structured order/service information needed for a real operator, likely including customer/contact, party size, pickup/meeting point, sales source, service/internal notes, currency and selling amount.
+
+Do not expand this into CRM, payment, settlement, or accounting in the first pilot.
+
+### Operator Trip Desk
+
+Verify the minimal UI needed for today's Trip execution. Existing Trip transaction/business behavior should be extracted/reused as shared Application Actions if still trapped in API controllers; do not build a parallel Trip state machine.
+
+### Real deployment readiness
+
+Treat PostgreSQL, actual organization/vessel configuration, real Operator identities, backup/restore and data authorization as a separate deployment gate. D1 SQLite is not a production baseline.
+
+## Explicit first-pilot exclusions
+
+- ChannelHub;
+- OTA;
+- WordPress inventory integration;
+- payment gateway;
+- complete receivables/accounting;
+- profit dashboard;
+- broad stock/fuel UI expansion;
+- complex SaaS admin;
+- automated historical migration;
+- notification center;
+- reporting platform;
+- maintenance management;
+- second-operator onboarding;
+- public semantic-version release.
 
 ## Preserved findings
 
@@ -57,37 +132,35 @@ Critical classification:
 
 The successful D1 deployment used exact source `f9503b598b174b7a6891fcde0d984514a3cd0fcd` with no D1 business-source change.
 
-## Owner decisions required before real operations
+## Decisions required before implementation
 
 | Item | Current treatment |
 | --- | --- |
+| MVP readiness audit | NOT YET AUTHORIZED |
+| Exact MVP acceptance contract | NOT FROZEN |
+| Business-code change | NOT AUTHORIZED |
+| Merge | NOT AUTHORIZED |
 | Actual operating organization/tenant | NOT FROZEN |
-| Vessel ownership / operating-right relationship where needed | DEPLOYMENT DATA / NOT FROZEN |
-| Actual schedules and service windows | CONFIGURABLE / NOT FROZEN |
-| Buffer values | CONFIGURABLE / NOT FROZEN |
-| HOLD TTL, extension, re-HOLD | CONFIGURABLE / NOT FROZEN |
-| Slot compatibility / mutual exclusion | CONFIGURABLE / NOT FROZEN |
-| Weather policy | CONFIGURABLE / NOT FROZEN |
-| Custom-slot policy | CONFIGURABLE / NOT FROZEN |
+| Actual vessels / operating-right relationship | DEPLOYMENT DATA / NOT FROZEN |
+| Actual schedules, buffer and HOLD policy | CONFIGURABLE / NOT FROZEN |
 | Production Operator identities/permissions | OWNER CONFIGURATION REQUIRED |
 | Real products/prices/customers/orders | REAL DATA / SEPARATE AUTHORIZATION |
 | Production PostgreSQL | SEPARATE DEPLOYMENT AUTHORIZATION |
 | Migration/reconciliation/cutover | SEPARATE DATA AUTHORIZATION |
 
-## Next-gate discipline
+## Next action discipline
 
-There is no approved `G2A` definition.
+Before any business-code work:
 
-Before any new product gate:
+1. run the bounded MVP readiness audit;
+2. compare audit findings to current main source/tests;
+3. select the smallest implementation slice;
+4. freeze acceptance criteria and explicit exclusions;
+5. obtain Owner authorization for business-code work and merge.
 
-1. state the business outcome;
-2. inventory what already exists in `main` so existing Trip, finance, schedule, inventory, or Operator capabilities are not reimplemented;
-3. identify the smallest missing application/domain/UI slice;
-4. define acceptance tests and explicit exclusions;
-5. obtain Owner authorization for business-code work.
+Current authorization boundary:
 
-## Current authorization boundary
-
+- mvp_readiness_audit_authorized=false
 - business_code_change_authorized=false
 - merge_authorized=false
 - deployment_authorized=false
@@ -99,6 +172,6 @@ Before any new product gate:
 - channelhub_authorized=false
 - ota_authorized=false
 
-Next task: `DEFINE_NEXT_PRODUCT_GATE`
+Next task: `AUTHORIZE_AND_RUN_MVP_READINESS_AUDIT`
 
-`D1_COMPLETE / FICTIONAL_DEMO_ONLY / NO_REAL_DATA / NOT_TAGGED / NOT_RELEASED / NEXT_GATE_UNDEFINED`
+`D1_COMPLETE / FICTIONAL_DEMO_ONLY / REAL_OPERATIONS_PILOT_MVP_PROPOSED / NO_REAL_DATA / NOT_TAGGED / NOT_RELEASED / IMPLEMENTATION_NOT_AUTHORIZED`
