@@ -8,10 +8,83 @@
 </div>
 <div>Notes: {{ $inquiry->notes ?: 'None' }}
 </div>
+<section class="card">
+<h2>Operational Dossier
+</h2>
+<div>Contact: {{ $inquiry->contact_name ?: 'Not provided' }}
+</div>
+<div>Contact method / value: {{ $inquiry->contact_method ?: 'Not provided' }}{{ $inquiry->contact_value ? ' / '.$inquiry->contact_value : '' }}
+</div>
+<div>Party size: {{ $inquiry->party_size ?: 'Not provided' }}
+</div>
+<div>Meeting point: {{ $inquiry->meeting_point ?: 'Not provided' }}
+</div>
+<div>Service location: {{ $inquiry->service_location ?: 'Not provided' }}
+</div>
+<div>Sales source: {{ $inquiry->sales_source ?: 'Not provided' }}
+</div>
+<div>Agent / partner reference: {{ $inquiry->agent_reference ?: 'Not provided' }}
+</div>
+<div>Customer / service notes: {{ $inquiry->service_notes ?: 'None' }}
+</div>
+<div>Internal operations notes: {{ $inquiry->internal_notes ?: 'None' }}
+</div>
+<div>Selling amount: {{ $inquiry->selling_currency && $inquiry->selling_amount_minor !== null ? $inquiry->selling_currency.' '.$inquiry->selling_amount_minor.' minor units' : 'Not provided' }}
+</div>
+<p>These details remain editable after HOLD and confirmation. Updating them does not change inventory or booking/trip lifecycle state.
+</p>
+<form method="post" action="{{ route('operator.inquiries.dossier.update', $inquiry->id) }}">
+@csrf
+<input type="hidden" name="idempotency_key" value="{{ $dossierIdempotencyKey }}">
+<label>Contact name
+<input name="contact_name" value="{{ old('contact_name', $inquiry->contact_name) }}" maxlength="255">
+</label>
+<label>Contact method
+<select name="contact_method">
+<option value="">None</option>
+@foreach(['PHONE', 'WHATSAPP', 'WECHAT', 'LINE', 'EMAIL', 'OTHER'] as $method)
+<option value="{{ $method }}" @selected(old('contact_method', $inquiry->contact_method) === $method)>{{ $method }}</option>
+@endforeach
+</select>
+</label>
+<label>Contact value
+<input name="contact_value" value="{{ old('contact_value', $inquiry->contact_value) }}" maxlength="255">
+</label>
+<label>Party size
+<input type="number" name="party_size" value="{{ old('party_size', $inquiry->party_size) }}" min="1" max="999" step="1">
+</label>
+<label>Meeting point
+<textarea name="meeting_point" maxlength="2000">{{ old('meeting_point', $inquiry->meeting_point) }}</textarea>
+</label>
+<label>Service location / dropoff
+<textarea name="service_location" maxlength="2000">{{ old('service_location', $inquiry->service_location) }}</textarea>
+</label>
+<label>Sales source
+<input name="sales_source" value="{{ old('sales_source', $inquiry->sales_source) }}" maxlength="255">
+</label>
+<label>Agent / partner reference
+<input name="agent_reference" value="{{ old('agent_reference', $inquiry->agent_reference) }}" maxlength="255">
+</label>
+<label>Customer / service notes
+<textarea name="service_notes" maxlength="5000">{{ old('service_notes', $inquiry->service_notes) }}</textarea>
+</label>
+<label>Internal operations notes
+<textarea name="internal_notes" maxlength="5000">{{ old('internal_notes', $inquiry->internal_notes) }}</textarea>
+</label>
+<label>Selling currency
+<input name="selling_currency" value="{{ old('selling_currency', $inquiry->selling_currency) }}" maxlength="3" pattern="[A-Z]{3}" placeholder="THB">
+</label>
+<label>Selling amount (minor units)
+<input type="number" name="selling_amount_minor" value="{{ old('selling_amount_minor', $inquiry->selling_amount_minor) }}" min="0" step="1">
+</label>
+<button>Update operational dossier
+</button>
+</form>
+</section>
 <section class="card error">
 <h2>G1 commercial boundary
 </h2>
-<p>Pricing and payment are outside G1. Operator confirmation creates an explicitly unpriced booking with no rate snapshot. It is not production-commercial ready.
+<p>Pricing and payment are outside G1. A dossier selling amount is informational only. Operator confirmation still creates an explicitly unpriced booking with no rate snapshot, tax, or commission values. It is not production-commercial ready.
 </p>
 </section>
 @if(session('status'))
