@@ -1,8 +1,8 @@
 # BoatOps Review Queue
 
-Last updated: 2026-08-09 10:31 Asia/Bangkok
+Last updated: 2026-08-09 11:16 Asia/Bangkok
 
-Current decision: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
+Current decision: G1_COMPLETE / MAIN_ALIGNED_AND_CI_VERIFIED
 
 ## Frozen identities
 
@@ -11,10 +11,26 @@ Current decision: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
 | G1 base | 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c | FROZEN |
 | Initial reviewed G1 head | c89de374be80643fa5fb15251c2ddae52ff30755 | REMEDIATED |
 | G1 reviewed code head | 20978a169bbd52278b3bc4ab36e901a55c7e0b00 | APPROVED / FROZEN |
+| G1 governance head / main | 2f9f5163cfcd37436cf5d8d65071691350a06b04 | MERGED / VERIFIED |
 | G1 range | 12 commits / 55 changed files | VERIFIED |
 | Exact code-head CI | [Run 31291676080](https://github.com/soonshine/BoatOps/actions/runs/31291676080) | SUCCESS |
 | PostgreSQL concurrency | [Job 93189841734](https://github.com/soonshine/BoatOps/actions/runs/31291676080/job/93189841734) | SUCCESS |
+| Main CI | [Run 31293922240](https://github.com/soonshine/BoatOps/actions/runs/31293922240) | SUCCESS |
+| Main Quality/contracts | [Job 93195776158](https://github.com/soonshine/BoatOps/actions/runs/31293922240/job/93195776158) | SUCCESS |
+| Main PostgreSQL concurrency | [Job 93195776104](https://github.com/soonshine/BoatOps/actions/runs/31293922240/job/93195776104) | SUCCESS |
 | D0.1 receipt | 10fa260fce3ec8708f180ce016e723e6c7ea4180 | INDEPENDENTLY ACCEPTED |
+
+## Main alignment receipt
+
+- Remote main fast-forwarded from 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c
+  to 2f9f5163cfcd37436cf5d8d65071691350a06b04.
+- The one-time Owner merge authorization is consumed.
+- Main CI 31293922240 and both required jobs passed for the exact resulting SHA.
+- G1 deployment: false.
+- D0.1 live Demo source remains
+  3826cb2c29aea4d2b92a90e04c14f8c218fbf45c.
+- Tags: 0; GitHub Releases: 0; G1 SHA deployments: 0.
+- Real/production data accessed: no.
 
 ## Finding summary
 
@@ -79,14 +95,17 @@ Full values and provenance are in G1_GOVERNANCE_CLOSURE.md.
 ## Remaining controls
 
 - merge_authorized=false
+- merge_authorization_consumed=true
 - deployment_authorized=false
 - tag_authorized=false
 - release_authorized=false
 - production_data_authorized=false
+- G1_deployed=false
 - no further business-code changes
+- post-merge receipt merge_authorized=false
 
-Recommended Owner decision: authorize merge of the exact governance head after
-its exact-head CI succeeds. Do not infer deployment or production-data
-authorization from that merge.
+The next task is WAIT_FOR_NEXT_GATE_DEFINITION_AND_OWNER_AUTHORIZATION. Preserve
+the P2 findings and OWNER_DECISION_REQUIRED inputs above; do not infer a new
+product gate, deployment, or production configuration.
 
-READY_FOR_OWNER_MERGE_DECISION
+G1_COMPLETE / NOT_DEPLOYED / NOT_TAGGED / NOT_RELEASED / NO_REAL_DATA

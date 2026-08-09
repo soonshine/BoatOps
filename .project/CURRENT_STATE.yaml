@@ -1,35 +1,52 @@
 schema_version: 1
 project: BoatOps
-updated_at: "2026-08-09T10:31:00+07:00"
+updated_at: "2026-08-09T11:16:29+07:00"
 
-phase: g1-approved-pending-owner-merge
+phase: post-g1-main-alignment
 current_gate:
   id: G1_OPERATOR_MVP
-  status: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
+  status: COMPLETE
   objective: >-
-    Preserve the frozen reviewed G1 code and a governance-only direct child
-    while waiting for the Owner's merge decision.
+    Preserve the reviewed G1 code and governance evidence now fast-forwarded
+    to main, with deployment and all production enablement still closed.
 
 current_objective: >-
-  Require exact governance-head CI success, then stop at
-  READY_FOR_OWNER_MERGE_DECISION without merge, deployment, Tag, Release, or
-  production-data access.
+  Record the verified G1 main alignment in one governance-only receipt, require
+  exact receipt-head CI success, then wait for the next gate definition and a
+  new explicit Owner authorization.
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
   branch: codex/boatops-g1-operator-mvp
   g1_base_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
   g1_reviewed_code_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
+  g1_governance_head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
+  main_head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
+  main_alignment_verified: true
+  main_ci:
+    run_id: 31293922240
+    head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
+    result: success
+    url: "https://github.com/soonshine/BoatOps/actions/runs/31293922240"
+    quality_job:
+      id: 93195776158
+      result: success
+    postgresql_concurrency_job:
+      id: 93195776104
+      result: success
   reviewed_range: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c..20978a169bbd52278b3bc4ab36e901a55c7e0b00"
   commit_count: 12
   changed_file_count: 55
   governance_parent_required: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
   governance_scope: ".project/** only"
+  post_merge_receipt_branch: codex/boatops-g1-post-merge-receipt
+  post_merge_receipt_parent: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
+  post_merge_receipt_merge_authorized: false
   business_code_frozen: true
 
 g1_review:
   reviewer: codex
-  state: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
+  state: COMPLETE
   p0: 0
   p1: 0
   p2:
@@ -63,6 +80,15 @@ g1_review:
       id: 93189841734
       result: success
       url: "https://github.com/soonshine/BoatOps/actions/runs/31291676080/job/93189841734"
+  main_merge:
+    method: fast_forward_only
+    previous_main: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
+    resulting_main: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
+    result: EXECUTED_AND_CI_VERIFIED
+    authorization: CONSUMED
+    tag_count: 0
+    release_count: 0
+    deployments_for_g1_sha: 0
 
 remediation_history:
   cycle_1:
@@ -96,6 +122,8 @@ d0_1:
   independently_resolved_at: "2026-08-09T10:31:00+07:00"
   deployed_source_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
   live_release_id: D0_1_20260808T140625Z
+  unchanged_after_g1_merge: true
+  g1_deployed: false
   receipt:
     branch: codex/boatops-d0-1-deployment-receipt
     head: "10fa260fce3ec8708f180ce016e723e6c7ea4180"
@@ -149,17 +177,20 @@ owner_decision_required:
 
 authorizations:
   merge_authorized: false
+  merge_authorization_consumed: true
+  consumed_merge_target: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
   deployment_authorized: false
   tag_authorized: false
   release_authorized: false
   production_data_authorized: false
 
-recommended_owner_merge_decision: >-
-  Authorize merge of the exact G1 branch only after its governance-only direct
-  child has exact-head CI success; do not treat merge as deployment authority.
+g1_deployed: false
+real_or_production_data_accessed: false
 
 next_task:
-  id: READY_FOR_OWNER_MERGE_DECISION
+  id: WAIT_FOR_NEXT_GATE_DEFINITION_AND_OWNER_AUTHORIZATION
   owner: owner
-  scope: "Decide whether to authorize merge of the exact governance head."
-  excluded: "Business-code changes, deployment, Tag, Release, and real data."
+  scope: "Define and explicitly authorize the next bounded BoatOps gate."
+  excluded: >-
+    G1 deployment, production enablement, business-code changes, Plan A/B
+    production configuration, Google Sheet migration, Tag, Release, and real data.

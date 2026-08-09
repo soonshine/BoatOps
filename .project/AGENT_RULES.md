@@ -18,19 +18,21 @@ Then report the current gate, working commit, authorization flags, task ID, and 
 
 ## 2. Current hard stops
 
-While G1 is `G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION`:
+After G1 reached `COMPLETE` on `main`:
 
 - do not change BoatOps business code; the reviewed code head is frozen at
   `20978a169bbd52278b3bc4ab36e901a55c7e0b00`;
-- do not merge to `main`;
+- do not merge the post-merge receipt branch or any later branch to `main`
+  without a new explicit Owner authorization;
 - do not deploy G1;
 - do not create a Tag or GitHub Release;
 - do not migrate or import real data;
 - do not connect Google Sheet, ChannelHub, OTA, payments, WordPress, or real credentials;
 - do not change the live Demo.
 
-Only governance/evidence changes under `.project/**` are authorized until the
-Owner makes the merge decision recorded in `CURRENT_GATE.md`.
+The current authorization covers only the post-merge governance receipt under
+`.project/**`. After that receipt is pushed and its exact-head CI succeeds,
+wait for the next gate definition and a new explicit Owner authorization.
 
 ## 3. Role contract
 

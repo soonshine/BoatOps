@@ -1,12 +1,12 @@
-# Current Gate: G1 Operator MVP Merge Decision
+# Current Gate: G1 Operator MVP Main Alignment
 
-Status: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
+Status: COMPLETE
 
 Code review decision: APPROVED
 
-Technical merge recommendation: GO_PENDING_OWNER_AUTHORIZATION
+Technical merge decision: EXECUTED_AND_VERIFIED
 
-Owner merge authorization: NOT_GRANTED
+Owner merge authorization: CONSUMED
 
 Deployment decision: NO_GO
 
@@ -18,14 +18,16 @@ Real-data decision: NO_GO
 
 ## Objective
 
-Freeze the independently reviewed G1 Operator MVP code and leave one
-governance-only, exact-head-CI-verified branch for the Owner's merge decision.
-No further BoatOps business-code work is authorized by this gate.
+Record that the independently reviewed G1 Operator MVP and its governance head
+were fast-forwarded to main, then independently verified by exact-main-head CI.
+No further BoatOps business-code work or deployment is authorized by this gate.
 
 ## Frozen identities
 
 - G1 base SHA: 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c
 - G1 reviewed code head: 20978a169bbd52278b3bc4ab36e901a55c7e0b00
+- G1 governance head / current main:
+  2f9f5163cfcd37436cf5d8d65071691350a06b04
 - Branch: codex/boatops-g1-operator-mvp
 - Reviewed range: 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c..20978a169bbd52278b3bc4ab36e901a55c7e0b00
 - Range size: 12 commits / 55 changed files
@@ -34,6 +36,24 @@ No further BoatOps business-code work is authorized by this gate.
 - Exact reviewed-code CI: [GitHub Actions 31291676080](https://github.com/soonshine/BoatOps/actions/runs/31291676080), success
 - PostgreSQL concurrency job:
   [93189841734](https://github.com/soonshine/BoatOps/actions/runs/31291676080/job/93189841734), success
+- Main CI: [GitHub Actions 31293922240](https://github.com/soonshine/BoatOps/actions/runs/31293922240), success
+- Main Quality and contracts job:
+  [93195776158](https://github.com/soonshine/BoatOps/actions/runs/31293922240/job/93195776158), success
+- Main PostgreSQL concurrency job:
+  [93195776104](https://github.com/soonshine/BoatOps/actions/runs/31293922240/job/93195776104), success
+
+## Executed main alignment
+
+- Previous main: 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c.
+- Resulting main: 2f9f5163cfcd37436cf5d8d65071691350a06b04.
+- Method: one-time fast-forward only.
+- Squash, rebase, cherry-pick, history rewrite, and merge commit: none.
+- Exact resulting-main CI: success.
+- Tag count: 0.
+- GitHub Release count: 0.
+- Deployments for the G1 SHA: 0.
+- Real/production data accessed: no.
+- Owner merge authorization: consumed by the exact fast-forward.
 
 ## Independent review result
 
@@ -106,13 +126,16 @@ These are configurable or fail closed and were not hard-coded as Ayany facts.
 ## Authorization boundary
 
 - merge_authorized=false
+- merge_authorization_consumed=true
 - deployment_authorized=false
 - tag_authorized=false
 - release_authorized=false
 - production_data_authorized=false
 
-The only next action is the Owner's merge decision after exact governance-head
-CI succeeds. Merge, G1 deployment, Tag, Release, and real-data work remain
-separately prohibited.
+G1 is complete on main but is not deployed. D0.1 remains the live fictional
+Demo at source 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c. The post-merge
+receipt branch is not authorized for merge. G1 deployment, Tag, Release,
+production enablement, Plan A/B production configuration, Google Sheet
+migration, further business development, and real-data work remain prohibited.
 
-READY_FOR_OWNER_MERGE_DECISION
+Next task: WAIT_FOR_NEXT_GATE_DEFINITION_AND_OWNER_AUTHORIZATION
