@@ -1,8 +1,8 @@
-schema_version: 2
+schema_version: 3
 project: BoatOps
-updated_at: "2026-08-09T16:17:00+07:00"
+updated_at: "2026-08-09T16:52:00+07:00"
 
-phase: d1-complete-next-gate-undefined
+phase: d1-complete-real-operations-pilot-candidate
 
 product_positioning:
   product: "Reusable organization-scoped vessel inventory and operations platform"
@@ -11,17 +11,20 @@ product_positioning:
   current_vessels_owned_by_ayany: NOT_ASSERTED
   vessel_ownership_is_deployment_data: true
   current_two_vessel_scenario: "Reference/validation operating scenario; not a product ownership assumption"
+  iteration_principle: "Time-to-real-use over feature completeness; iterate from actual operations."
 
 current_gate:
   id: D1_G1_FICTIONAL_DEMO_DEPLOYMENT
   status: COMPLETE
   decision: APPROVED
-  next_product_gate: UNDEFINED
+  next_product_gate: REAL_OPERATIONS_PILOT_MVP
+  next_product_gate_status: PROPOSED_NOT_AUTHORIZED
   next_product_gate_authorized: false
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
+  canonical_main_at_roadmap_sync_start: "ff5345da4ace8bb9301d172ac68fb437a1ca154c"
   d1_product_source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
   governance_alignment_base_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
   business_code_frozen: true
@@ -36,6 +39,10 @@ repository:
     postgresql_concurrency_job:
       id: 93197737241
       result: success
+  governance_main_ci:
+    run_id: 31306111586
+    head: "ff5345da4ace8bb9301d172ac68fb437a1ca154c"
+    result: success
   tags: 0
   github_releases: 0
   github_deployments: 0
@@ -71,8 +78,7 @@ d0_1:
   dataset: fictional
   production: false
   actual_rollback_test: PASS
-  receipt_branch: codex/boatops-d0-1-deployment-receipt
-  receipt_head: "10fa260fce3ec8708f180ce016e723e6c7ea4180"
+  canonical_receipt: "docs/releases/d0-1-g0-fictional-demo-deployment-receipt.md"
 
 d1:
   id: D1_G1_FICTIONAL_DEMO_DEPLOYMENT
@@ -145,6 +151,38 @@ accepted_boundaries:
   - "Ayany is not a hard-coded tenant, vessel owner, or required integration."
   - "ChannelHub remains separate and paused."
 
+real_operations_pilot_candidate:
+  id: REAL_OPERATIONS_PILOT_MVP
+  status: PROPOSED_NOT_AUTHORIZED
+  objective: "Reach the smallest version usable for actual vessel operations, then iterate from real usage."
+  roadmap: "docs/product/REAL_OPERATIONS_PILOT_MVP.md"
+  steps:
+    - "1. Read-only MVP readiness audit."
+    - "2. Minimal Operational Booking Dossier."
+    - "3. Minimal Operator Trip Desk using shared Trip Application Actions."
+    - "4. Separate real-operations deployment readiness with PostgreSQL and real configuration."
+    - "5. Small controlled cutover, preferring new/future operational records over historical migration."
+    - "6. Usage-driven iteration."
+  first_slice_focus:
+    - "Operational booking details sufficient for daily execution."
+    - "Operator booking list/detail surfaces."
+    - "Trip execution UI over existing backend capabilities."
+  explicit_exclusions:
+    - ChannelHub
+    - OTA
+    - WordPress inventory integration
+    - payment gateway
+    - full accounting/receivables
+    - profit dashboard
+    - broad stock/fuel UI expansion
+    - complex SaaS administration
+    - automated historical migration
+    - notification center
+    - reporting platform
+    - maintenance management
+    - second-operator onboarding
+    - public semantic-version release
+
 owner_decision_required_before_real_operations:
   - "Identify the actual operating organization/tenant for a real deployment."
   - "Define vessel/operator/owner relationships where required by the deployment."
@@ -158,6 +196,7 @@ owner_decision_required_before_real_operations:
   - "Authorize production PostgreSQL and real-data migration/cutover separately."
 
 authorizations:
+  mvp_readiness_audit_authorized: false
   business_code_change_authorized: false
   merge_authorized: false
   deployment_authorized: false
@@ -170,10 +209,11 @@ authorizations:
   ota_authorized: false
 
 next_task:
-  id: DEFINE_NEXT_PRODUCT_GATE
+  id: AUTHORIZE_AND_RUN_MVP_READINESS_AUDIT
   owner: owner
   status: NOT_STARTED
   rule: >-
-    Do not infer G2A/G2B scope. First define the next business outcome and a
-    bounded acceptance contract using existing capabilities before authorizing
-    new business-code development.
+    The product direction is now the Real Operations Pilot MVP, but its exact
+    implementation gate remains unapproved. Run a bounded read-only readiness
+    audit first; then freeze the smallest acceptance contract before authorizing
+    business-code development.

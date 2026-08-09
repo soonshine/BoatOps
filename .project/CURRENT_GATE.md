@@ -1,176 +1,135 @@
-# Current Gate: D1 G1 Fictional Demo Deployment Closure
+# BoatOps Current Gate
 
-Status: `COMPLETE`
+Updated: 2026-08-09 16:52 Asia/Bangkok
 
-Reviewer decision: `APPROVED`
+## Current authoritative decision
 
-Next product gate: `UNDEFINED / NOT_AUTHORIZED`
+`D1_G1_FICTIONAL_DEMO_DEPLOYMENT = COMPLETE / APPROVED`
 
-## Objective
+D1 remains frozen as fictional Demo validation only.
 
-Freeze the accepted D1 fictional Demo deployment and its evidence in project governance without reclassifying it as production, without changing the BoatOps business source, and without inferring a new product gate.
+- Deployed product source: `f9503b598b174b7a6891fcde0d984514a3cd0fcd`
+- D1 source change: `NO`
+- Real data: `NONE`
+- Production PostgreSQL: `NOT_ENABLED`
+- Production inventory master: `NOT_ENABLED`
+- Tag: `NONE`
+- GitHub Release: `NONE`
+- ChannelHub / OTA / payment / WordPress inventory integration: `NOT_STARTED / NOT_AUTHORIZED`
 
-## Product positioning correction
+## Next product direction
 
-BoatOps is a reusable, organization-scoped vessel inventory and operations product. It is not an Ayany-specific system.
+The next product-gate candidate is now:
 
-- `boatops.ayany.com` is a deployment hostname, not proof of vessel ownership.
-- The current two-vessel Plan A / Plan B scenario is a reference/validation operating scenario.
-- Vessel ownership, operating rights, schedules, buffers, prices, commissions, weather rules, and operator identities are deployment-specific data.
-- No current vessel is asserted by this gate to be owned by Ayany.
-- Ayany must not be hard-coded as tenant, vessel owner, or required integration.
+`REAL_OPERATIONS_PILOT_MVP`
 
-## Frozen Git identity
+Status:
 
-- Repository: `soonshine/BoatOps`
-- D1 product source: `f9503b598b174b7a6891fcde0d984514a3cd0fcd`
-- Source change for D1 deployment: `NO`
-- Exact source CI: GitHub Actions `31294685662` — success
-- Quality/contracts job `93197737212` — success
-- PostgreSQL concurrency job `93197737241` — success
-- Tags: `0`
-- GitHub Releases: `0`
+`PROPOSED / NOT_AUTHORIZED`
 
-The D1 deployment used the exact reviewed source above. D1-specific deployment behavior was achieved through isolated runtime configuration and separate runtime directories, not a D1 source branch.
+The product objective is to reach the smallest safe version that can be used in actual daily vessel operations, then iterate from real usage.
 
-## D1 deployment identity
+This is a product-direction decision only. It does not authorize business-code changes, merge, deployment, production data, cutover, Tag, Release, ChannelHub, OTA or payment work.
 
-- Release: `D1_G1_20260809T045741Z`
-- Dataset: `FICTIONAL_ONLY`
-- Production enabled: `NO`
-- Real data: `NO`
-- Public runtime: `public_read_only`
-- Public current target: `/www/wwwroot/boatops.ayany.com/releases/D1_G1_20260809T045741Z/public-runtime`
-- Private Operator access: SSH tunnel to loopback-only `127.0.0.1:18082`
-- Private Operator service: `active/enabled`
-- Public/wildcard 18082 bind: `NONE`
+Canonical roadmap:
 
-## Database evidence
+`docs/product/REAL_OPERATIONS_PILOT_MVP.md`
 
-D1 live uses SQLite for fictional Demo validation. This is not a production PostgreSQL deployment.
+## Proposed six-step realization path
 
-- D1 SQLite SHA256: `62299484458b8e6f63ca7f457ae713d6d3812e31b654ada8847a6d302596b08f`
-- integrity_check: `ok`
-- foreign-key violations: `0`
+1. **MVP Readiness Audit** — read-only audit of current `main`; identify the smallest missing slice and existing capability that must be reused.
+2. **Minimal Operational Booking Dossier** — only the order/service information required for daily execution, plus minimal list/detail surfaces.
+3. **Minimal Operator Trip Desk** — expose the existing Trip engine through Operator UI; extract/reuse shared Trip Application Actions instead of creating a parallel state machine.
+4. **Real Operations Deployment Readiness** — separate gate for PostgreSQL, actual organization/vessel/configuration, real Operator identities, backup/restore and production-data authorization.
+5. **Small Real Cutover** — prefer new/future operational records and minimal manual entry over broad historical migration for the first pilot.
+6. **Usage-Driven Iteration** — subsequent gates are chosen from observed operating pain, not speculative feature completeness.
 
-Accepted final row counts:
+## Existing capabilities that are not next-gate greenfield work
 
-```text
-organizations=1
-users=1
-inquiries=2
-holds=3
-bookings=6
-trips=6
-blocks=3
-allocations=10
-audit_logs=24
-idempotency_keys=19
-outbox_events=12
-rate_snapshots=0
-expenses=0
-```
+The current source already contains and should reuse:
 
-Synthetic Operator identifier:
+- Availability / occupied interval adjudication;
+- HOLD / release / expiry;
+- Confirm / amend / cancel;
+- BLOCK / release;
+- slot catalog / compatibility / calendar projection;
+- Operator auth, Inquiry/HOLD, Booking workflow, BLOCK and audit;
+- Trip crew/checklist and prepare/depart/return/complete backend transitions;
+- PostgreSQL concurrency validation;
+- finance/stock/cash candidate foundations.
 
-`operator.d1.synthetic@fictional.invalid`
+Any proposal to rebuild these must prove an actual missing invariant or contract deficiency.
 
-No password, password hash, APP_KEY, cookie, session secret, CSRF token, or credential is recorded in Git governance.
+## Candidate pilot slice to validate in the audit
 
-## Workflow acceptance
+### Operational Booking Dossier
 
-Pre-switch reference:
+Likely minimum operational fields include:
 
-`D1-PREFLIGHT-EFC8506040C3`
+- customer/contact name;
+- contact method/value;
+- party size;
+- pickup/meeting point;
+- sales source;
+- service/customer notes;
+- internal operations notes;
+- currency;
+- selling amount.
 
-Live reference:
+This is not authorization for a CRM, payment ledger, settlement system or accounting module.
 
-`D1-LIVE-43C5C393E126`
+### Operator Trip Desk
 
-Accepted final live state:
+Likely minimum workflow:
 
-- booking `6` = `CANCELLED`
-- booking allocation `9` = `CANCELLED`
-- trip `6` = `CANCELLED`
-- block `3` = `RELEASED`
-- block allocation `10` = `RELEASED`
-- rate snapshot = `NONE`
+`Today's Trips -> Service Detail -> Prepare -> Crew/Checklist -> Depart -> Return -> Complete`
 
-The persisted `CANCELLED` allocation state is accepted; the cancelled booking no longer represents active occupied inventory. It must not be rewritten to `RELEASED` merely to satisfy an evidence expectation.
+The Trip backend already exists. The audit must determine the smallest extraction/UI work required.
 
-## Rollback and restore
+## Explicit first-pilot exclusions
 
-D0.1 frozen identity:
+The first Real Operations Pilot must not expand into:
 
-- Release: `D0_1_20260808T140625Z`
-- Source: `3826cb2c29aea4d2b92a90e04c14f8c218fbf45c`
-- SQLite SHA256: `97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4`
+- ChannelHub;
+- OTA adapters;
+- WordPress inventory integration;
+- payment gateway;
+- full receivables/accounting;
+- profit dashboard;
+- broad stock/fuel UI expansion;
+- complex SaaS administration;
+- automated historical migration;
+- notification center;
+- reporting platform;
+- maintenance management;
+- second-operator onboarding;
+- public semantic-version release.
 
-Authoritative D1 rollback script SHA256:
+## Deployment separation
 
-`0f785385bd57c8165470f436e71009a11e4971b2687a48d1da36e5e2bacad11a`
+Product implementation and real-operations deployment remain separate authorizations.
 
-The previously expected `2a5a4f93306d0a360299f34085f6ddf626fbfc3339e19225e25d185b3c4febc9` is classified `STALE_ORPHANED_EXPECTED_VALUE`; retained evidence did not establish it as an actual rollback script revision.
+A future real pilot deployment must use PostgreSQL for authoritative inventory conflict adjudication. D1's fictional SQLite deployment is not a production/pilot database baseline.
 
-Accepted rollback evidence:
+Real organization, vessel, schedule, buffer, HOLD policy, Operator identities, backup/restore, production data and cutover must be separately frozen and authorized.
 
-- actual D1 -> D0 rollback: `PASS`
-- rollback exit: `0`
-- exact D0 source/database: verified
-- D1 SQLite preserved
-- D0 public probes passed
-- actual D0 -> D1 restore: `PASS`
-- D1 public probes passed
-- Operator returned active/enabled on loopback only
+## Next allowed action
 
-## Evidence closure
+`AUTHORIZE_AND_RUN_MVP_READINESS_AUDIT`
 
-Final server-side D1 evidence closure status: `D1_EVIDENCE_CLOSED`
+The readiness audit is read-only and should preferably include an independent Codex second review. Its job is to challenge the proposed slice and identify the smallest safe delta from current `main`.
 
-Final evidence artifact hashes:
+Until that audit is explicitly authorized:
 
-- `D1_RELEASE_METADATA.json`: `88f6d500acef3bc24761dcd4467cdc46a4ebce495a98eb7c5d8842b6339b5f4d`
-- `evidence/D1_FINAL_DEPLOYMENT_RECEIPT.json`: `cac020f04f719c0c6885e3ea9abdb67eb15d1b913729d8878c50564a33aaa5c1`
-- `SHA256SUMS`: `1ffc9cbded300c166cefd7cae96d7fdbc22e1c4bcd2e2e346a0d02476200c18b`
-- checksum verification: `25/25 PASS`
+- `mvp_readiness_audit_authorized=false`
+- `business_code_change_authorized=false`
+- `merge_authorized=false`
+- `deployment_authorized=false`
+- `production_enablement_authorized=false`
+- `production_data_authorized=false`
+- `tag_authorized=false`
+- `release_authorized=false`
 
-The stale `2a5...` value may remain only as a non-authoritative reconciliation fact; `0f785...` is authoritative.
+Current gate summary:
 
-## Preserved G1 P2 findings
-
-1. Audit rows lack an explicit request/idempotency correlation field.
-2. Coarse organization-level write locking may limit same-organization throughput.
-3. Operator inquiry/block/audit listings remain unpaginated MVP surfaces.
-
-These are not D1 blockers.
-
-## P2 / deployment caveats
-
-- D1 live uses SQLite.
-- PostgreSQL concurrency is validated in CI, not by the D1 live runtime.
-- `inventory.hold_ttl_minutes=30` and other operating-time values used in Demo validation are fictional scenario settings, not production policy.
-- The private Operator SSH tunnel is intentional for this fictional validation deployment.
-- D1 is not a Tag, GitHub Release, or production launch.
-
-## Authorization boundary after D1
-
-- business_code_change_authorized=false
-- merge_authorized=false
-- deployment_authorized=false
-- tag_authorized=false
-- release_authorized=false
-- production_enablement_authorized=false
-- production_data_authorized=false
-- google_sheet_migration_authorized=false
-- channelhub_authorized=false
-- ota_authorized=false
-
-No gate named `G2A`, `G2B`, or similar is currently defined or authorized.
-
-## Next decision
-
-`DEFINE_NEXT_PRODUCT_GATE`
-
-Before new business-code work, the Owner and reviewer must select the next real business outcome, inventory existing source capabilities to avoid duplicate implementation, and write explicit acceptance criteria.
-
-`D1_COMPLETE / FICTIONAL_DEMO_ONLY / PRODUCTION_NOT_ENABLED / NOT_TAGGED / NOT_RELEASED / NEXT_GATE_UNDEFINED`
+`D1_COMPLETE / GOVERNANCE_ALIGNED / REAL_OPERATIONS_PILOT_MVP_PROPOSED / IMPLEMENTATION_NOT_AUTHORIZED`
