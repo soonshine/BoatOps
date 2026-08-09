@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Database\Seeders\DemoSiteSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -28,6 +30,67 @@ class DemoSiteTest extends TestCase
     public function test_demo_site_is_closed_by_default(): void
     {
         $this->get('/demo')->assertNotFound();
+    }
+
+    public function test_public_demo_response_excludes_operator_dossier_pii(): void
+    {
+        $this->enableAndSeed();
+        $organizationId = (int) DB::table('organizations')->where('name', config('demo_site.organization_name'))->value('id');
+        $user = User::create([
+            'name' => 'Fictional Private Demo Dossier User',
+            'email' => 'fictional-private-demo-user@example.test',
+            'password' => Hash::make('fictional-password'),
+        ]);
+        $rawValues = [
+            'Fictional Private Demo Contact',
+            'fictional-private-demo-contact@example.test',
+            'Fictional Private Demo Pier',
+            'Fictional Private Demo Service Location',
+            'Fictional Private Demo Service Notes',
+            'Fictional Private Demo Internal Notes',
+        ];
+        DB::table('inquiries')->insert([
+            'organization_id' => $organizationId,
+            'reference' => 'FICTIONAL-DEMO-DOSSIER-NON-DISCLOSURE',
+            'status' => 'INQUIRY',
+            'contact_name' => $rawValues[0],
+            'contact_method' => 'EMAIL',
+            'contact_value' => $rawValues[1],
+            'party_size' => 4,
+            'meeting_point' => $rawValues[2],
+            'service_location' => $rawValues[3],
+            'sales_source' => 'FICTIONAL_DIRECT',
+            'agent_reference' => 'FICTIONAL-DEMO-AGENT',
+            'service_notes' => $rawValues[4],
+            'internal_notes' => $rawValues[5],
+            'selling_currency' => 'THB',
+            'selling_amount_minor' => 123400,
+            'created_by_user_id' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->configurePublicReadOnlyRuntime();
+        config([
+            'demo_site.mode' => 'public_read_only',
+            'demo_site.isolated_dataset' => true,
+            'cache.default' => 'file',
+            'cache.limiter' => 'file',
+            'session.driver' => 'file',
+            'queue.default' => 'sync',
+        ]);
+        $this->app->detectEnvironment(fn (): string => 'production');
+
+        try {
+            $content = $this->get('/demo')->assertOk()->getContent();
+            foreach ($rawValues as $rawValue) {
+                $this->assertStringNotContainsString($rawValue, $content);
+            }
+            foreach (['contact_name', 'contact_value', 'meeting_point', 'service_notes', 'internal_notes'] as $field) {
+                $this->assertStringNotContainsString($field, $content);
+            }
+        } finally {
+            $this->app->detectEnvironment(fn (): string => 'testing');
+        }
     }
 
     public function test_demo_site_is_closed_outside_local_and_testing(): void

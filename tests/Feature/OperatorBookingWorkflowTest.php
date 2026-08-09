@@ -24,7 +24,7 @@ class OperatorBookingWorkflowTest extends TestCase
         $inquiry = $this->inquiryWithHold($context, 'FICTIONAL-OPERATOR-CONFIRM');
         $hold = DB::table('holds')->first();
         $key = (string) Str::uuid();
-        $page = $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('Pricing and payment are outside G1')->assertSee('explicitly unpriced booking')->assertSee('not production-commercial ready')->assertSee('Confirm unpriced booking')->assertDontSee('name="rate_snapshot"', false)->assertDontSee('name="currency"', false)->assertDontSee('name="selling_amount_minor"', false)->assertDontSee('name="customer"', false)->assertDontSee('name="order"', false);
+        $page = $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('Pricing and payment are outside G1')->assertSee('explicitly unpriced booking')->assertSee('not production-commercial ready')->assertSee('Confirm unpriced booking')->assertDontSee('name="rate_snapshot"', false)->assertSee('name="selling_currency"', false)->assertSee('name="selling_amount_minor"', false)->assertDontSee('name="tax_amount_minor"', false)->assertDontSee('name="commission_amount_minor"', false)->assertDontSee('name="customer"', false)->assertDontSee('name="order"', false);
         $this->assertMatchesRegularExpression('/name="idempotency_key" value="[0-9a-f-]{36}"/', $page->getContent());
         $path = "/operator/inquiries/{$inquiry}/holds/{$hold->id}/confirm";
         $this->post($path, ['idempotency_key' => $key])->assertStatus(303);
