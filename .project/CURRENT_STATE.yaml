@@ -1,52 +1,57 @@
-schema_version: 1
+schema_version: 2
 project: BoatOps
-updated_at: "2026-08-09T11:16:29+07:00"
+updated_at: "2026-08-09T16:17:00+07:00"
 
-phase: post-g1-main-alignment
+phase: d1-complete-next-gate-undefined
+
+product_positioning:
+  product: "Reusable organization-scoped vessel inventory and operations platform"
+  ayany_specific: false
+  ayany_hard_coded_tenant: false
+  current_vessels_owned_by_ayany: NOT_ASSERTED
+  vessel_ownership_is_deployment_data: true
+  current_two_vessel_scenario: "Reference/validation operating scenario; not a product ownership assumption"
+
 current_gate:
-  id: G1_OPERATOR_MVP
+  id: D1_G1_FICTIONAL_DEMO_DEPLOYMENT
   status: COMPLETE
-  objective: >-
-    Preserve the reviewed G1 code and governance evidence now fast-forwarded
-    to main, with deployment and all production enablement still closed.
-
-current_objective: >-
-  Record the verified G1 main alignment in one governance-only receipt, require
-  exact receipt-head CI success, then wait for the next gate definition and a
-  new explicit Owner authorization.
+  decision: APPROVED
+  next_product_gate: UNDEFINED
+  next_product_gate_authorized: false
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
-  branch: codex/boatops-g1-operator-mvp
-  g1_base_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
-  g1_reviewed_code_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-  g1_governance_head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
-  main_head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
-  main_alignment_verified: true
-  main_ci:
-    run_id: 31293922240
-    head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
+  default_branch: main
+  d1_product_source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
+  governance_alignment_base_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
+  business_code_frozen: true
+  source_change_in_d1_deployment: false
+  main_ci_for_d1_source:
+    run_id: 31294685662
+    head: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
     result: success
-    url: "https://github.com/soonshine/BoatOps/actions/runs/31293922240"
     quality_job:
-      id: 93195776158
+      id: 93197737212
       result: success
     postgresql_concurrency_job:
-      id: 93195776104
+      id: 93197737241
       result: success
-  reviewed_range: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c..20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-  commit_count: 12
-  changed_file_count: 55
-  governance_parent_required: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-  governance_scope: ".project/** only"
-  post_merge_receipt_branch: codex/boatops-g1-post-merge-receipt
-  post_merge_receipt_parent: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
-  post_merge_receipt_merge_authorized: false
-  business_code_frozen: true
+  tags: 0
+  github_releases: 0
+  github_deployments: 0
+  github_environments: 0
+  main_branch_protected: false
+  repository_rulesets: 0
 
-g1_review:
-  reviewer: codex
-  state: COMPLETE
+g1:
+  id: G1_OPERATOR_MVP
+  status: COMPLETE
+  base_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
+  reviewed_code_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
+  governance_head: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
+  main_governance_receipt_head: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
+  deployed_in_d1_fictional_demo: true
+  production_deployed: false
   p0: 0
   p1: 0
   p2:
@@ -54,143 +59,121 @@ g1_review:
     - "The coarse organization write lock may limit same-organization throughput."
     - "Operator inquiry/block/audit listings remain unpaginated MVP surfaces."
   architecture:
-    shared_application_domain_actions: true
+    shared_application_domain_actions_for_inventory: true
     parallel_inventory_rule_path_found: false
-  local_quality:
-    full_phpunit: "PASS 245 tests / 2571 assertions"
-    g0_suite: "PASS 130 tests / 1482 assertions"
-    g1_suite: "PASS 115 tests / 1089 assertions"
-    pint: PASS
-    contracts: PASS
-    production_build: PASS
-    composer_validate_strict: PASS
-    composer_audit: "PASS 0 advisories"
-    npm_audit: "PASS 0 vulnerabilities"
-    sqlite_migration_roundtrip: PASS
-    diff_check: PASS
-  exact_code_head_ci:
-    run_id: 31291676080
-    head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-    result: success
-    url: "https://github.com/soonshine/BoatOps/actions/runs/31291676080"
-    quality_job:
-      id: 93189841642
-      result: success
-    postgresql_concurrency_job:
-      id: 93189841734
-      result: success
-      url: "https://github.com/soonshine/BoatOps/actions/runs/31291676080/job/93189841734"
-  main_merge:
-    method: fast_forward_only
-    previous_main: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
-    resulting_main: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
-    result: EXECUTED_AND_CI_VERIFIED
-    authorization: CONSUMED
-    tag_count: 0
-    release_count: 0
-    deployments_for_g1_sha: 0
-
-remediation_history:
-  cycle_1:
-    result: REJECTED_AND_REVERTED
-    start_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
-    final_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
-    commits: 0
-    note: "Out-of-scope uncommitted inquiry and Demo changes were removed."
-  cycle_2:
-    result: BLOCKED_BY_STALE_G0_GATE_NO_CHANGES
-    start_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
-    final_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
-    commits: 0
-    note: "Hermes stopped and requested an explicit superseding authorization."
-  cycle_3:
-    result: COMPLETED
-    start_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
-    implementation_commit: "d51abe4fb3327f62046503603e13184e6b2e0b89"
-    final_fix_commit: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-    final_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
-    commits: 2
-    note: >-
-      Continuation sessions completed the bounded remediation. The prompt label
-      actual implementation cycle 2/3 was non-authoritative and is corrected to
-      Cycle 3 because the formal Cycle 2 had already ended with zero changes.
-  cycle_4_occurred: false
 
 d0_1:
   id: D0.1_G0_HARDENED_DEMO_DEPLOYMENT
-  status: PASS_DEPLOYMENT_ACCEPTED
-  independently_resolved_at: "2026-08-09T10:31:00+07:00"
-  deployed_source_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
-  live_release_id: D0_1_20260808T140625Z
-  unchanged_after_g1_merge: true
-  g1_deployed: false
-  receipt:
-    branch: codex/boatops-d0-1-deployment-receipt
-    head: "10fa260fce3ec8708f180ce016e723e6c7ea4180"
-    parent: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
-    changed_path: docs/releases/0.0.8-d0-1-deployment-receipt.md
-  runtime:
-    database: sqlite
-    dataset: fictional
-    isolated_dataset: true
-    cache_store: file
-    session_driver: file
-    queue_connection: sync
-    production_seeder_enabled: false
-  live_http_recheck:
-    get_200: "5/5"
-    public_non_get_405: "24/24"
-    api_404: "28/28"
-  sqlite_immutability:
-    main_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
-    artifact_sha256: "8ddd602261a3c167cf718060cc6f4cddec071de07ba345d4590cca79e4eb03cb"
-    canonical_sha256: "514b073dc1971da895454d5c7ec0bbe9603c9366ac8feb588eb137b640331fa0"
-    row_counts_unchanged: true
-    integrity: ok
-    foreign_key_violations: 0
-    organization_count: 1
-    fictional_organization_count: 1
-  backup:
-    retained: true
-    previous_release_archive_sha256: "91bb969d929fe0a44d52e5fed00446a200190f2f38189d3539ba6296b5c0fff1"
-    configuration_backup_sha256: "f015f47d44cc5ba94c0525260f4bc61350a64d8b3ffb9089ee68dfd8850230f1"
-    scheduler_backup_sha256: "549ca61e7e5e2ccf5b0910e9cb323cd94e57d475c6c407c9644aca178f815adc"
-    sqlite_main_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
-  rollback:
-    actual_historical_test: PASS
-    previous_release_id: 20260808T054205Z
-    previous_up: 200
-    previous_demo: 200
-    restored_up: 200
-    restored_demo: 200
-    final_release_id: D0_1_20260808T140625Z
+  status: COMPLETE
+  release_id: D0_1_20260808T140625Z
+  source_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
+  sqlite_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
+  dataset: fictional
+  production: false
+  actual_rollback_test: PASS
+  receipt_branch: codex/boatops-d0-1-deployment-receipt
+  receipt_head: "10fa260fce3ec8708f180ce016e723e6c7ea4180"
 
-owner_decision_required:
-  - "Exact Plan A / Plan B schedules"
-  - "Buffer values"
-  - "HOLD TTL, extension, and re-HOLD rules"
-  - "Slot combination and mutual-exclusion rules"
-  - "Weather policy"
-  - "Custom-slot policy"
-  - "Production Operator identities and permission mapping"
-  - "Real product, price, customer, and order configuration"
+d1:
+  id: D1_G1_FICTIONAL_DEMO_DEPLOYMENT
+  status: COMPLETE
+  release_id: D1_G1_20260809T045741Z
+  source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
+  source_changed_for_deployment: false
+  dataset: fictional
+  real_data: false
+  production_enabled: false
+  public_runtime:
+    mode: public_read_only
+    current_target: "/www/wwwroot/boatops.ayany.com/releases/D1_G1_20260809T045741Z/public-runtime"
+    database: sqlite
+  private_operator_runtime:
+    access: "SSH tunnel to loopback only"
+    bind: "127.0.0.1:18082"
+    active: true
+    enabled: true
+    public_exposure: false
+  database:
+    d1_sqlite_sha256: "62299484458b8e6f63ca7f457ae713d6d3812e31b654ada8847a6d302596b08f"
+    integrity_check: ok
+    foreign_key_violations: 0
+    row_counts:
+      organizations: 1
+      users: 1
+      inquiries: 2
+      holds: 3
+      bookings: 6
+      trips: 6
+      blocks: 3
+      allocations: 10
+      audit_logs: 24
+      idempotency_keys: 19
+      outbox_events: 12
+      rate_snapshots: 0
+      expenses: 0
+  synthetic_operator_email: "operator.d1.synthetic@fictional.invalid"
+  workflow_refs:
+    pre_switch: D1-PREFLIGHT-EFC8506040C3
+    live: D1-LIVE-43C5C393E126
+  final_workflow_state:
+    booking_6: CANCELLED
+    allocation_9: CANCELLED
+    trip_6: CANCELLED
+    block_3: RELEASED
+    allocation_10: RELEASED
+    rate_snapshot: NONE
+  rollback:
+    authoritative_script_sha256: "0f785385bd57c8165470f436e71009a11e4971b2687a48d1da36e5e2bacad11a"
+    stale_orphaned_expected_sha256: "2a5a4f93306d0a360299f34085f6ddf626fbfc3339e19225e25d185b3c4febc9"
+    hash_reconciled: true
+    actual_d1_to_d0: PASS
+    actual_d0_to_d1_restore: PASS
+    d0_source_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
+    d0_sqlite_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
+  evidence_closure:
+    status: CLOSED
+    metadata_sha256: "88f6d500acef3bc24761dcd4467cdc46a4ebce495a98eb7c5d8842b6339b5f4d"
+    receipt_sha256: "cac020f04f719c0c6885e3ea9abdb67eb15d1b913729d8878c50564a33aaa5c1"
+    sha256sums_sha256: "1ffc9cbded300c166cefd7cae96d7fdbc22e1c4bcd2e2e346a0d02476200c18b"
+    checksums: "PASS 25/25"
+
+accepted_boundaries:
+  - "D1 is fictional Demo validation only."
+  - "D1 live database is SQLite; PostgreSQL concurrency is CI evidence, not live D1 evidence."
+  - "Demo HOLD TTL and operating times are fictional validation settings, not production policy."
+  - "Current vessel ownership is not asserted as Ayany ownership."
+  - "Ayany is not a hard-coded tenant, vessel owner, or required integration."
+  - "ChannelHub remains separate and paused."
+
+owner_decision_required_before_real_operations:
+  - "Identify the actual operating organization/tenant for a real deployment."
+  - "Define vessel/operator/owner relationships where required by the deployment."
+  - "Freeze actual schedules and operating windows."
+  - "Freeze buffer values."
+  - "Freeze HOLD TTL, extension, and re-HOLD rules."
+  - "Freeze slot combination and mutual-exclusion rules."
+  - "Freeze weather and custom-slot policy."
+  - "Define production Operator identities and permissions."
+  - "Authorize and map real products, prices, customers, and orders."
+  - "Authorize production PostgreSQL and real-data migration/cutover separately."
 
 authorizations:
+  business_code_change_authorized: false
   merge_authorized: false
-  merge_authorization_consumed: true
-  consumed_merge_target: "2f9f5163cfcd37436cf5d8d65071691350a06b04"
   deployment_authorized: false
   tag_authorized: false
   release_authorized: false
+  production_enablement_authorized: false
   production_data_authorized: false
-
-g1_deployed: false
-real_or_production_data_accessed: false
+  google_sheet_migration_authorized: false
+  channelhub_authorized: false
+  ota_authorized: false
 
 next_task:
-  id: WAIT_FOR_NEXT_GATE_DEFINITION_AND_OWNER_AUTHORIZATION
+  id: DEFINE_NEXT_PRODUCT_GATE
   owner: owner
-  scope: "Define and explicitly authorize the next bounded BoatOps gate."
-  excluded: >-
-    G1 deployment, production enablement, business-code changes, Plan A/B
-    production configuration, Google Sheet migration, Tag, Release, and real data.
+  status: NOT_STARTED
+  rule: >-
+    Do not infer G2A/G2B scope. First define the next business outcome and a
+    bounded acceptance contract using existing capabilities before authorizing
+    new business-code development.
