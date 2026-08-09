@@ -19,7 +19,13 @@ class CreateHoldAction
     /** @param array<string, mixed> $input */
     public function execute(int $organizationId, array $input, string $idempotencyKey, HoldActor $actor): HoldActionResult
     {
-        $actionNow = CarbonImmutable::now('UTC');
+        $operation = 'createHold';
+        $requestHash = $this->canonicalHash($input);
+        $existing = $this->replay($organizationId, $operation, $idempotencyKey, $requestHash);
+        if ($existing) {
+            return $existing;
+        }
+
         try {
             if (! isset($input['expires_at']) || ! is_string($input['expires_at'])) {
                 throw new \InvalidArgumentException;
@@ -28,34 +34,37 @@ class CreateHoldAction
         } catch (\Throwable) {
             return $this->error('VALIDATION_FAILED', 'The request payload is invalid.', 422);
         }
-        if (! $expiresAt->greaterThan($actionNow)) {
+        if (! $expiresAt->greaterThan(CarbonImmutable::now('UTC'))) {
             return $this->error('VALIDATION_FAILED', 'The request payload is invalid.', 422);
         }
-
-        $operation = 'createHold';
-        $requestHash = $this->canonicalHash($input);
-        $existing = $this->replay($organizationId, $operation, $idempotencyKey, $requestHash);
-        if ($existing) {
-            return $existing;
-        }
-        $organization = DB::table('organizations')->find($organizationId);
-        $boat = DB::table('boats')->where('organization_id', $organizationId)->where('status', 'ACTIVE')->find($input['boat_id']);
-        $templateExists = DB::table('trip_templates')->where('organization_id', $organizationId)
-            ->where('status', 'ACTIVE')->where('id', $input['trip_template_id'])->exists();
-        if (! $organization || ! $boat || ! $templateExists) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested inventory resource is not accessible.', 403);
-        }
         try {
-            $slot = $this->slotResolver->resolve($organization, $boat, $input);
-        } catch (SlotCatalogException $exception) {
-            return $this->error($exception->errorCode, $exception->getMessage(), $exception->httpStatus, $exception->manualActionRequired);
-        }
-        try {
-            return DB::transaction(function () use ($organization, $input, $idempotencyKey, $actor, $operation, $requestHash, $slot, $expiresAt): HoldActionResult {
-                DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
+            return DB::transaction(function () use ($organizationId, $input, $idempotencyKey, $actor, $operation, $requestHash, $expiresAt): HoldActionResult {
+                $organization = DB::table('organizations')->where('id', $organizationId)->lockForUpdate()->first();
+                if (! $organization) {
+                    return $this->error('AUTHORIZATION_FAILED', 'The requested inventory resource is not accessible.', 403);
+                }
                 $replayed = $this->replay((int) $organization->id, $operation, $idempotencyKey, $requestHash);
                 if ($replayed) {
                     return $replayed;
+                }
+                if (! $expiresAt->greaterThan(CarbonImmutable::now('UTC'))) {
+                    return $this->error('VALIDATION_FAILED', 'The request payload is invalid.', 422);
+                }
+                $boat = DB::table('boats')->where('organization_id', $organization->id)
+                    ->where('status', 'ACTIVE')->where('id', $input['boat_id'])->lockForUpdate()->first();
+                $template = DB::table('trip_templates')->where('organization_id', $organization->id)
+                    ->where('status', 'ACTIVE')->where('id', $input['trip_template_id'])->lockForUpdate()->first();
+                if (! $boat || ! $template) {
+                    return $this->error('AUTHORIZATION_FAILED', 'The requested inventory resource is not accessible.', 403);
+                }
+                $this->lockSelectedSlot($organization->id, $boat->id, $input);
+                try {
+                    $slot = $this->slotResolver->resolve($organization, $boat, $input);
+                } catch (SlotCatalogException $exception) {
+                    return $this->error($exception->errorCode, $exception->getMessage(), $exception->httpStatus, $exception->manualActionRequired);
+                }
+                if (! $expiresAt->greaterThan(CarbonImmutable::now('UTC'))) {
+                    return $this->error('VALIDATION_FAILED', 'The request payload is invalid.', 422);
                 }
                 if (DB::table('holds')->where('organization_id', $organization->id)
                     ->where('external_reference', $input['external_reference'])->exists()) {
@@ -64,6 +73,9 @@ class CreateHoldAction
                 $decision = $this->slotAvailability->decide((int) $organization->id, (int) $input['boat_id'], $slot, lockForUpdate: true);
                 if (! $decision['available']) {
                     return $this->error($decision['code'], $decision['message'], 409);
+                }
+                if (! $expiresAt->greaterThan(CarbonImmutable::now('UTC'))) {
+                    return $this->error('VALIDATION_FAILED', 'The request payload is invalid.', 422);
                 }
                 $now = now()->utc();
                 $holdId = DB::table('holds')->insertGetId([
@@ -166,6 +178,25 @@ class CreateHoldAction
                 return $this->error('SLOT_UNAVAILABLE', 'The requested slot is unavailable.', 409);
             }
             throw $exception;
+        }
+    }
+
+    /** @param array<string, mixed> $input */
+    private function lockSelectedSlot(int $organizationId, int $boatId, array $input): void
+    {
+        $slotId = isset($input['custom_slot_instance_id'])
+            ? (int) $input['custom_slot_instance_id']
+            : (isset($input['slot_offering_id']) ? (int) $input['slot_offering_id'] : null);
+        if ($slotId === null) {
+            return;
+        }
+
+        $slot = DB::table('slot_offerings')->where('organization_id', $organizationId)
+            ->where('id', $slotId)->lockForUpdate()->first();
+        if ($slot && ! $slot->applies_to_all_boats) {
+            DB::table('slot_offering_boats')->where('organization_id', $organizationId)
+                ->where('slot_offering_id', $slotId)->where('boat_id', $boatId)
+                ->lockForUpdate()->first();
         }
     }
 }

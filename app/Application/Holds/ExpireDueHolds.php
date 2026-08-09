@@ -30,6 +30,9 @@ class ExpireDueHolds
             $batchExpiredCount = 0;
             foreach ($holdIds as $holdId) {
                 $result = $this->expireDueHold->execute((int) $holdId, $asOf, HoldActor::system());
+                if (($result->payload['code'] ?? null) === 'INVENTORY_INTEGRITY_FAILED') {
+                    throw new RuntimeException('HOLD expiry stopped because inventory integrity requires manual action.');
+                }
                 if ($result->changed) {
                     $batchExpiredCount++;
                     $expiredCount++;

@@ -38,11 +38,14 @@ class ExpireDueHoldAction
             if ($hold->status !== 'ACTIVE' || CarbonImmutable::parse($hold->expires_at)->utc()->greaterThan($asOf)) {
                 return $this->notExpired();
             }
+            $allocation = DB::table('allocations')->where('id', $hold->allocation_id)->lockForUpdate()->first();
+            if (! $this->allocationMatchesHold($allocation, $hold)) {
+                return $this->inventoryIntegrityError();
+            }
 
             $now = $asOf->utc();
             DB::table('holds')->where('id', $hold->id)->update(['status' => 'EXPIRED', 'updated_at' => $now]);
-            DB::table('allocations')->where('hold_id', $hold->id)->where('status', 'ACTIVE')
-                ->update(['status' => 'EXPIRED', 'updated_at' => $now]);
+            DB::table('allocations')->where('id', $allocation->id)->update(['status' => 'EXPIRED', 'updated_at' => $now]);
             DB::table('organizations')->where('id', $hold->organization_id)->increment('inventory_revision');
             $revision = (int) DB::table('organizations')->where('id', $hold->organization_id)->value('inventory_revision');
             $occurredAt = $now->format('Y-m-d\TH:i:s\Z');

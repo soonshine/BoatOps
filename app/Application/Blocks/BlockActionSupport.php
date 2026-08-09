@@ -2,6 +2,7 @@
 
 namespace App\Application\Blocks;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -61,5 +62,39 @@ trait BlockActionSupport
             'manual_action_required' => $manualActionRequired,
             'message' => $message,
         ]);
+    }
+
+    private function inventoryIntegrityError(): BlockActionResult
+    {
+        return $this->error(
+            'INVENTORY_INTEGRITY_FAILED',
+            'Inventory linkage is inconsistent and requires manual action.',
+            409,
+            true,
+        );
+    }
+
+    private function allocationMatchesBlock(?object $allocation, object $block): bool
+    {
+        if (! $allocation
+            || (int) $allocation->organization_id !== (int) $block->organization_id
+            || (int) $allocation->boat_id !== (int) $block->boat_id
+            || $allocation->allocation_type !== 'BLOCKED'
+            || $allocation->status !== 'ACTIVE'
+            || (int) $allocation->block_id !== (int) $block->id
+            || $allocation->hold_id !== null
+            || $allocation->booking_id !== null) {
+            return false;
+        }
+
+        foreach (['business_start', 'business_end', 'occupied_start', 'occupied_end'] as $field) {
+            if (! CarbonImmutable::parse((string) $allocation->{$field}, 'UTC')->utc()->equalTo(
+                CarbonImmutable::parse((string) $block->{$field}, 'UTC')->utc(),
+            )) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

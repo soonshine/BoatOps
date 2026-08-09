@@ -47,7 +47,7 @@ class InventoryCommandController extends Controller
                 'required_with:starts_at',
                 'required_without_all:slot_offering_id,custom_slot_instance_id',
             ],
-            'expires_at' => ['required', 'date', 'after:now'],
+            'expires_at' => ['required', 'date'],
         ]);
         $organization = $request->attributes->get('organization');
         $result = $this->createHold->execute(

@@ -28,51 +28,20 @@ class AmendBookingAction
         if ($existing) {
             return $existing;
         }
-        $organization = DB::table('organizations')->find($organizationId);
-        if (! $organization) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested booking or inventory resource is not accessible.', 403);
-        }
-
-        $booking = DB::table('bookings')
-            ->where('organization_id', $organization->id)
-            ->where('id', $bookingId)
-            ->first();
-        $boat = DB::table('boats')
-            ->where('organization_id', $organization->id)
-            ->where('status', 'ACTIVE')
-            ->find($input['boat_id']);
-        $templateExists = DB::table('trip_templates')
-            ->where('organization_id', $organization->id)
-            ->where('status', 'ACTIVE')
-            ->where('id', $input['trip_template_id'])
-            ->exists();
-
-        if (! $booking || ! $boat || ! $templateExists) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested booking or inventory resource is not accessible.', 403);
-        }
-
-        if (! hash_equals($booking->external_reference, $input['external_reference'])) {
-            return $this->error('VALIDATION_FAILED', 'The external reference does not match the booking.', 422);
-        }
-
-        try {
-            $slot = $this->slotResolver->resolve($organization, $boat, $input);
-        } catch (SlotCatalogException $exception) {
-            return $this->error($exception->errorCode, $exception->getMessage(), $exception->httpStatus, $exception->manualActionRequired);
-        }
-
         try {
             return DB::transaction(function () use (
-                $organization,
+                $organizationId,
+                $bookingId,
                 $actor,
-                $booking,
                 $input,
                 $idempotencyKey,
                 $operation,
                 $requestHash,
-                $slot,
             ): BookingActionResult {
-                DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
+                $organization = DB::table('organizations')->where('id', $organizationId)->lockForUpdate()->first();
+                if (! $organization) {
+                    return $this->error('AUTHORIZATION_FAILED', 'The requested booking or inventory resource is not accessible.', 403);
+                }
                 $replayed = $this->replay(
                     $organization->id,
                     $operation,
@@ -84,11 +53,38 @@ class AmendBookingAction
                     return $replayed;
                 }
 
-                $lockedBooking = DB::table('bookings')->where('organization_id', $organization->id)->where('id', $booking->id)->lockForUpdate()->first();
-                $allocation = DB::table('allocations')->where('organization_id', $organization->id)->where('id', $lockedBooking->allocation_id)->lockForUpdate()->first();
-
-                if ($lockedBooking->status !== 'CONFIRMED' || ! $allocation || $allocation->status !== 'ACTIVE') {
+                $lockedBooking = DB::table('bookings')->where('organization_id', $organization->id)
+                    ->where('id', $bookingId)->lockForUpdate()->first();
+                if (! $lockedBooking) {
+                    return $this->error('AUTHORIZATION_FAILED', 'The requested booking or inventory resource is not accessible.', 403);
+                }
+                if (! hash_equals($lockedBooking->external_reference, $input['external_reference'])) {
+                    return $this->error('VALIDATION_FAILED', 'The external reference does not match the booking.', 422);
+                }
+                if ($lockedBooking->status !== 'CONFIRMED') {
                     return $this->error('INVALID_TRANSITION', 'Only a confirmed booking with active inventory can be amended.', 409);
+                }
+                $allocation = DB::table('allocations')->where('id', $lockedBooking->allocation_id)->lockForUpdate()->first();
+                $trip = DB::table('trips')->where('booking_id', $lockedBooking->id)->lockForUpdate()->first();
+                if (! $this->allocationMatchesBooking($allocation, $lockedBooking)
+                    || ! $this->tripMatchesBooking($trip, $lockedBooking)) {
+                    return $this->inventoryIntegrityError();
+                }
+                if ($trip->status !== 'PLANNED') {
+                    return $this->error('INVALID_TRANSITION', 'Only a booking with a planned trip can be amended.', 409);
+                }
+                $boat = DB::table('boats')->where('organization_id', $organization->id)
+                    ->where('status', 'ACTIVE')->where('id', $input['boat_id'])->lockForUpdate()->first();
+                $template = DB::table('trip_templates')->where('organization_id', $organization->id)
+                    ->where('status', 'ACTIVE')->where('id', $input['trip_template_id'])->lockForUpdate()->first();
+                if (! $boat || ! $template) {
+                    return $this->error('AUTHORIZATION_FAILED', 'The requested booking or inventory resource is not accessible.', 403);
+                }
+                $this->lockSelectedSlot($organization->id, $boat->id, $input);
+                try {
+                    $slot = $this->slotResolver->resolve($organization, $boat, $input);
+                } catch (SlotCatalogException $exception) {
+                    return $this->error($exception->errorCode, $exception->getMessage(), $exception->httpStatus, $exception->manualActionRequired);
                 }
 
                 $decision = $this->slotAvailability->decide(
@@ -109,20 +105,20 @@ class AmendBookingAction
                     ...$slot->databaseValues(),
                     'updated_at' => $now,
                 ]);
-                DB::table('bookings')->where('id', $booking->id)->update([
+                DB::table('bookings')->where('id', $lockedBooking->id)->update([
                     'boat_id' => $input['boat_id'],
                     'trip_template_id' => $input['trip_template_id'],
                     ...$slot->databaseValues(),
                     'updated_at' => $now,
                 ]);
-                DB::table('trips')->where('booking_id', $booking->id)->update([
+                DB::table('trips')->where('booking_id', $lockedBooking->id)->update([
                     'boat_id' => $input['boat_id'],
                     'trip_template_id' => $input['trip_template_id'],
                     'planned_start' => $slot->serviceStart,
                     'planned_end' => $slot->serviceEnd,
                     'updated_at' => $now,
                 ]);
-                $tripId = (int) DB::table('trips')->where('booking_id', $booking->id)->value('id');
+                $tripId = (int) DB::table('trips')->where('booking_id', $lockedBooking->id)->value('id');
                 DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
                 $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
                 $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
@@ -130,7 +126,7 @@ class AmendBookingAction
                     'request_id' => (string) Str::uuid(),
                     'idempotency_key' => $idempotencyKey,
                     'organization_id' => $organization->id,
-                    'booking_id' => $booking->id,
+                    'booking_id' => $lockedBooking->id,
                     'trip_id' => $tripId,
                     'external_reference' => $input['external_reference'],
                     'status' => 'CONFIRMED',
@@ -147,7 +143,7 @@ class AmendBookingAction
                     'occurred_at' => $occurredAt,
                     'organization_id' => $organization->id,
                     'aggregate_type' => 'booking',
-                    'aggregate_id' => $booking->id,
+                    'aggregate_id' => $lockedBooking->id,
                     'inventory_revision' => $revision,
                     'external_reference' => $input['external_reference'],
                     'status' => 'CONFIRMED',
@@ -157,7 +153,7 @@ class AmendBookingAction
                     'organization_id' => $organization->id,
                     'event_type' => $eventPayload['event_type'],
                     'aggregate_type' => 'booking',
-                    'aggregate_id' => $booking->id,
+                    'aggregate_id' => $lockedBooking->id,
                     'inventory_revision' => $revision,
                     'payload' => json_encode($eventPayload, JSON_THROW_ON_ERROR),
                     'occurred_at' => $now,
@@ -170,7 +166,7 @@ class AmendBookingAction
                     'actor_id' => $actor->id,
                     'action' => 'booking.amended',
                     'object_type' => 'booking',
-                    'object_id' => $booking->id,
+                    'object_id' => $lockedBooking->id,
                     'before_values' => json_encode([
                         'boat_id' => $allocation->boat_id,
                         'service_date' => $lockedBooking->service_date,
@@ -209,6 +205,25 @@ class AmendBookingAction
             }
 
             throw $exception;
+        }
+    }
+
+    /** @param array<string, mixed> $input */
+    private function lockSelectedSlot(int $organizationId, int $boatId, array $input): void
+    {
+        $slotId = isset($input['custom_slot_instance_id'])
+            ? (int) $input['custom_slot_instance_id']
+            : (isset($input['slot_offering_id']) ? (int) $input['slot_offering_id'] : null);
+        if ($slotId === null) {
+            return;
+        }
+
+        $slot = DB::table('slot_offerings')->where('organization_id', $organizationId)
+            ->where('id', $slotId)->lockForUpdate()->first();
+        if ($slot && ! $slot->applies_to_all_boats) {
+            DB::table('slot_offering_boats')->where('organization_id', $organizationId)
+                ->where('slot_offering_id', $slotId)->where('boat_id', $boatId)
+                ->lockForUpdate()->first();
         }
     }
 }

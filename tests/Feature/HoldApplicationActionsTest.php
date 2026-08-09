@@ -53,6 +53,98 @@ class HoldApplicationActionsTest extends TestCase
         $this->assertSame(1, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
     }
 
+    public function test_create_action_replays_stored_success_after_expiry_before_temporal_validation(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Expired Replay');
+        $input = $this->holdInput($boatId, $templateId, 'EXPIRED-REPLAY-001');
+        $input['expires_at'] = '2026-08-01T00:01:00Z';
+        $action = app(CreateHoldAction::class);
+
+        $created = $action->execute($organizationId, $input, 'expired-replay-key', HoldActor::apiClient(810));
+        $counts = collect(['holds', 'allocations', 'idempotency_keys', 'audit_logs', 'outbox_events'])
+            ->mapWithKeys(fn (string $table): array => [$table => DB::table($table)->count()])->all();
+        $revision = (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision');
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:02:00Z'));
+
+        $replayed = $action->execute($organizationId, $input, 'expired-replay-key', HoldActor::apiClient(810));
+        $changed = $input;
+        $changed['ends_at'] = '2026-09-01T13:00:00Z';
+        $conflict = $action->execute($organizationId, $changed, 'expired-replay-key', HoldActor::apiClient(810));
+
+        $this->assertSame(201, $created->status);
+        $this->assertSame($created->status, $replayed->status);
+        $this->assertSame($created->payload, $replayed->payload);
+        $this->assertFalse($replayed->changed);
+        $this->assertSame('IDEMPOTENCY_CONFLICT', $conflict->payload['code']);
+        foreach ($counts as $table => $count) {
+            $this->assertSame($count, DB::table($table)->count(), $table);
+        }
+        $this->assertSame($revision, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+    }
+
+    public function test_create_action_rechecks_fresh_now_after_organization_lock_with_zero_writes(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Lock Expiry');
+        $input = $this->holdInput($boatId, $templateId, 'LOCK-EXPIRY-001');
+        $input['expires_at'] = '2026-08-01T00:01:00Z';
+        $advanced = false;
+        DB::listen(function ($query) use (&$advanced): void {
+            if (! $advanced && DB::transactionLevel() > 0 && str_contains(strtolower($query->sql), 'organizations')) {
+                $advanced = true;
+                $this->travelTo(CarbonImmutable::parse('2026-08-01T00:01:00Z'));
+            }
+        });
+
+        $result = app(CreateHoldAction::class)->execute(
+            $organizationId,
+            $input,
+            'lock-expiry-key',
+            HoldActor::apiClient(811),
+        );
+
+        $this->assertTrue($advanced);
+        $this->assertSame(422, $result->status);
+        $this->assertSame('VALIDATION_FAILED', $result->payload['code']);
+        $this->assertFalse($result->changed);
+        foreach (['holds', 'allocations', 'idempotency_keys', 'audit_logs', 'outbox_events'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
+        $this->assertSame(0, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+    }
+
+    public function test_create_action_rechecks_fresh_now_after_availability_locks_with_zero_writes(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Availability Lock Expiry');
+        $input = $this->holdInput($boatId, $templateId, 'AVAILABILITY-LOCK-EXPIRY-001');
+        $input['expires_at'] = '2026-08-01T00:01:00Z';
+        $advanced = false;
+        DB::listen(function ($query) use (&$advanced): void {
+            if (! $advanced && DB::transactionLevel() > 0 && str_contains(strtolower($query->sql), 'allocations')) {
+                $advanced = true;
+                $this->travelTo(CarbonImmutable::parse('2026-08-01T00:01:00Z'));
+            }
+        });
+
+        $result = app(CreateHoldAction::class)->execute(
+            $organizationId,
+            $input,
+            'availability-lock-expiry-key',
+            HoldActor::apiClient(812),
+        );
+
+        $this->assertTrue($advanced);
+        $this->assertSame(422, $result->status);
+        $this->assertSame('VALIDATION_FAILED', $result->payload['code']);
+        $this->assertFalse($result->changed);
+        foreach (['holds', 'allocations', 'idempotency_keys', 'audit_logs', 'outbox_events'] as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
+        $this->assertSame(0, (int) DB::table('organizations')->where('id', $organizationId)->value('inventory_revision'));
+    }
+
     public function test_create_action_rejects_invalid_expired_and_equal_now_expiry_without_partial_writes(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
@@ -440,6 +532,26 @@ class HoldApplicationActionsTest extends TestCase
             ->assertOk()->assertExactJson(['code' => 'SHARED_RELEASE_PATH']);
         $this->assertDatabaseCount('holds', 0);
         $this->assertDatabaseCount('allocations', 0);
+    }
+
+    public function test_api_create_hold_replay_with_past_expiry_reaches_shared_action(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:00:00Z'));
+        [$organizationId, $boatId, $templateId] = $this->inventory('Fictional API Expired Replay');
+        $token = $this->apiClient($organizationId, 912);
+        $input = $this->holdInput($boatId, $templateId, 'API-EXPIRED-REPLAY-001');
+        $input['expires_at'] = '2026-08-01T00:01:00Z';
+
+        $created = $this->withToken($token)->withHeader('Idempotency-Key', 'api-expired-replay-key')
+            ->postJson('/api/v1/holds', $input)->assertCreated()->json();
+        $this->travelTo(CarbonImmutable::parse('2026-08-01T00:02:00Z'));
+        $replayed = $this->withToken($token)->withHeader('Idempotency-Key', 'api-expired-replay-key')
+            ->postJson('/api/v1/holds', $input)->assertCreated()->json();
+
+        $this->assertSame($created, $replayed);
+        $this->assertDatabaseCount('holds', 1);
+        $this->assertDatabaseCount('allocations', 1);
+        $this->assertDatabaseCount('idempotency_keys', 1);
     }
 
     public function test_api_booking_adapters_only_validate_delegate_and_translate_action_results(): void

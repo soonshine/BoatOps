@@ -28,6 +28,61 @@ class OperatorFoundationTest extends TestCase
         $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'fictional-password'])->assertSessionHasErrors('email');
     }
 
+    public function test_login_landing_and_navigation_follow_first_granted_permission_and_fail_closed(): void
+    {
+        $matrix = [
+            'read-only' => [true, false, false, '/operator/calendar', ['Calendar', 'Audit trail'], ['Inquiries', 'BLOCKs']],
+            'booking-only' => [false, true, false, '/operator/inquiries', ['Inquiries'], ['Calendar', 'Audit trail', 'BLOCKs']],
+            'block-only' => [false, false, true, '/operator/blocks', ['BLOCKs'], ['Calendar', 'Audit trail', 'Inquiries']],
+        ];
+
+        foreach ($matrix as $label => [$read, $booking, $block, $landing, $visible, $hidden]) {
+            $context = $this->context($read, $booking, $block);
+            $this->post('/operator/logout');
+            $this->post('/operator/login', [
+                'email' => $context['user']->email,
+                'password' => 'fictional-password',
+            ])->assertRedirect($landing);
+            $this->get('/operator/login')->assertRedirect($landing);
+            $response = $this->get($landing)->assertOk();
+            foreach ($visible as $text) {
+                $response->assertSee($text, false, $label);
+            }
+            foreach ($hidden as $text) {
+                $response->assertDontSee($text, false, $label);
+            }
+        }
+
+        $none = $this->context(false, false, false);
+        $this->post('/operator/logout');
+        $this->post('/operator/login', [
+            'email' => $none['user']->email,
+            'password' => 'fictional-password',
+        ])->assertSessionHasErrors('email');
+        $this->assertGuest();
+        $this->actingAs($none['user']);
+        $this->get('/operator/login')->assertOk()->assertViewIs('operator.login');
+        $this->assertGuest();
+    }
+
+    public function test_login_ignores_unauthorized_intended_route_and_uses_permission_priority(): void
+    {
+        $bookingAndBlock = $this->context(false, true, true);
+
+        $this->get('/operator/calendar')->assertRedirect('/operator/login');
+        $this->post('/operator/login', [
+            'email' => $bookingAndBlock['user']->email,
+            'password' => 'fictional-password',
+        ])->assertRedirect('/operator/inquiries');
+
+        $this->post('/operator/logout');
+        $all = $this->context(true, true, true);
+        $this->post('/operator/login', [
+            'email' => $all['user']->email,
+            'password' => 'fictional-password',
+        ])->assertRedirect('/operator/calendar');
+    }
+
     public function test_login_is_rate_limited_and_valid_login_still_succeeds(): void
     {
         $limited = $this->context();

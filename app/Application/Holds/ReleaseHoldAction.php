@@ -46,11 +46,14 @@ class ReleaseHoldAction
             if ($lockedHold->status !== 'ACTIVE') {
                 return $this->error('INVALID_TRANSITION', 'Only an active HOLD can be released.', 409);
             }
+            $allocation = DB::table('allocations')->where('id', $lockedHold->allocation_id)->lockForUpdate()->first();
+            if (! $this->allocationMatchesHold($allocation, $lockedHold)) {
+                return $this->inventoryIntegrityError();
+            }
 
             $now = now()->utc();
             DB::table('holds')->where('id', $lockedHold->id)->update(['status' => 'RELEASED', 'updated_at' => $now]);
-            DB::table('allocations')->where('hold_id', $lockedHold->id)->where('status', 'ACTIVE')
-                ->update(['status' => 'RELEASED', 'updated_at' => $now]);
+            DB::table('allocations')->where('id', $allocation->id)->update(['status' => 'RELEASED', 'updated_at' => $now]);
             DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
             $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
             $occurredAt = $now->format('Y-m-d\TH:i:s\Z');

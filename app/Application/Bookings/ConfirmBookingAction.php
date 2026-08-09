@@ -24,34 +24,19 @@ class ConfirmBookingAction
         if ($existing) {
             return $existing;
         }
-        $organization = DB::table('organizations')->find($organizationId);
-        if (! $organization) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested HOLD is not accessible.', 403);
-        }
-
-        $hold = DB::table('holds')
-            ->where('organization_id', $organization->id)
-            ->where('id', $input['hold_id'])
-            ->first();
-
-        if (! $hold) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested HOLD is not accessible.', 403);
-        }
-
-        if (! hash_equals($hold->external_reference, $input['external_reference'])) {
-            return $this->error('VALIDATION_FAILED', 'The external reference does not match the HOLD.', 422);
-        }
 
         return DB::transaction(function () use (
-            $organization,
+            $organizationId,
             $actor,
-            $hold,
             $input,
             $idempotencyKey,
             $operation,
             $requestHash,
         ): BookingActionResult {
-            DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
+            $organization = DB::table('organizations')->where('id', $organizationId)->lockForUpdate()->first();
+            if (! $organization) {
+                return $this->error('AUTHORIZATION_FAILED', 'The requested HOLD is not accessible.', 403);
+            }
             $replayed = $this->replay(
                 $organization->id,
                 $operation,
@@ -63,10 +48,21 @@ class ConfirmBookingAction
                 return $replayed;
             }
 
-            $lockedHold = DB::table('holds')->where('organization_id', $organization->id)->where('id', $hold->id)->lockForUpdate()->first();
+            $lockedHold = DB::table('holds')->where('organization_id', $organization->id)
+                ->where('id', $input['hold_id'])->lockForUpdate()->first();
+            if (! $lockedHold) {
+                return $this->error('AUTHORIZATION_FAILED', 'The requested HOLD is not accessible.', 403);
+            }
+            if (! hash_equals($lockedHold->external_reference, $input['external_reference'])) {
+                return $this->error('VALIDATION_FAILED', 'The external reference does not match the HOLD.', 422);
+            }
 
             if ($lockedHold->status !== 'ACTIVE') {
                 return $this->error('INVALID_TRANSITION', 'Only an active HOLD can be confirmed.', 409);
+            }
+            $allocation = DB::table('allocations')->where('id', $lockedHold->allocation_id)->lockForUpdate()->first();
+            if (! $this->allocationMatchesHoldForConfirmation($allocation, $lockedHold)) {
+                return $this->inventoryIntegrityError();
             }
 
             $expiry = $this->expireDueHold->execute(
@@ -147,11 +143,11 @@ class ConfirmBookingAction
                     'updated_at' => $now,
                 ]);
             }
-            DB::table('holds')->where('id', $hold->id)->update([
+            DB::table('holds')->where('id', $lockedHold->id)->update([
                 'status' => 'CONFIRMED',
                 'updated_at' => $now,
             ]);
-            DB::table('allocations')->where('id', $hold->allocation_id)->update([
+            DB::table('allocations')->where('id', $allocation->id)->update([
                 'allocation_type' => 'BOOKING',
                 'booking_id' => $bookingId,
                 'updated_at' => $now,
@@ -159,11 +155,11 @@ class ConfirmBookingAction
             $tripId = DB::table('trips')->insertGetId([
                 'organization_id' => $organization->id,
                 'booking_id' => $bookingId,
-                'boat_id' => $hold->boat_id,
-                'trip_template_id' => $hold->trip_template_id,
+                'boat_id' => $lockedHold->boat_id,
+                'trip_template_id' => $lockedHold->trip_template_id,
                 'status' => 'PLANNED',
-                'planned_start' => $hold->business_start,
-                'planned_end' => $hold->business_end,
+                'planned_start' => $lockedHold->business_start,
+                'planned_end' => $lockedHold->business_end,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
@@ -241,5 +237,21 @@ class ConfirmBookingAction
 
             return new BookingActionResult(201, $payload, true);
         }, 3);
+    }
+
+    private function allocationMatchesHoldForConfirmation(?object $allocation, object $hold): bool
+    {
+        if (! $allocation
+            || (int) $allocation->organization_id !== (int) $hold->organization_id
+            || (int) $allocation->boat_id !== (int) $hold->boat_id
+            || $allocation->allocation_type !== 'HOLD'
+            || $allocation->status !== 'ACTIVE'
+            || (int) $allocation->hold_id !== (int) $hold->id
+            || $allocation->booking_id !== null
+            || $allocation->block_id !== null) {
+            return false;
+        }
+
+        return $this->matchingInventoryIntervals($allocation, $hold);
     }
 }

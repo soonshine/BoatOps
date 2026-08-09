@@ -18,8 +18,10 @@ final class OperatorSessionController extends Controller
             return view('operator.login');
         }
 
-        if (DB::table('operator_memberships')->where('user_id', Auth::id())->where('status', 'ACTIVE')->exists()) {
-            return redirect()->route('operator.calendar');
+        $membership = DB::table('operator_memberships')->where('user_id', Auth::id())->where('status', 'ACTIVE')->first();
+        $route = $this->firstGrantedRoute($membership);
+        if ($route !== null) {
+            return redirect()->route($route);
         }
 
         $this->clearSession($r);
@@ -30,12 +32,19 @@ final class OperatorSessionController extends Controller
     public function store(Request $r): RedirectResponse
     {
         $c = $r->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
-        if (! Auth::attempt($c, false) || ! DB::table('operator_memberships')->where('user_id', Auth::id())->where('status', 'ACTIVE')->exists()) {
+        if (! Auth::attempt($c, false)) {
             $this->clearSession($r);
             throw ValidationException::withMessages(['email' => ['The provided operator credentials are invalid.']]);
-        }$r->session()->regenerate();
+        }
+        $membership = DB::table('operator_memberships')->where('user_id', Auth::id())->where('status', 'ACTIVE')->first();
+        $route = $this->firstGrantedRoute($membership);
+        if ($route === null) {
+            $this->clearSession($r);
+            throw ValidationException::withMessages(['email' => ['The provided operator credentials are invalid.']]);
+        }
+        $r->session()->regenerate();
 
-        return redirect()->intended(route('operator.calendar'));
+        return redirect()->route($route);
     }
 
     public function destroy(Request $r): RedirectResponse
@@ -50,5 +59,15 @@ final class OperatorSessionController extends Controller
         Auth::logout();
         $r->session()->invalidate();
         $r->session()->regenerateToken();
+    }
+
+    private function firstGrantedRoute(?object $membership): ?string
+    {
+        return match (true) {
+            (bool) ($membership?->can_calendar_read ?? false) => 'operator.calendar',
+            (bool) ($membership?->can_booking_workflow ?? false) => 'operator.inquiries.index',
+            (bool) ($membership?->can_block ?? false) => 'operator.blocks.index',
+            default => null,
+        };
     }
 }

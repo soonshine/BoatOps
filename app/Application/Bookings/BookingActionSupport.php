@@ -60,6 +60,73 @@ trait BookingActionSupport
         ]);
     }
 
+    private function inventoryIntegrityError(): BookingActionResult
+    {
+        return $this->error(
+            'INVENTORY_INTEGRITY_FAILED',
+            'Inventory linkage is inconsistent and requires manual action.',
+            409,
+            true,
+        );
+    }
+
+    private function allocationMatchesBooking(?object $allocation, object $booking): bool
+    {
+        if (! $allocation
+            || (int) $allocation->organization_id !== (int) $booking->organization_id
+            || (int) $allocation->boat_id !== (int) $booking->boat_id
+            || $allocation->allocation_type !== 'BOOKING'
+            || $allocation->status !== 'ACTIVE'
+            || (int) $allocation->booking_id !== (int) $booking->id
+            || (int) ($allocation->hold_id ?? 0) !== (int) ($booking->hold_id ?? 0)
+            || $allocation->block_id !== null) {
+            return false;
+        }
+
+        return $this->matchingInventoryIntervals($allocation, $booking);
+    }
+
+    private function tripMatchesBooking(?object $trip, object $booking): bool
+    {
+        return $trip
+            && (int) $trip->organization_id === (int) $booking->organization_id
+            && (int) $trip->booking_id === (int) $booking->id
+            && (int) $trip->boat_id === (int) $booking->boat_id
+            && (int) $trip->trip_template_id === (int) $booking->trip_template_id
+            && $this->matchingTimestamp($trip->planned_start, $booking->business_start)
+            && $this->matchingTimestamp($trip->planned_end, $booking->business_end);
+    }
+
+    private function matchingInventoryIntervals(object $allocation, object $record): bool
+    {
+        foreach (['service_start', 'service_end', 'business_start', 'business_end', 'occupied_start', 'occupied_end'] as $field) {
+            if (! $this->matchingTimestamp($allocation->{$field}, $record->{$field})) {
+                return false;
+            }
+        }
+
+        foreach (['service_date', 'slot_offering_id', 'custom_slot_instance_id'] as $field) {
+            $allocationValue = $field === 'service_date'
+                ? ($allocation->{$field} === null ? null : (string) $allocation->{$field})
+                : ($allocation->{$field} === null ? null : (int) $allocation->{$field});
+            $recordValue = $field === 'service_date'
+                ? ($record->{$field} === null ? null : (string) $record->{$field})
+                : ($record->{$field} === null ? null : (int) $record->{$field});
+            if ($allocationValue !== $recordValue) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function matchingTimestamp(mixed $left, mixed $right): bool
+    {
+        return CarbonImmutable::parse((string) $left, 'UTC')->utc()->equalTo(
+            CarbonImmutable::parse((string) $right, 'UTC')->utc(),
+        );
+    }
+
     /** @return array<string, int|string> */
     private function slotResponseFromRecord(object $record): array
     {

@@ -2,6 +2,7 @@
 
 namespace App\Application\Holds;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -73,5 +74,51 @@ trait HoldActionSupport
             'manual_action_required' => $manualActionRequired,
             'message' => $message,
         ]);
+    }
+
+    private function inventoryIntegrityError(): HoldActionResult
+    {
+        return $this->error(
+            'INVENTORY_INTEGRITY_FAILED',
+            'Inventory linkage is inconsistent and requires manual action.',
+            409,
+            true,
+        );
+    }
+
+    private function allocationMatchesHold(?object $allocation, object $hold): bool
+    {
+        if (! $allocation
+            || (int) $allocation->organization_id !== (int) $hold->organization_id
+            || (int) $allocation->boat_id !== (int) $hold->boat_id
+            || $allocation->allocation_type !== 'HOLD'
+            || $allocation->status !== 'ACTIVE'
+            || (int) $allocation->hold_id !== (int) $hold->id
+            || $allocation->booking_id !== null
+            || $allocation->block_id !== null) {
+            return false;
+        }
+
+        foreach (['service_start', 'service_end', 'business_start', 'business_end', 'occupied_start', 'occupied_end'] as $field) {
+            if (! CarbonImmutable::parse((string) $allocation->{$field}, 'UTC')->utc()->equalTo(
+                CarbonImmutable::parse((string) $hold->{$field}, 'UTC')->utc(),
+            )) {
+                return false;
+            }
+        }
+
+        foreach (['service_date', 'slot_offering_id', 'custom_slot_instance_id'] as $field) {
+            $allocationValue = $field === 'service_date'
+                ? ($allocation->{$field} === null ? null : (string) $allocation->{$field})
+                : ($allocation->{$field} === null ? null : (int) $allocation->{$field});
+            $holdValue = $field === 'service_date'
+                ? ($hold->{$field} === null ? null : (string) $hold->{$field})
+                : ($hold->{$field} === null ? null : (int) $hold->{$field});
+            if ($allocationValue !== $holdValue) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

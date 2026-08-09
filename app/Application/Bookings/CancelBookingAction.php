@@ -19,34 +19,20 @@ class CancelBookingAction
         if ($existing) {
             return $existing;
         }
-        $organization = DB::table('organizations')->find($organizationId);
-        if (! $organization) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested booking is not accessible.', 403);
-        }
-
-        $booking = DB::table('bookings')
-            ->where('organization_id', $organization->id)
-            ->where('id', $bookingId)
-            ->first();
-
-        if (! $booking) {
-            return $this->error('AUTHORIZATION_FAILED', 'The requested booking is not accessible.', 403);
-        }
-
-        if (! hash_equals($booking->external_reference, $input['external_reference'])) {
-            return $this->error('VALIDATION_FAILED', 'The external reference does not match the booking.', 422);
-        }
 
         return DB::transaction(function () use (
-            $organization,
+            $organizationId,
+            $bookingId,
             $actor,
-            $booking,
             $input,
             $idempotencyKey,
             $operation,
             $requestHash,
         ): BookingActionResult {
-            DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
+            $organization = DB::table('organizations')->where('id', $organizationId)->lockForUpdate()->first();
+            if (! $organization) {
+                return $this->error('AUTHORIZATION_FAILED', 'The requested booking is not accessible.', 403);
+            }
             $replayed = $this->replay(
                 $organization->id,
                 $operation,
@@ -58,27 +44,42 @@ class CancelBookingAction
                 return $replayed;
             }
 
-            $lockedBooking = DB::table('bookings')->where('organization_id', $organization->id)->where('id', $booking->id)->lockForUpdate()->first();
-
+            $lockedBooking = DB::table('bookings')->where('organization_id', $organization->id)
+                ->where('id', $bookingId)->lockForUpdate()->first();
+            if (! $lockedBooking) {
+                return $this->error('AUTHORIZATION_FAILED', 'The requested booking is not accessible.', 403);
+            }
+            if (! hash_equals($lockedBooking->external_reference, $input['external_reference'])) {
+                return $this->error('VALIDATION_FAILED', 'The external reference does not match the booking.', 422);
+            }
             if ($lockedBooking->status !== 'CONFIRMED') {
                 return $this->error('INVALID_TRANSITION', 'Only a confirmed booking can be cancelled.', 409);
             }
+            $allocation = DB::table('allocations')->where('id', $lockedBooking->allocation_id)->lockForUpdate()->first();
+            $trip = DB::table('trips')->where('booking_id', $lockedBooking->id)->lockForUpdate()->first();
+            if (! $this->allocationMatchesBooking($allocation, $lockedBooking)
+                || ! $this->tripMatchesBooking($trip, $lockedBooking)) {
+                return $this->inventoryIntegrityError();
+            }
+            if (! in_array($trip->status, ['PLANNED', 'PREPARED'], true)) {
+                return $this->error('INVALID_TRANSITION', 'A departed or completed trip cannot be cancelled.', 409);
+            }
 
             $now = now()->utc();
-            DB::table('bookings')->where('id', $booking->id)->update([
+            DB::table('bookings')->where('id', $lockedBooking->id)->update([
                 'status' => 'CANCELLED',
                 'cancelled_at' => $now,
                 'updated_at' => $now,
             ]);
-            DB::table('allocations')->where('booking_id', $booking->id)->where('status', 'ACTIVE')->update([
+            DB::table('allocations')->where('id', $allocation->id)->update([
                 'status' => 'CANCELLED',
                 'updated_at' => $now,
             ]);
-            DB::table('trips')->where('booking_id', $booking->id)->update([
+            DB::table('trips')->where('id', $trip->id)->update([
                 'status' => 'CANCELLED',
                 'updated_at' => $now,
             ]);
-            $tripId = (int) DB::table('trips')->where('booking_id', $booking->id)->value('id');
+            $tripId = (int) $trip->id;
             DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
             $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
             $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
@@ -86,7 +87,7 @@ class CancelBookingAction
                 'request_id' => (string) Str::uuid(),
                 'idempotency_key' => $idempotencyKey,
                 'organization_id' => $organization->id,
-                'booking_id' => $booking->id,
+                'booking_id' => $lockedBooking->id,
                 'trip_id' => $tripId,
                 'external_reference' => $input['external_reference'],
                 'status' => 'CANCELLED',
@@ -102,7 +103,7 @@ class CancelBookingAction
                 'occurred_at' => $occurredAt,
                 'organization_id' => $organization->id,
                 'aggregate_type' => 'booking',
-                'aggregate_id' => $booking->id,
+                'aggregate_id' => $lockedBooking->id,
                 'inventory_revision' => $revision,
                 'external_reference' => $input['external_reference'],
                 'status' => 'CANCELLED',
@@ -113,7 +114,7 @@ class CancelBookingAction
                 'organization_id' => $organization->id,
                 'event_type' => $eventPayload['event_type'],
                 'aggregate_type' => 'booking',
-                'aggregate_id' => $booking->id,
+                'aggregate_id' => $lockedBooking->id,
                 'inventory_revision' => $revision,
                 'payload' => json_encode($eventPayload, JSON_THROW_ON_ERROR),
                 'occurred_at' => $now,
@@ -126,7 +127,7 @@ class CancelBookingAction
                 'actor_id' => $actor->id,
                 'action' => 'booking.cancelled',
                 'object_type' => 'booking',
-                'object_id' => $booking->id,
+                'object_id' => $lockedBooking->id,
                 'before_values' => json_encode(['status' => 'CONFIRMED'], JSON_THROW_ON_ERROR),
                 'after_values' => json_encode(['status' => 'CANCELLED'], JSON_THROW_ON_ERROR),
                 'reason' => $input['reason'] ?? null,

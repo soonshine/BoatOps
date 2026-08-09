@@ -54,6 +54,10 @@ class ReleaseBlockAction
             if ($lockedBlock->status !== 'ACTIVE') {
                 return $this->error('INVALID_TRANSITION', 'Only an active block can be released.', 409);
             }
+            $allocation = DB::table('allocations')->where('id', $lockedBlock->allocation_id)->lockForUpdate()->first();
+            if (! $this->allocationMatchesBlock($allocation, $lockedBlock)) {
+                return $this->inventoryIntegrityError();
+            }
 
             $now = now()->utc();
             DB::table('blocks')->where('organization_id', $organization->id)->where('id', $lockedBlock->id)->update([
@@ -61,11 +65,10 @@ class ReleaseBlockAction
                 'released_at' => $now,
                 'updated_at' => $now,
             ]);
-            DB::table('allocations')->where('organization_id', $organization->id)
-                ->where('block_id', $lockedBlock->id)->where('status', 'ACTIVE')->update([
-                    'status' => 'RELEASED',
-                    'updated_at' => $now,
-                ]);
+            DB::table('allocations')->where('id', $allocation->id)->update([
+                'status' => 'RELEASED',
+                'updated_at' => $now,
+            ]);
             DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
             $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
             $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
