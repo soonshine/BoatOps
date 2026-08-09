@@ -12,22 +12,35 @@ final class RejectPublicDemoWrites
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ((string) config('demo_site.mode') === 'public_read_only') {
-            if (! $this->hasIsolatedSqliteContract()) {
-                abort(404);
-            }
-            if (! $this->hasApprovedReadOnlyStateDrivers()) {
-                abort(404);
-            }
-            if ($request->is('api', 'api/*')) {
-                abort(404);
-            }
+        $mode = (string) config('demo_site.mode');
+
+        if (! in_array($mode, ['public_read_only', 'isolated_operator_demo'], true)) {
+            return $next($request);
+        }
+
+        if (! $this->hasIsolatedSqliteContract()) {
+            abort(404);
+        }
+        if (! $this->hasApprovedReadOnlyStateDrivers()) {
+            abort(404);
+        }
+        if ($request->is('api', 'api/*')) {
+            abort(404);
+        }
+
+        if ($mode === 'public_read_only') {
             if ($request->getRealMethod() === 'GET' && $request->is('operator', 'operator/*')) {
                 abort(404);
             }
             if ($request->getRealMethod() !== 'GET') {
                 abort(405, 'The public Demo accepts GET requests only.', ['Allow' => 'GET']);
             }
+
+            return $next($request);
+        }
+
+        if ($request->getRealMethod() !== 'GET' && ! $request->is('operator', 'operator/*')) {
+            abort(405, 'The isolated operator Demo accepts writes only on operator routes.', ['Allow' => 'GET']);
         }
 
         return $next($request);
