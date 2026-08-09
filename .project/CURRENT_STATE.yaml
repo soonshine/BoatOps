@@ -1,175 +1,165 @@
 schema_version: 1
 project: BoatOps
-updated_at: "2026-08-08T18:45:25+07:00"
+updated_at: "2026-08-09T10:31:00+07:00"
 
-phase: post-g0-main-alignment
+phase: g1-approved-pending-owner-merge
 current_gate:
-  id: G0_PROJECT_ALIGNMENT
-  status: COMPLETE
+  id: G1_OPERATOR_MVP
+  status: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
   objective: >-
-    Preserve the independently reviewed G0 baseline now aligned into main while
-    keeping deployment, Tag, Release, real data, and G1 implementation closed.
+    Preserve the frozen reviewed G1 code and a governance-only direct child
+    while waiting for the Owner's merge decision.
 
 current_objective: >-
-  Stop after verified main alignment. Define and authorize the next G1 gate
-  before any Operator MVP business implementation resumes.
+  Require exact governance-head CI success, then stop at
+  READY_FOR_OWNER_MERGE_DECISION without merge, deployment, Tag, Release, or
+  production-data access.
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
-  reviewed_branch: codex/boatops-g0-read-only-isolation-hardening
-  reviewed_head: "adaf4035d4b91a6bd872954113da177a61604c8f"
-  g0_code_baseline: "adaf4035d4b91a6bd872954113da177a61604c8f"
-  g0_remediation_commit: "6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca"
-  g0_test_stabilization_commit: "adaf4035d4b91a6bd872954113da177a61604c8f"
-  governance_branch: codex/boatops-g0-read-only-isolation-hardening
-  governance_parent: "adaf4035d4b91a6bd872954113da177a61604c8f"
-  g0_approval_governance_head: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
-  main_alignment_commit: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
-  main_alignment_verified: true
-  main_alignment_ci:
-    result: success
-    run: "https://github.com/soonshine/BoatOps/actions/runs/31255606952"
-  governance_receipt_rule: >-
-    The commit containing this state is a .project-only post-merge receipt; it
-    does not alter the frozen G0 code or approval governance identities.
-  main_commit_before_alignment: "c920043950e80a0a60ca88a83e440fc3b9882b94"
-  merge_base: "c920043950e80a0a60ca88a83e440fc3b9882b94"
-  worktree_clean_at_review: true
+  branch: codex/boatops-g1-operator-mvp
+  g1_base_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
+  g1_reviewed_code_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
+  reviewed_range: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c..20978a169bbd52278b3bc4ab36e901a55c7e0b00"
+  commit_count: 12
+  changed_file_count: 55
+  governance_parent_required: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
+  governance_scope: ".project/** only"
+  business_code_frozen: true
 
-public_demo:
-  url: "https://boatops.ayany.com/demo"
-  status: DEPLOYED_CANDIDATE_NOT_G0_HARDENED
-  externally_checked_at: "2026-08-08T18:30:00+07:00"
-  http_get:
-    health: 200
-    home: 200
-    demo: 200
-    calendar: 200
-    slots: 200
-  demo_post_status: 405
-  unauthenticated_api_probe_status: 401
-  g0_hardening_deployed: false
-  headers_verified:
-    x_robots_tag: "noindex, nofollow, noarchive"
-    cache_control_contains: no-store
-  html_scan:
-    post_forms: 0
-    password_fields: 0
-    exposed_credentials: 0
-    local_only_markers: 0
-  data_boundary:
-    receipt_claim: dedicated_fictional_sqlite
-    independently_reproven_from_outside_server: false
-  artifact_identity:
-    receipt_commit: "011cd81c7fd7907086178db735dbebc28abe7b61"
-    independently_reproven_from_runtime: false
-
-p0_security:
-  id: P0-SEC-001
-  status: COMPLETE
-  rotated_new_credential_verified: true
-  old_credential_revoked_verified: true
-  hermes_profile: boatops
-  hermes_model: gpt-5.6-sol
-  hermes_provider: backup-codex
-  hermes_oneshot_exit_code: 0
-  local_plaintext_rescan:
-    files: 444
-    bytes: 33271682480
-    old_credential_matches: 0
-    new_credential_matches: 0
-  boatops_git_history_matches:
-    old_credential: 0
-    new_credential: 0
-  note: "Credential values and local cleanup receipts are intentionally not stored in Git."
-
-independent_review:
-  reviewer: chatgpt
-  reviewed_range: "547198e3a2e9e4c058803f0f58529bc997fa2542..adaf4035d4b91a6bd872954113da177a61604c8f"
-  code_review_result: APPROVED
-  technical_merge_decision: EXECUTED_AND_VERIFIED
-  original_merge_decision_state: GO_PENDING_OWNER_AUTHORIZATION
-  owner_authorization:
-    status: CONSUMED
-    authorized_at: "2026-08-08T18:37:55+07:00"
-    consumed_at: "2026-08-08T18:45:25+07:00"
-    merged_target: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
-    scope: >-
-      After a governance-only commit and successful CI, fast-forward the complete
-      G0 baseline to main; do not deploy, tag, release, or use real data.
-  blockers:
-    G0-REV-001: CLOSED
-    G0-REV-002: CLOSED
-    G0-REV-003: CLOSED
-    G0-REV-004: CLOSED
-  independent_reproductions:
-    G0-REV-001: "PASS unrelated organization offerings/rules unchanged; unexpected writes 0"
-    G0-REV-002: "PASS valid fictional credential received 404 before auth; metadata and HOLDs unchanged"
-    G0-REV-003: "PASS public GET 200 with SQLite rows/artifacts unchanged; unsafe state drivers fail 404 before SQL"
-    G0-REV-004: "PASS missing/false isolation and non-SQLite configurations fail 404 with 0 SQL queries"
+g1_review:
+  reviewer: codex
+  state: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
+  p0: 0
+  p1: 0
+  p2:
+    - "Audit rows lack an explicit request/idempotency correlation field."
+    - "The coarse organization write lock may limit same-organization throughput."
+    - "Operator inquiry/block/audit listings remain unpaginated MVP surfaces."
+  architecture:
+    shared_application_domain_actions: true
+    parallel_inventory_rule_path_found: false
   local_quality:
-    phpunit: "PASS 130 tests / 1482 assertions"
-    targeted_regressions: "PASS 38 tests / 520 assertions"
+    full_phpunit: "PASS 245 tests / 2571 assertions"
+    g0_suite: "PASS 130 tests / 1482 assertions"
+    g1_suite: "PASS 115 tests / 1089 assertions"
     pint: PASS
     contracts: PASS
     production_build: PASS
     composer_validate_strict: PASS
     composer_audit: "PASS 0 advisories"
     npm_audit: "PASS 0 vulnerabilities"
-    sqlite_migration_roundtrip: "PASS migrate fresh / rollback / remigrate / integrity_check=ok"
-    tracked_and_history_secret_scan: "PASS 166 tracked files / 358 history objects / 0 findings"
-  github_ci:
-    head: "adaf4035d4b91a6bd872954113da177a61604c8f"
+    sqlite_migration_roundtrip: PASS
+    diff_check: PASS
+  exact_code_head_ci:
+    run_id: 31291676080
+    head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
     result: success
-    run: "https://github.com/soonshine/BoatOps/actions/runs/31254772199"
-  main_verification:
-    remote_main: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
-    code_baseline_is_ancestor: true
-    governance_only_paths:
-      - .project/CURRENT_GATE.md
-      - .project/CURRENT_STATE.yaml
-      - .project/REVIEW_QUEUE.md
-    main_ci_result: success
-    main_ci_run: "https://github.com/soonshine/BoatOps/actions/runs/31255606952"
-    tags: 0
-    releases: 0
-    deployments_for_main_sha: 0
-    live_demo_remained_earlier_candidate: true
+    url: "https://github.com/soonshine/BoatOps/actions/runs/31291676080"
+    quality_job:
+      id: 93189841642
+      result: success
+    postgresql_concurrency_job:
+      id: 93189841734
+      result: success
+      url: "https://github.com/soonshine/BoatOps/actions/runs/31291676080/job/93189841734"
 
-priority:
-  - stop G0 work with no further code changes
-  - define G1 Operator MVP scope and acceptance before implementation
-  - preserve the public Demo as the earlier isolated candidate
-deferred:
-  - operator MVP implementation until G0 main verification is complete
-  - finance completion
-  - warehouse completion
-  - google sheet migration
-  - channelhub
-  - ota
-  - payments
-  - formal open-source release
+remediation_history:
+  cycle_1:
+    result: REJECTED_AND_REVERTED
+    start_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
+    final_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
+    commits: 0
+    note: "Out-of-scope uncommitted inquiry and Demo changes were removed."
+  cycle_2:
+    result: BLOCKED_BY_STALE_G0_GATE_NO_CHANGES
+    start_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
+    final_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
+    commits: 0
+    note: "Hermes stopped and requested an explicit superseding authorization."
+  cycle_3:
+    result: COMPLETED
+    start_head: "c89de374be80643fa5fb15251c2ddae52ff30755"
+    implementation_commit: "d51abe4fb3327f62046503603e13184e6b2e0b89"
+    final_fix_commit: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
+    final_head: "20978a169bbd52278b3bc4ab36e901a55c7e0b00"
+    commits: 2
+    note: >-
+      Continuation sessions completed the bounded remediation. The prompt label
+      actual implementation cycle 2/3 was non-authoritative and is corrected to
+      Cycle 3 because the formal Cycle 2 had already ended with zero changes.
+  cycle_4_occurred: false
 
-executor:
-  governance_update: chatgpt
-  prior_remediation: hermes
-reviewer:
-  primary: chatgpt
-  milestone_secondary: codex
+d0_1:
+  id: D0.1_G0_HARDENED_DEMO_DEPLOYMENT
+  status: PASS_DEPLOYMENT_ACCEPTED
+  independently_resolved_at: "2026-08-09T10:31:00+07:00"
+  deployed_source_sha: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
+  live_release_id: D0_1_20260808T140625Z
+  receipt:
+    branch: codex/boatops-d0-1-deployment-receipt
+    head: "10fa260fce3ec8708f180ce016e723e6c7ea4180"
+    parent: "3826cb2c29aea4d2b92a90e04c14f8c218fbf45c"
+    changed_path: docs/releases/0.0.8-d0-1-deployment-receipt.md
+  runtime:
+    database: sqlite
+    dataset: fictional
+    isolated_dataset: true
+    cache_store: file
+    session_driver: file
+    queue_connection: sync
+    production_seeder_enabled: false
+  live_http_recheck:
+    get_200: "5/5"
+    public_non_get_405: "24/24"
+    api_404: "28/28"
+  sqlite_immutability:
+    main_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
+    artifact_sha256: "8ddd602261a3c167cf718060cc6f4cddec071de07ba345d4590cca79e4eb03cb"
+    canonical_sha256: "514b073dc1971da895454d5c7ec0bbe9603c9366ac8feb588eb137b640331fa0"
+    row_counts_unchanged: true
+    integrity: ok
+    foreign_key_violations: 0
+    organization_count: 1
+    fictional_organization_count: 1
+  backup:
+    retained: true
+    previous_release_archive_sha256: "91bb969d929fe0a44d52e5fed00446a200190f2f38189d3539ba6296b5c0fff1"
+    configuration_backup_sha256: "f015f47d44cc5ba94c0525260f4bc61350a64d8b3ffb9089ee68dfd8850230f1"
+    scheduler_backup_sha256: "549ca61e7e5e2ccf5b0910e9cb323cd94e57d475c6c407c9644aca178f815adc"
+    sqlite_main_sha256: "97d7738c866fa5df6062650da25e644258a4e5c60255c6e1ad83e7ea65632ab4"
+  rollback:
+    actual_historical_test: PASS
+    previous_release_id: 20260808T054205Z
+    previous_up: 200
+    previous_demo: 200
+    restored_up: 200
+    restored_demo: 200
+    final_release_id: D0_1_20260808T140625Z
+
+owner_decision_required:
+  - "Exact Plan A / Plan B schedules"
+  - "Buffer values"
+  - "HOLD TTL, extension, and re-HOLD rules"
+  - "Slot combination and mutual-exclusion rules"
+  - "Weather policy"
+  - "Custom-slot policy"
+  - "Production Operator identities and permission mapping"
+  - "Real product, price, customer, and order configuration"
 
 authorizations:
   merge_authorized: false
-  prior_merge_authorization_consumed: true
-  consumed_merge_target: "ead79da1a7cc39be0d18ac26d5388689b131fc13"
   deployment_authorized: false
   tag_authorized: false
   release_authorized: false
   production_data_authorized: false
 
+recommended_owner_merge_decision: >-
+  Authorize merge of the exact G1 branch only after its governance-only direct
+  child has exact-head CI success; do not treat merge as deployment authority.
+
 next_task:
-  id: WAIT_FOR_G1_DEFINITION_AND_OWNER_AUTHORIZATION
+  id: READY_FOR_OWNER_MERGE_DECISION
   owner: owner
-  scope: >-
-    Define the smallest Operator MVP gate, its business inputs, acceptance
-    criteria, executor, and new authorization before implementation.
-  excluded: "All implementation, deployment, Tag, Release, and real-data operations."
+  scope: "Decide whether to authorize merge of the exact governance head."
+  excluded: "Business-code changes, deployment, Tag, Release, and real data."

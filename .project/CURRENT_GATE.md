@@ -1,128 +1,118 @@
-# Current Gate: G0 Project Alignment
+# Current Gate: G1 Operator MVP Merge Decision
 
-Status: `COMPLETE`
+Status: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
 
-Code review decision: `APPROVED`
+Code review decision: APPROVED
 
-Technical merge decision: `EXECUTED_AND_VERIFIED`
+Technical merge recommendation: GO_PENDING_OWNER_AUTHORIZATION
 
-Owner merge authorization: `CONSUMED_FOR_EXACT_G0_SCOPE`
+Owner merge authorization: NOT_GRANTED
 
-Deployment decision: `NO_GO`
+Deployment decision: NO_GO
 
-Tag decision: `NO_GO`
+Tag decision: NO_GO
 
-Release decision: `NO_GO`
+Release decision: NO_GO
 
-Real-data decision: `NO_GO`
+Real-data decision: NO_GO
 
 ## Objective
 
-Create one trustworthy development baseline for BoatOps. Preserve the currently
-deployed fictional Demo while aligning the independently reviewed G0 code and
-governance history into `main`. This gate does not authorize deployment or any
-Operator MVP business implementation.
+Freeze the independently reviewed G1 Operator MVP code and leave one
+governance-only, exact-head-CI-verified branch for the Owner's merge decision.
+No further BoatOps business-code work is authorized by this gate.
 
 ## Frozen identities
 
-- G0 code baseline: `adaf4035d4b91a6bd872954113da177a61604c8f`
-- Remediation implementation: `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca`
-- Test-only stabilization: `adaf4035d4b91a6bd872954113da177a61604c8f`
-- Main before alignment: `c920043950e80a0a60ca88a83e440fc3b9882b94`
-- G0 approval governance head: `ead79da1a7cc39be0d18ac26d5388689b131fc13`
-- Verified main alignment commit: `ead79da1a7cc39be0d18ac26d5388689b131fc13`
-- Main CI: [GitHub Actions 31255606952](https://github.com/soonshine/BoatOps/actions/runs/31255606952), `success`
-- Deployed Demo branch: `c10f3a2eb2769a2f30f346906131b3c07c95e111`
-- Deployed Demo implementation receipt: `011cd81c7fd7907086178db735dbebc28abe7b61`
-- Reviewed code CI: [GitHub Actions 31254772199](https://github.com/soonshine/BoatOps/actions/runs/31254772199), `success`
+- G1 base SHA: 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c
+- G1 reviewed code head: 20978a169bbd52278b3bc4ab36e901a55c7e0b00
+- Branch: codex/boatops-g1-operator-mvp
+- Reviewed range: 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c..20978a169bbd52278b3bc4ab36e901a55c7e0b00
+- Range size: 12 commits / 55 changed files
+- Governance commit rule: one direct child of the reviewed code head, changing
+  only .project/**.
+- Exact reviewed-code CI: [GitHub Actions 31291676080](https://github.com/soonshine/BoatOps/actions/runs/31291676080), success
+- PostgreSQL concurrency job:
+  [93189841734](https://github.com/soonshine/BoatOps/actions/runs/31291676080/job/93189841734), success
 
-`adaf4035...` is immutable for this gate. The governance update must be a
-dedicated descendant that changes only `.project` files. The code baseline and
-the governance head are intentionally distinct audit identities.
+## Independent review result
 
-## Closed review findings
+- P0: 0
+- P1: 0
+- P2:
+  - audit rows do not contain an explicit request/idempotency correlation field;
+  - the organization-level write lock is deliberately coarse and may limit
+    same-organization throughput;
+  - Operator inquiry/block/audit listings are not yet paginated and retain MVP
+    scale/UI risk.
 
-### G0-REV-001 — CLOSED
+The API, Operator UI, and expiry jobs use the same Application/domain actions
+for authoritative inventory changes. No parallel inventory-rule path was found.
 
-`DemoSiteSeeder` now calls an organization-scoped slot catalog path. ChatGPT's
-independent production-mode reproduction preserved the unrelated organization's
-offerings and compatibility rules exactly; unexpected writes were `0`.
+## Verification
 
-### G0-REV-002 — CLOSED
+- Full PHPUnit: 245 tests / 2,571 assertions, passed.
+- Existing G0 suite: 130 tests / 1,482 assertions, passed.
+- G1 suite: 115 tests / 1,089 assertions, passed.
+- Pint, API/event contracts, production build, dependency audits, whitespace,
+  and SQLite migration rollback/remigration: passed.
+- PostgreSQL exclusion-constraint and real multi-process HTTP race gates:
+  passed in exact reviewed-code CI.
 
-Public read-only mode closes `/api` and `/api/*` before API authentication and
-rejects all remaining non-GET requests before routing/controllers. A valid
-fictional credential received `404`; `api_clients.last_used_at`, HOLD counts,
-and the application database state remained unchanged.
+## D0.1 closure
 
-### G0-REV-003 — CLOSED
+D0.1_G0_HARDENED_DEMO_DEPLOYMENT:
+PASS / DEPLOYMENT_ACCEPTED.
 
-Approved public runtime settings require file cache, file rate limiting, file
-sessions, and the sync queue. An independent public `GET /demo` returned `200`
-without changing SQLite row state or file artifacts. Database cache, session,
-or queue configurations returned `404` before any SQL query.
+Independent evidence is recorded in G1_GOVERNANCE_CLOSURE.md. The current live
+release is D0_1_20260808T140625Z and its metadata identifies source
+3826cb2c29aea4d2b92a90e04c14f8c218fbf45c. The isolated fictional SQLite,
+file cache, file sessions, sync queue, disabled production seeder, HTTP boundary,
+SQLite immutability, retained backup, and historical actual rollback/restore
+receipt were independently rechecked.
 
-### G0-REV-004 — CLOSED
+The deployed SHA differs from the reviewed G0 code baseline only through the
+three .project governance paths; no business-source deployment delta exists.
 
-Public serving and production Demo seeding now require the explicit isolated
-dataset flag and an effective SQLite configuration. Missing/false isolation,
-PostgreSQL defaults, and a PostgreSQL `DB_URL` returned `404` with `0` SQL
-queries. Production seeding failed before SQL when the contract was invalid.
+## Reconciled remediation history
 
-## Independent validation
+1. Cycle 1: out-of-scope, uncommitted inquiry/Demo changes were rejected and
+   reverted; the branch returned clean to c89de374be80643fa5fb15251c2ddae52ff30755.
+2. Cycle 2: Hermes stopped on the stale G0 governance gate and made no code
+   changes; the branch remained clean at c89de374be80643fa5fb15251c2ddae52ff30755.
+3. Cycle 3: bounded G1 remediation was delivered through continuation sessions.
+   A later prompt incorrectly called itself actual implementation cycle 2/3;
+   that label is corrected here because formal Cycle 2 had already ended.
+   The auditable Git sequence is:
+   c89de374be80643fa5fb15251c2ddae52ff30755 ->
+   d51abe4fb3327f62046503603e13184e6b2e0b89 ->
+   20978a169bbd52278b3bc4ab36e901a55c7e0b00.
 
-- PHPUnit: `130/130` tests, `1,482` assertions.
-- Targeted Demo regressions: `38/38` tests, `520` assertions.
-- Pint: passed.
-- Inventory and Operations contracts and event fixtures: passed.
-- Vite production build: passed.
-- Composer `validate --strict` and `audit --locked`: passed; `0` advisories.
-- npm audit: passed; `0` vulnerabilities.
-- SQLite `migrate:fresh -> rollback -> migrate`: passed; `integrity_check=ok`.
-- Secret scan: `166` tracked files and `358` history objects; `0` findings.
-- Exact-head GitHub CI: passed for `adaf4035...`.
-- Worktree and remote identities were clean and matched at approval time.
+No fourth remediation cycle occurred.
 
-## Owner authorization
+## OWNER_DECISION_REQUIRED
 
-The Owner authorized this exact sequence on `2026-08-08` (Asia/Bangkok):
+- exact Plan A / Plan B schedules;
+- buffer values;
+- HOLD TTL, extension, and re-HOLD rules;
+- slot combination and mutual-exclusion rules;
+- weather policy;
+- custom-slot policy;
+- production Operator identities and permission mapping;
+- real product, price, customer, and order configuration.
 
-1. create one governance-only descendant of `adaf4035...`;
-2. push it and require GitHub CI success for that exact governance head;
-3. fast-forward the complete G0 baseline into `main`;
-4. stop business development and independently verify the new remote `main`.
+These are configurable or fail closed and were not hard-coded as Ayany facts.
 
-This authorization does not include deployment, Tag, GitHub Release, real-data
-access/import, Google Sheet, ChannelHub, OTA, payment, WordPress, finance/stock
-expansion, or Operator MVP implementation.
+## Authorization boundary
 
-The one-time authorization was consumed by fast-forwarding `main` from
-`c9200439...` to `ead79da1...`. It is no longer active for any later merge.
+- merge_authorized=false
+- deployment_authorized=false
+- tag_authorized=false
+- release_authorized=false
+- production_data_authorized=false
 
-## Executed merge protocol
+The only next action is the Owner's merge decision after exact governance-head
+CI succeeds. Merge, G1 deployment, Tag, Release, and real-data work remain
+separately prohibited.
 
-1. Governance diff contained only three `.project` files: complete.
-2. Approval governance commit `ead79da1...` had parent `adaf4035...`: complete.
-3. Governance-head CI [31255555082](https://github.com/soonshine/BoatOps/actions/runs/31255555082): success.
-4. Remote `main=c9200439...` and clean worktree were reconfirmed: complete.
-5. `main` was fast-forwarded without rewriting history: complete.
-6. Remote `main=ead79da1...`, exact main CI, ancestry, scope, and live Demo
-   separation were independently verified: complete.
-
-## Main alignment receipt
-
-- `adaf4035...` is an ancestor of the verified main alignment commit.
-- `adaf4035...ead79da1` changes only `.project/CURRENT_GATE.md`,
-  `.project/CURRENT_STATE.yaml`, and `.project/REVIEW_QUEUE.md`.
-- Main CI job `Quality and contracts` concluded `success`.
-- Tags: `0`; GitHub Releases: `0`; deployments for `ead79da1...`: `0`.
-- Live `/up` and `/demo` remained `200`; live unauthenticated Inventory API
-  remained `401` and Demo POST remained `405`, consistent with the earlier
-  candidate and with no new deployment of the approved source.
-- Worktree was clean after push and verification.
-
-## Gate boundary
-
-G0 is complete. No G1 implementation is authorized by this gate:
-
-`G0_COMPLETE / STOP_BEFORE_G1 / NOT_DEPLOYED / NOT_TAGGED / NOT_RELEASED / NO_REAL_DATA`
+READY_FOR_OWNER_MERGE_DECISION

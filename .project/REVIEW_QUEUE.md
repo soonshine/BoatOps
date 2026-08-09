@@ -1,90 +1,92 @@
 # BoatOps Review Queue
 
-Last updated: `2026-08-08 18:45 Asia/Bangkok`
+Last updated: 2026-08-09 10:31 Asia/Bangkok
 
-Current decision: `G0_COMPLETE / MAIN_ALIGNED_AND_VERIFIED`
+Current decision: G1_APPROVED_PENDING_OWNER_MERGE_AUTHORIZATION
 
-## Closed G0 blockers
-
-| ID | Priority | Status | Reviewer | Independent reproduction evidence | Acceptance result |
-| --- | --- | --- | --- | --- | --- |
-| G0-REV-001 | P0 | CLOSED | ChatGPT | Production Demo seed plus the default `DatabaseSeeder` chain left an unrelated organization's sentinel offerings and compatibility rule unchanged; unexpected writes `0`. | Exact fictional organization only: PASS. |
-| G0-REV-002 | P0 | CLOSED | ChatGPT | Valid fictional Bearer credential received `404` for the API before auth; `last_used_at`, HOLDs, and canonical database state remained unchanged. Non-GET non-API requests received `405`. | API closed and writes rejected before controllers: PASS. |
-| G0-REV-003 | P0 | CLOSED | ChatGPT | Approved file cache/session runtime returned `GET /demo = 200`; SQLite rows/artifacts, cache rows, session rows, and job rows were unchanged. Database-backed state drivers returned `404` with `0` SQL. | Public GET cannot mutate the application SQLite database: PASS. |
-| G0-REV-004 | P0 | CLOSED | ChatGPT | Missing/false isolation, PostgreSQL default, PostgreSQL `DB_URL`, database cache, database session, and database queue each returned `404` with `0` SQL queries. Invalid production seed gates also failed before SQL. | Explicit isolated SQLite contract enforced: PASS. |
-
-## Frozen review identities
+## Frozen identities
 
 | Identity | Commit / run | Status |
 | --- | --- | --- |
-| G0 remediation implementation | `6e2b6efaee81fbaabcb3b5c522abc8c95a1cc4ca` | REVIEWED |
-| G0 code baseline | `adaf4035d4b91a6bd872954113da177a61604c8f` | APPROVED / FROZEN |
-| Code-baseline CI | [Run 31254772199](https://github.com/soonshine/BoatOps/actions/runs/31254772199) | SUCCESS |
-| Main before alignment | `c920043950e80a0a60ca88a83e440fc3b9882b94` | VERIFIED |
-| Deployed Demo branch | `c10f3a2eb2769a2f30f346906131b3c07c95e111` | UNCHANGED |
-| G0 approval governance head | `ead79da1a7cc39be0d18ac26d5388689b131fc13` | APPROVED / CI SUCCESS |
-| Main alignment | `c9200439... -> ead79da1...` fast-forward | EXECUTED / VERIFIED |
-| Main CI | [Run 31255606952](https://github.com/soonshine/BoatOps/actions/runs/31255606952) | SUCCESS |
+| G1 base | 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c | FROZEN |
+| Initial reviewed G1 head | c89de374be80643fa5fb15251c2ddae52ff30755 | REMEDIATED |
+| G1 reviewed code head | 20978a169bbd52278b3bc4ab36e901a55c7e0b00 | APPROVED / FROZEN |
+| G1 range | 12 commits / 55 changed files | VERIFIED |
+| Exact code-head CI | [Run 31291676080](https://github.com/soonshine/BoatOps/actions/runs/31291676080) | SUCCESS |
+| PostgreSQL concurrency | [Job 93189841734](https://github.com/soonshine/BoatOps/actions/runs/31291676080/job/93189841734) | SUCCESS |
+| D0.1 receipt | 10fa260fce3ec8708f180ce016e723e6c7ea4180 | INDEPENDENTLY ACCEPTED |
 
-## Independent verified passes
+## Finding summary
 
-| Area | Evidence | Result |
-| --- | --- | --- |
-| Exact code diff | `547198e3...adaf4035`; allowed G0 remediation, tests, documentation, and governance evidence only | PASS |
-| PHPUnit | 130 tests, 1,482 assertions | PASS |
-| Targeted Demo regression set | 38 tests, 520 assertions | PASS |
-| File-backed SQLite GET regression | 1 test, 10 assertions re-run on final code head | PASS |
-| Formatting | Pint | PASS |
-| Contracts | Inventory and Operations OpenAPI plus event fixtures | PASS |
-| Frontend | Vite production build | PASS |
-| PHP dependencies | strict Composer validation; locked dependency audit | PASS, 0 advisories |
-| Node dependencies | npm audit | PASS, 0 vulnerabilities |
-| SQLite lifecycle | fresh migration, rollback, remigration, integrity check | PASS |
-| Git secret scan | 166 tracked files and 358 history objects | PASS, current/history 0 findings |
-| GitHub CI | Exact `adaf4035...` head | PASS |
-| Public HTTP | `/up`, `/`, `/demo`, `/demo/calendar`, `/demo/slots` | PASS, 200 |
-| Public Demo POST boundary | `/demo/calendar`, `/demo/fuel` | PASS, 405 |
+| Priority | Open count | Result |
+| --- | ---: | --- |
+| P0 | 0 | No merge blocker |
+| P1 | 0 | No merge blocker |
+| P2 | 3 | Owner may accept or schedule later |
 
-## Scope and deployment findings
+P2 findings:
 
-- No Operator MVP, finance, stock, Google Sheet, ChannelHub, OTA, payment,
-  WordPress, deployment, Tag, Release, or real-data change is part of this
-  governance step.
-- The live Demo remains the earlier candidate. Its unauthenticated Inventory API
-  probe returned `401`, whereas the approved G0 source returns `404`; therefore
-  the G0 hardening has not been presented as deployed.
-- The public response does not expose a trustworthy release-commit identity.
-  Deployed commit `011cd81...` remains deployment-receipt evidence rather than
-  independently proven runtime identity.
-- Physical SQLite isolation is recorded by the deployment receipt but cannot be
-  proven from outside the server.
+1. Audit rows lack an explicit request/idempotency correlation field.
+2. Coarse organization-level write locking may limit same-organization
+   throughput.
+3. Operator inquiry/block/audit listings remain unpaginated MVP surfaces.
 
-## Merge receipt and remaining controls
+## Remediation ledger
 
-The one-time Owner authorization was consumed by the verified fast-forward to
-`ead79da1...`. `merge_authorized` is now false and cannot authorize any later
-change.
+| Cycle | Start | End | Commits | Auditable result |
+| --- | --- | --- | ---: | --- |
+| 1 | c89de374 | c89de374 | 0 | Out-of-scope uncommitted changes rejected and reverted. |
+| 2 | c89de374 | c89de374 | 0 | Blocked by stale G0 gate; no code changed. |
+| 3 | c89de374 | 20978a1 | 2 | Bounded remediation completed as d51abe4 then 20978a1. |
 
-Final verification:
+The later Hermes prompt text actual implementation cycle 2/3 was an incorrect
+self-label. It did not reopen or replace the already completed zero-change
+Cycle 2. Its bounded implementation and the final continuation are recorded as
+one Cycle 3. No Cycle 4 occurred.
 
-- remote `main` and the G0 approval governance branch both resolved to
-  `ead79da1...` at alignment verification time;
-- `adaf4035...` was an ancestor;
-- the approval governance range changed only three `.project` files;
-- exact main CI concluded success;
-- worktree was clean;
-- tags, releases, and deployments for the merged SHA were all zero;
-- live Demo behavior remained the earlier candidate and was not silently
-  switched to the G0 source.
+## D0.1 independent closure
 
-Still prohibited:
+D0.1 = PASS / DEPLOYMENT_ACCEPTED.
 
-- deployment;
-- Tag or GitHub Release;
-- production/real data;
-- new business code;
-- changes to the live Demo;
-- widening the authorized merge range after the governance head is frozen.
+- Current release: D0_1_20260808T140625Z.
+- Exact deployed source: 3826cb2c29aea4d2b92a90e04c14f8c218fbf45c.
+- Runtime: isolated fictional SQLite; file cache; file sessions; sync queue;
+  production seeder disabled.
+- Current HTTP recheck: GET 5/5 returned 200; public non-GET 24/24 returned
+  405; API matrix 28/28 returned 404.
+- SQLite main, artifact, canonical-row hashes, and full row-count map were
+  unchanged across the recheck.
+- Retained backup hashes match the deployment receipt.
+- The retained rollback receipt records an actual switch to
+  20260808T054205Z and restoration to D0_1_20260808T140625Z, with /up and
+  /demo returning 200 on both releases.
 
-G0 is closed. Stop before any G1 implementation until a new gate and explicit
-Owner authorization exist.
+Full values and provenance are in G1_GOVERNANCE_CLOSURE.md.
+
+## OWNER_DECISION_REQUIRED
+
+| Item | Current treatment |
+| --- | --- |
+| Plan A / Plan B exact schedules | CONFIGURABLE / NOT FROZEN |
+| Buffer | CONFIGURABLE / NOT FROZEN |
+| HOLD TTL, extension, re-HOLD | CONFIGURABLE / NOT FROZEN |
+| Slot combination and mutual exclusion | CONFIGURABLE / NOT FROZEN |
+| Weather policy | CONFIGURABLE / NOT FROZEN |
+| Custom-slot policy | CONFIGURABLE / NOT FROZEN |
+| Production Operator identities/permissions | OWNER CONFIGURATION REQUIRED |
+| Real products/prices/customers/orders | REAL DATA / SEPARATE AUTHORIZATION |
+
+## Remaining controls
+
+- merge_authorized=false
+- deployment_authorized=false
+- tag_authorized=false
+- release_authorized=false
+- production_data_authorized=false
+- no further business-code changes
+
+Recommended Owner decision: authorize merge of the exact governance head after
+its exact-head CI succeeds. Do not infer deployment or production-data
+authorization from that merge.
+
+READY_FOR_OWNER_MERGE_DECISION
