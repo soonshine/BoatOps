@@ -1,147 +1,126 @@
-# BoatOps Real Operations Pilot MVP Roadmap
+# BoatOps Real Operations Path
 
-Status: `SCOPE_FROZEN / BUSINESS_CODE_NOT_AUTHORIZED`
+Status: `ACTIVE_PRODUCT_PATH`
 
-Updated: 2026-08-09 17:28 Asia/Bangkok
+Updated: 2026-08-10 11:26 Asia/Bangkok
 
-## 1. Goal
+This path replaces module-driven feature planning. The filename remains for stable links; `REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md` is now the historical WP1-WP3 implementation contract, not the current North Star or continuing authorization.
 
-Move BoatOps from a fictional Demo-validated alpha into the smallest practical version that can support a real vessel operator's daily workflow, then iterate from actual usage.
+## Goal and vertical slice
 
-Primary principle:
+> Put the smallest safe whole-vessel operations core into daily use, observe reality, then make only the next minimum change.
 
-> **Time-to-real-use takes priority over feature completeness.**
+`Safety / Operational Truth > Time-to-Real-Use > Feature Completeness`
 
-BoatOps remains reusable and organization-scoped. The first real pilot must not hard-code Ayany, vessel ownership, or deployment-specific business rules into core product logic.
+```text
+Booking:   Availability -> Inquiry -> HOLD -> Confirm -> Amend / Cancel
+Trip:      Confirmed Booking -> Today's Trips -> Prepare -> Depart -> Return -> Complete
+Inventory: BLOCK -> Release
+Audit:     cross-cutting
+```
 
-Canonical frozen implementation contract:
+The slice succeeds when one authorized Operator completes it without a hidden spreadsheet or API-only side path for the in-scope daily actions.
 
-`docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md`
+## One development loop
 
-## 2. Existing capabilities to reuse
+```text
+CORE SAFETY
+    | no P0 + exact-head CI + independent review + Owner merge authorization
+    v
+DEPLOYMENT READINESS
+    | reviewed PostgreSQL/config/provisioning/scheduler/backup/health/PII
+    v
+PILOT CUTOVER
+    | real-data scope + reconciliation + rollback + explicit authority switch
+    v
+REAL USE -> OBSERVED PAIN -> NEXT MINIMUM CHANGE -> CORE SAFETY
+```
 
-The reviewed source already contains foundations that must not be rebuilt without evidence of a missing invariant:
+No WP4/WP5/WP6 is preplanned. Release is a separate optional Gate.
 
-- Availability and whole-vessel occupied-interval adjudication;
-- HOLD / release / expiry;
-- Booking Confirm / Amend / Cancel;
-- BLOCK / release;
-- Inventory revision, audit, idempotency and outbox foundations;
-- Slot catalog, compatibility and schedule/calendar projection;
-- Operator auth/membership, calendar, Inquiry/HOLD, Booking workflow, BLOCK and audit;
-- Trip crew/checklist plus prepare/depart/return/complete backend behavior;
-- PostgreSQL exclusion/concurrency validation;
-- finance/stock/cash/rate foundations for later reuse.
+## Core Safety
 
-## 3. Six-step realization path
+Core Safety closes only when no operational-truth P0 remains, the exact candidate head passes relevant SQLite and PostgreSQL/concurrency regressions, shared Web/API/job behavior remains consistent, and independent review plus separate Owner merge authorization are recorded.
 
-### Step 1 — MVP Readiness Audit
+This path prescribes neither a current implementation nor current authorization. Those live only in `CURRENT_STATE.yaml` and `CURRENT_GATE.md`; immutable review evidence lives in `REVIEW_QUEUE.md`.
 
-Status: `COMPLETE`
+## Deployment Readiness
 
-An independent Codex read-only audit concluded `PILOT_MVP_SCOPE_CAN_BE_FROZEN`. Primary review independently verified the material findings.
+Opens only after Core Safety is merged.
 
-Primary review accepted one correction: the Pilot will **not** add a new `PREPARED` Trip status. Preparation remains readiness attached to a `PLANNED` Trip; amendment must invalidate old readiness and require re-prepare before departure.
+Minimum evidence:
 
-### Step 2 — Minimal Operational Booking Dossier + Booking Workbench
+- exact source SHA and PostgreSQL candidate;
+- reviewed organization, vessels, windows, slots, compatibility, buffers, HOLD TTL;
+- real Operator identities/least privilege;
+- idempotent provisioning manifest/command, validation, and rollback;
+- HOLD-expiry scheduler, health/errors, audit/outbox visibility;
+- backup and actual restore;
+- deployment rollback and PII protection;
+- physical Demo isolation.
 
-Status: `SCOPE_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED`
+Use reviewed provisioning before building Admin Web. Deployment does not authorize real data.
 
-Frozen outcome:
+## Small Pilot Cutover
 
-- minimum structured customer/contact and service-execution data;
-- party size and pickup/meeting information;
-- separated service/internal notes;
-- optional selling amount/currency without expanding into full Finance;
-- organization-scoped paginated booking list/detail;
-- today/upcoming/all and basic search/filtering;
-- reuse of existing authoritative booking actions.
+Requires a separate Owner decision:
 
-### Step 3 — Minimal Operator Trip Desk
+- identify current authority and exact cutover time;
+- admit only approved fields/records;
+- keep the old system for history;
+- enter only necessary future active bookings;
+- reconcile every admitted Booking/occupied interval;
+- prove rollback;
+- switch new work at an explicit moment and stop uncontrolled parallel writes.
 
-Status: `SCOPE_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED`
+Full-history automation is not required. BoatOps becomes operational authority only when this Gate completes.
 
-Frozen outcome:
+## Real-use feedback
 
-`Today's Trips -> Booking/Service Detail -> Prepare -> Crew/Checklist -> Depart -> Return -> Complete`
+Capture, without PII: workflow step, expected/actual result, impact, evidence, workaround, and whether the cause is universal or organization-specific.
 
-Architecture:
+| Class | Rule |
+| --- | --- |
+| `core-safety` | incorrect operational truth; highest priority |
+| `real-use-blocker` | Operator cannot finish daily work |
+| `observed-pain` | repeated friction proven by real use |
+| `future` | unproven; not scheduled |
 
-- extract existing Trip mutations into shared `app/Application/Trips/*` actions;
-- API and Operator UI use the same actions;
-- no parallel Trip state machine;
-- keep Trip status flow `PLANNED -> DEPARTED -> RETURNED -> COMPLETED`;
-- successful amendment invalidates stored Trip readiness;
-- enforce actual timestamp ordering and reject future actual depart/return times.
+Prefer safe SOP/configuration for organization-specific needs. One observation is not proof of a platform feature.
 
-### Step 4 — Real Operations Deployment Readiness
+Minimum observability reuses audit, idempotency, revision, database conflicts, outbox, scheduler/health logs, deployment manifest, and backup/rollback receipts. No analytics platform is required.
 
-Status: `NOT_AUTHORIZED`
+## Progressive complexity
 
-Separate future gate for:
+- Capacity: use SOP if Pilot limits are uniform; otherwise first consider one bounded `max_passengers` constraint.
+- Product/Slot: add the smallest mapping only after repeated wrong combinations.
+- Admin: consider after repeated, error-prone provisioning.
+- Finance/CRM/reporting/maintenance: only for a blocker or repeated pain.
+- API/ChannelHub/OTA: only for a real consumer and explicit authority/failure boundary.
 
-- PostgreSQL authoritative database;
-- actual organization/vessels/service windows;
-- actual buffers/HOLD policy;
-- real Operator identities;
-- scheduler;
-- backup/restore;
-- health/logging;
-- PII protection;
-- explicit production-data authorization.
+## First-Pilot exclusions
 
-D1 fictional SQLite is not the real Pilot database baseline.
-
-### Step 5 — Small Real Cutover
-
-Status: `NOT_AUTHORIZED`
-
-Preferred first-pilot approach unless later evidence requires otherwise:
-
-- keep historical records in the previous system for lookup;
-- manually enter only future active bookings if needed;
-- from an explicit cutover point, manage new operational bookings in BoatOps;
-- no automated historical migration is required for the first Pilot.
-
-### Step 6 — Usage-Driven Iteration
-
-Status: `FUTURE / NOT_AUTHORIZED`
-
-Later work is chosen from observed operating pain, for example payment/outstanding/refunds, dispatch, profit, richer permissions, notifications, maintenance, documents or reporting.
-
-## 4. Explicit first-pilot exclusions
-
-The Pilot scope excludes:
-
-- ChannelHub;
-- OTA adapters;
-- WordPress inventory integration;
-- payment gateway;
-- complete receivables/accounting/refunds/profit;
-- broad stock/fuel UI expansion;
-- CRM;
-- complex SaaS admin;
-- automated historical migration;
-- notification/reporting platforms;
-- maintenance management;
-- vessel document management;
-- complex passenger manifest;
+- seat/ticket/shared-capacity inventory;
+- ChannelHub/OTA/WordPress inventory;
+- payment/full accounting/CRM;
+- broad Stock/Fuel UI;
+- notification/reporting platform;
+- maintenance/documents/complex manifest;
+- SaaS super-admin;
+- automated history migration;
 - second-company onboarding;
 - public semantic-version Release.
 
-## 5. Gate discipline
+## Gate authority
 
-Current state:
+`CODE / MERGE`, `DEPLOYMENT`, `REAL DATA / CUTOVER`, and `RELEASE` remain separate.
 
-- `D1_COMPLETE`
-- `MVP_READINESS_AUDIT_COMPLETE`
-- `REAL_OPERATIONS_PILOT_MVP_SCOPE_FROZEN`
-- `BUSINESS_CODE_NOT_AUTHORIZED`
-- `DEPLOYMENT_NOT_AUTHORIZED`
-- `NO_REAL_DATA`
+Current state and permission:
 
-Next decision:
+- `.project/CURRENT_STATE.yaml`
+- `.project/CURRENT_GATE.md`
 
-`OWNER_AUTHORIZE_PILOT_MVP_IMPLEMENTATION`
+Evidence/history:
 
-Deployment, production data, migration/cutover, Tag and Release remain separately authorized actions.
+- `.project/REVIEW_QUEUE.md`
+- existing closure/release receipts and Git/PR history.
