@@ -1,6 +1,6 @@
-schema_version: 8
+schema_version: 9
 project: BoatOps
-updated_at: "2026-08-10T11:44:00+07:00"
+updated_at: "2026-08-10T14:21:00+07:00"
 
 current_phase: CORE_SAFETY
 
@@ -20,12 +20,90 @@ north_star:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
+  current_canonical_main_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
   project_reset:
+    pr: 13
+    status: MERGED_CLOSED
     observed_origin_main_before_reset: "e0ee301e601c7d9db741e828990c477cf36a8d29"
-    observed_at: "2026-08-10T11:44:00+07:00"
+    reset_head_sha: "aede9a495b1a6f98a218fd0d26d944b469f86980"
+    resulting_main_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
+    post_main_ci:
+      run: 31360041676
+      head_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
+      quality_and_contracts: SUCCESS
+      postgresql_concurrency: SUCCESS
+
+counter_audit:
+  id: CODEX_BOATOPS_PROJECT_WIDE_PRE_REAL_USE_AUDIT
+  mode: READ_ONLY
+  main_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
+  pr12_head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
+  north_star_result: PASS
+  mutation_result: NO_CODE_NO_GOVERNANCE_NO_DEPLOYMENT_NO_DATA
+  findings_status: SUBJECT_TO_PRIMARY_RECONCILIATION
+  independently_confirmed:
+    - INV-P0-001
+    - INV-P0-002
+  proposed_findings:
+    - INV-P0-003
+    - INV-P0-004
+    - REALUSE-P1-001
+    - REALUSE-P1-002
+
+primary_reconciliation:
+  - id: INV-P0-001
+    status: ACCEPTED
+    priority: P0_CORE_SAFETY
+    nature: UNIVERSAL_INVARIANT
+    current_core_blocker: true
+    repair_required: true
+  - id: INV-P0-002
+    status: ACCEPTED
+    priority: P0_CORE_SAFETY
+    nature: UNIVERSAL_INVARIANT
+    current_core_blocker: true
+    repair_required: true
+  - id: INV-P0-003
+    status: DOWNGRADED
+    classification: DEFENSE_IN_DEPTH
+    current_core_blocker: false
+    repair_required_now: false
+  - id: INV-P0-004
+    status: DOWNGRADED
+    classification: BOUNDED_FAIL_CLOSED_HARDENING
+    current_core_blocker: false
+    allowed_in_current_repair: true
+  - id: REALUSE-P1-001
+    status: DOWNGRADED
+    classification: DEFER_OBSERVED_PAIN_REQUIRED
+    current_core_blocker: false
+    repair_required_now: false
+  - id: REALUSE-P1-002
+    status: DOWNGRADED
+    classification: DEFER_UNTIL_REAL_COMPLIANCE_OR_AUDIT_NEED
+    current_core_blocker: false
+    repair_required_now: false
+
+core_safety_scope:
+  status: FROZEN
+  authorization_scope: BOUNDED_CORE_SAFETY_REPAIR_ONLY
+  required_repairs:
+    - INV-P0-001
+    - INV-P0-002
+  optional_adjacent_hardening:
+    - INV-P0-004
+  explicitly_not_required:
+    - INV-P0-003_GENERALIZED_COMPLETE_CORRUPTION_FRAMEWORK
+    - REALUSE-P1-001_INQUIRY_SELECTION_OR_REHOLD
+    - REALUSE-P1-002_RICHER_READINESS_HISTORY
+    - PASSENGER_CAPACITY
+    - PRODUCT_SLOT_MAPPING
+    - PROVISIONING_OR_ADMIN_UI
+    - FEATURE_EXPANSION
+    - DEPLOYMENT_WORK
 
 real_operations_core:
-  inventory: BLOCKED_BY_OPEN_CORE_INVARIANTS
+  inventory: BLOCKED_BY_TWO_REQUIRED_CORE_INVARIANTS
   booking_workbench: ON_MAIN
   trip_execution: CANDIDATE_IN_PR_12
   primary_surface: OPERATOR_WEB
@@ -33,10 +111,13 @@ real_operations_core:
 
 wp3_candidate:
   pr: 12
+  state: OPEN
   draft: true
+  merged: false
   branch: "hermes/pilot-mvp-wp3-trip-desk"
   merge_base_sha: "e0ee301e601c7d9db741e828990c477cf36a8d29"
   head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
+  needs_rebase_to_current_main: true
   primary_review:
     status: PASS_AT_REVIEWED_HEAD
     reviewed_head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
@@ -47,23 +128,41 @@ wp3_candidate:
 
 core_invariant_blockers:
   - id: INV-P0-001
-    status: OPEN
-    severity: P0
+    status: ACCEPTED_OPEN
+    priority: P0_CORE_SAFETY
+    nature: UNIVERSAL_INVARIANT
     provenance: PRESENT_AT_PROJECT_RESET_BASE
   - id: INV-P0-002
-    status: OPEN
-    severity: P0
+    status: ACCEPTED_OPEN
+    priority: P0_CORE_SAFETY
+    nature: UNIVERSAL_INVARIANT
     provenance: PRESENT_AT_PROJECT_RESET_BASE
+
+optional_authorized_hardening:
+  - id: INV-P0-004
+    status: OPTIONAL
+    scope: CANCEL_FAIL_CLOSED_TO_PLANNED_ONLY
+
+governance_candidate_guard:
+  effective_condition: THIS_GOVERNANCE_RECONCILIATION_MERGED_TO_CANONICAL_MAIN
+  while_candidate_unmerged:
+    business_code_change_authorized: false
+    implementation_branch_commit_pr_authorized: false
+    pr12_rebase_authorized: false
 
 gates:
   code:
-    status: BLOCKED
-    business_code_change_authorized: false
-    implementation_branch_commit_pr_authorized: false
+    status: BOUNDED_REPAIR_AUTHORIZED_AFTER_GOVERNANCE_MERGE
+    authorization_scope: BOUNDED_CORE_SAFETY_REPAIR_ONLY
+    authorization_effective_condition: THIS_GOVERNANCE_RECONCILIATION_MERGED_TO_CANONICAL_MAIN
+    business_code_change_authorized: true
+    implementation_branch_commit_pr_authorized: true
     merge_authorized: false
   deployment:
     status: NOT_OPEN
     authorized: false
+    deployment_authorized: false
+    production_enablement_authorized: false
   real_data_cutover:
     status: NOT_OPEN
     real_data_authorized: false
@@ -72,15 +171,23 @@ gates:
     authority_switch_authorized: false
   release:
     status: NOT_OPEN
+    release_authorized: false
     tag_authorized: false
     github_release_authorized: false
 
-next_decision:
-  id: OWNER_AUTHORIZE_BOUNDED_CORE_INVARIANT_REPAIR
+next_action:
+  id: HERMES_REBASE_PR12_AND_IMPLEMENT_BOUNDED_CORE_SAFETY_REPAIR
+  effective_condition: THIS_GOVERNANCE_RECONCILIATION_MERGED_TO_CANONICAL_MAIN
+
+next_owner_decision:
+  id: OWNER_AUTHORIZE_PR12_MERGE
   status: NOT_AUTHORIZED
+  prerequisite: REPAIRED_EXACT_HEAD_ACCEPTED
 
 stop_conditions:
+  - NO_ACTION_FROM_UNMERGED_GOVERNANCE_CANDIDATE
   - NO_PR12_MERGE
+  - BOUNDED_CORE_SAFETY_REPAIR_ONLY
   - NO_WP4_WP5_WP6
   - NO_FEATURE_EXPANSION
   - NO_DEPLOYMENT

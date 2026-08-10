@@ -1,6 +1,6 @@
 # BoatOps Review Queue and Evidence Ledger
 
-Last updated: 2026-08-10 11:44 Asia/Bangkok
+Last updated: 2026-08-10 14:21 Asia/Bangkok
 
 This file has two jobs:
 
@@ -13,8 +13,8 @@ It grants no authorization. Current machine state lives in `CURRENT_STATE.yaml`;
 
 | ID | Status | Review question |
 | --- | --- | --- |
-| `INV-P0-001` | `OPEN / PR12_MERGE_BLOCKER` | Does physical inventory authority survive Complete until `occupied_end`? |
-| `INV-P0-002` | `OPEN / PR12_MERGE_BLOCKER` | Does a completed Booking retain required same-service-date compatibility? |
+| `INV-P0-001` | `ACCEPTED / OPEN / PR12_MERGE_BLOCKER` | Does physical inventory authority survive Complete until `occupied_end`? |
+| `INV-P0-002` | `ACCEPTED / OPEN / PR12_MERGE_BLOCKER` | Does a completed Booking retain required same-service-date compatibility? |
 
 ### Immutable causal evidence
 
@@ -38,6 +38,34 @@ Status: `DRAFT / PRIMARY_REVIEW_PASS_AT_D841418 / LATER_CROSS_INVARIANT_BLOCKED 
 
 The recorded primary review accepted the bounded Trip Desk scope, including shared Trip Actions, Operator pages, lifecycle transitions, readiness invalidation, timestamp integrity, organization isolation, and the row-index fix. That acceptance does not cover the later-proven inventory invariants and cannot be reused for a new candidate head.
 
+### Project-wide counter-audit
+
+Audit identity: `CODEX_BOATOPS_PROJECT_WIDE_PRE_REAL_USE_AUDIT`
+
+- mode: `READ_ONLY`;
+- canonical-main baseline: `32f817c4618d522b6d73253b3f1dcdc12018a78f`;
+- PR #12 baseline: `d841418c24c90c30ceeb203e17150e55cb46d538`;
+- North Star / Web-first / whole-vessel boundary: confirmed;
+- mutations: `NO_CODE_CHANGE / NO_GOVERNANCE_CHANGE / NO_PR12_CHANGE / NO_DEPLOYMENT / NO_REAL_DATA`;
+- raw findings: `COUNTER_AUDIT_FINDINGS / SUBJECT_TO_PRIMARY_RECONCILIATION`.
+
+The counter-audit independently confirmed `INV-P0-001` and `INV-P0-002`, and proposed `INV-P0-003`, `INV-P0-004`, `REALUSE-P1-001`, and `REALUSE-P1-002`.
+
+### Primary Reviewer reconciliation
+
+| Finding | Primary disposition |
+| --- | --- |
+| `INV-P0-001` | `ACCEPT / CORE BLOCKER / REPAIR REQUIRED` |
+| `INV-P0-002` | `ACCEPT / CORE BLOCKER / REPAIR REQUIRED` |
+| `INV-P0-003` | `DOWNGRADE / DEFENSE IN DEPTH / NOT REQUIRED NOW` |
+| `INV-P0-004` | `DOWNGRADE / ALLOWED FAIL-CLOSED HARDENING` |
+| `REALUSE-P1-001` | `DEFER / OBSERVED PAIN REQUIRED` |
+| `REALUSE-P1-002` | `DEFER / REAL COMPLIANCE OR AUDIT EVIDENCE REQUIRED` |
+
+Codex's raw severity classifications are audit evidence, not current Gate authority after Primary reconciliation.
+
+The frozen Core Safety repair therefore contains exactly two required universal invariants: `INV-P0-001` and `INV-P0-002`. Only the bounded `INV-P0-004` fail-closed cleanup is allowed as optional adjacent hardening.
+
 ## Canonical evidence ledger
 
 | Identity | Commit / run / artifact | Recorded status |
@@ -58,6 +86,12 @@ The recorded primary review accepted the bounded Trip Desk scope, including shar
 | WP2 merged main | `763d22bfc4ddaf0a84df1188d50f6d40b2fa72fc` | COMPLETE |
 | WP2 post-merge main CI | Run `31346016491` | SUCCESS |
 | Project-reset observed base | `e0ee301e601c7d9db741e828990c477cf36a8d29` | OBSERVED 2026-08-10 / IMMUTABLE BASE IDENTITY |
+| Project Reset PR | `#13` | MERGED / CLOSED |
+| Project Reset reviewed head | `aede9a495b1a6f98a218fd0d26d944b469f86980` | GOVERNANCE-ONLY RESET |
+| Project Reset resulting main | `32f817c4618d522b6d73253b3f1dcdc12018a78f` | CURRENT CANONICAL MAIN AT RECONCILIATION BASELINE |
+| Project Reset post-main CI | Run `31360041676` | QUALITY AND CONTRACTS SUCCESS / POSTGRESQL CONCURRENCY SUCCESS |
+| Project-wide counter-audit | `CODEX_BOATOPS_PROJECT_WIDE_PRE_REAL_USE_AUDIT` | READ_ONLY / PRIMARY RECONCILED |
+| Owner repair authorization | `OWNER_AUTHORIZE_GOVERNANCE_RECONCILIATION_AND_BOUNDED_CORE_INVARIANT_REPAIR` | EFFECTIVE ONLY AFTER THIS GOVERNANCE CHANGE MERGES TO CANONICAL MAIN |
 | WP3 PR | `#12` | DRAFT / NOT MERGED |
 | WP3 initial head | `2248fb7` | PRIMARY REVIEW CHANGES REQUIRED |
 | WP3 initial exact-head CI | Run `31348180203` | SUCCESS |
@@ -68,6 +102,8 @@ The recorded primary review accepted the bounded Trip Desk scope, including shar
 ## Interpretation boundaries
 
 - WP1 and WP2 are merged history.
-- WP3 remains a useful frozen implementation package in Draft PR #12; it is not a continuing roadmap unit.
+- WP3 remains a useful frozen implementation package in Draft PR #12; it requires rebase to the then-current canonical `main`, the bounded Core Safety repair, new exact-head CI, and independent review before any merge decision.
+- While this governance reconciliation remains unmerged, it grants no authority to change or rebase PR #12.
+- After this governance reconciliation merges, implementation authority is limited to `INV-P0-001`, `INV-P0-002`, optional `INV-P0-004`, and directly necessary tests. PR #12 merge remains separately blocked.
 - There is no WP4/WP5/WP6 queue. New review items arise only from a universal invariant, a real-use blocker, or observed operating pain.
 - Deployment readiness, branch protection, formal licensing, Tag, and GitHub Release belong to later bounded Gates; they do not expand the current product.

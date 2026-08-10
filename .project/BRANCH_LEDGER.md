@@ -1,6 +1,6 @@
 # BoatOps Branch Ledger
 
-Updated: 2026-08-09 16:30 Asia/Bangkok
+Updated: 2026-08-10 14:21 Asia/Bangkok
 
 This file classifies known remote branches so an agent cannot infer authority from branch age, naming, or a commit that happens to be ahead of `main`.
 
@@ -24,11 +24,22 @@ D1 GitHub governance alignment was merged through PR #2 after exact-head CI succ
 
 Owner granted repository-governance cleanup authorization on 2026-08-09 after this alignment. That authorization does not extend to product-code changes, production data, server runtime, Tag, Release, or production enablement.
 
+## Current canonical integration identity
+
+Project Reset PR #13 was merged after the historical D1 governance alignment above.
+
+- pre-reset base: `e0ee301e601c7d9db741e828990c477cf36a8d29`;
+- Project Reset head: `aede9a495b1a6f98a218fd0d26d944b469f86980`;
+- current canonical `main`: `32f817c4618d522b6d73253b3f1dcdc12018a78f`;
+- post-main CI: Run `31360041676`, `Quality and contracts` SUCCESS and `PostgreSQL concurrency` SUCCESS;
+- D1 deployed product source remains separately fixed at `f9503b598b174b7a6891fcde0d984514a3cd0fcd`.
+
 ## Known branches
 
 | Branch | Recorded head / relation | Classification | Cleanup disposition |
 | --- | --- | --- | --- |
-| `main` | governance head `6bd9978...`; D1 deployed product source `f9503b5...` | CANONICAL | Preserve |
+| `main` | integration head `32f817c4618d522b6d73253b3f1dcdc12018a78f`; D1 deployed product source `f9503b5...` | CANONICAL | Preserve |
+| `hermes/pilot-mvp-wp3-trip-desk` | `d841418c24c90c30ceeb203e17150e55cb46d538` | ACTIVE DRAFT / REPAIR REQUIRED / DO_NOT MERGE | Rebase only after this governance reconciliation merges; keep merge blocked |
 | `agent/d1-governance-alignment` | PR #2 source branch | MERGED GOVERNANCE | Delete when repository tooling permits |
 | `agent/d0-1-receipt-canonicalization` | D0.1 receipt canonicalization | CURRENT GOVERNANCE MAINTENANCE | Delete after merge |
 | `codex/boatops-g1-post-merge-receipt` | `f9503b598b174b7a6891fcde0d984514a3cd0fcd` | HISTORICAL / ANCESTOR | Delete when repository tooling permits |
