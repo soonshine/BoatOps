@@ -1,8 +1,8 @@
-schema_version: 6
+schema_version: 7
 project: BoatOps
-updated_at: "2026-08-09T18:20:00+07:00"
+updated_at: "2026-08-10T08:01:00+07:00"
 
-phase: real-operations-pilot-mvp-wp2-authorized
+phase: real-operations-pilot-mvp-wp3-authorized
 
 product_positioning:
   product: "Reusable organization-scoped vessel inventory and operations platform"
@@ -19,7 +19,7 @@ current_gate:
   decision: OWNER_AUTHORIZED_STAGED_IMPLEMENTATION
   implementation_authorized: true
   implementation_sequence: "WP1 -> review -> WP2 -> review -> WP3 -> review"
-  current_authorized_slice: "WP2 Minimal Operator Booking Workbench"
+  current_authorized_slice: "WP3 Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
   merge_authorized: false
   deployment_authorized: false
   production_data_authorized: false
@@ -28,7 +28,7 @@ current_gate:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  canonical_main_after_wp1: "1114307d358e67d91ebcf742a26e9d7469209e67"
+  canonical_main_after_wp2: "763d22bfc4ddaf0a84df1188d50f6d40b2fa72fc"
   d1_product_source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
   scope_bounded_business_code_authorized: true
   tags: 0
@@ -58,6 +58,26 @@ wp1:
   non_blocking_backlog:
     - "Operator selling amount currently uses minor-unit entry; revisit UX from real Pilot feedback before expanding Finance semantics."
 
+wp2:
+  id: PILOT_MVP_WP2_MINIMAL_OPERATOR_BOOKING_WORKBENCH
+  status: COMPLETE_MERGED
+  branch: "hermes/pilot-mvp-wp2-booking-workbench"
+  pr: 10
+  reviewed_head_sha: "b340e7c84480c6bcc92ae62829cad0f7f0661fec"
+  primary_review: PASS
+  exact_head_ci:
+    run_id: 31317044622
+    result: success
+  merged_main_sha: "763d22bfc4ddaf0a84df1188d50f6d40b2fa72fc"
+  post_merge_main_ci:
+    run_id: 31346016491
+    result: success
+  merge_authorization_consumed: true
+  deployment: false
+  real_data: false
+  non_blocking_backlog:
+    - "Booking detail may still render Amend/Cancel controls after the linked Trip has progressed beyond PLANNED; authoritative actions reject invalid transitions. Integrate lifecycle-aware UI hints in WP3 without duplicating lifecycle authority."
+
 mvp_readiness_audit:
   id: REAL_OPERATIONS_PILOT_MVP_READINESS_AUDIT
   status: COMPLETE
@@ -81,10 +101,10 @@ real_operations_pilot_mvp:
       status: COMPLETE_MERGED
     wp2:
       name: "Minimal Operator Booking Workbench"
-      status: AUTHORIZED_TO_START
+      status: COMPLETE_MERGED
     wp3:
       name: "Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
-      status: WAIT_FOR_WP2_REVIEW
+      status: AUTHORIZED_TO_START
   trip_status_contract:
     add_prepared_status: false
     preserved_flow: "PLANNED -> DEPARTED -> RETURNED -> COMPLETED"
@@ -108,9 +128,11 @@ real_operations_pilot_mvp:
     - public semantic-version release
 
 accepted_boundaries:
-  - "WP1 is reviewed, merged, and closed; its one-time merge authorization is consumed."
-  - "WP2 may now be implemented inside the frozen MVP scope; WP3 must wait for WP2 primary review."
+  - "WP1 and WP2 are reviewed, merged, and closed; their one-time merge authorizations are consumed."
+  - "WP3 may now be implemented inside the frozen MVP scope."
   - "Future business-code merges remain separately authorized; current merge_authorized=false."
+  - "Trip status remains PLANNED -> DEPARTED -> RETURNED -> COMPLETED; no PREPARED state is authorized."
+  - "A successful Trip-plan amendment must invalidate stored readiness before later departure."
   - "D1 remains fictional Demo validation only."
   - "Real operations deployment is a separate gate and must use PostgreSQL as inventory authority."
   - "Historical automated migration is not required for the first Pilot unless later evidence proves otherwise."
@@ -136,10 +158,11 @@ authorizations:
   ota_authorized: false
 
 next_task:
-  id: START_PILOT_MVP_WP2
+  id: START_PILOT_MVP_WP3
   owner: hermes
   status: AUTHORIZED_NOT_STARTED
   rule: >-
-    Implement only WP2 Minimal Operator Booking Workbench against exact canonical main
-    after WP1. Reuse existing Inquiry/HOLD/Booking actions and WP1 dossier; use only
-    synthetic/fictional fixtures; open a bounded PR and stop for primary review before WP3.
+    Implement only WP3 Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
+    against exact canonical main after WP2. Preserve the existing Trip status contract,
+    reuse shared Trip business semantics, use only synthetic/fictional fixtures, open a
+    bounded PR, and stop for primary review before any later merge/deployment decision.
