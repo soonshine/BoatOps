@@ -926,6 +926,7 @@ class InventoryProviderApiTest extends TestCase
 
     public function test_trip_cannot_depart_without_crew_and_required_checklist(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-09-25T13:00:00Z'));
         $organizationId = $this->createOrganization('Fictional Trip Readiness Charters');
         $token = $this->createApiClient($organizationId, ['operations.write']);
         $boatId = $this->createBoat($organizationId);
@@ -946,6 +947,7 @@ class InventoryProviderApiTest extends TestCase
 
     public function test_prepared_trip_with_completed_required_checks_can_depart(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-09-25T13:00:00Z'));
         $organizationId = $this->createOrganization('Fictional Prepared Trip Charters');
         $token = $this->createApiClient($organizationId, ['operations.write']);
         $boatId = $this->createBoat($organizationId);
@@ -1005,6 +1007,7 @@ class InventoryProviderApiTest extends TestCase
 
     public function test_returned_trip_can_complete_and_release_inventory(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-09-25T13:00:00Z'));
         $organizationId = $this->createOrganization('Fictional Completed Trip Charters');
         $token = $this->createApiClient($organizationId, ['operations.write']);
         $boatId = $this->createBoat($organizationId);

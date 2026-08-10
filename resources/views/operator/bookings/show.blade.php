@@ -52,12 +52,13 @@
 <div>Actual departed at: {{ $booking->actual_departed_at ?: 'Not recorded' }}</div>
 <div>Actual returned at: {{ $booking->actual_returned_at ?: 'Not recorded' }}</div>
 <div>Completed at: {{ $booking->completed_at ?: 'Not recorded' }}</div>
+<p><a href="{{ route('operator.trips.show', $booking->trip_id) }}">Open Trip Desk</a></p>
 @else
 <p>No Trip linked.</p>
 @endif
 </section>
 
-@if($booking->status === 'CONFIRMED')
+@if($booking->status === 'CONFIRMED' && $booking->trip_status === 'PLANNED')
 <section class="card">
 <h2>Amend / reschedule</h2>
 <p>The existing authoritative booking action re-adjudicates inventory, compatibility, buffers and overlap.</p>
@@ -102,6 +103,10 @@
 </label>
 <button>Cancel booking</button>
 </form>
+</section>
+@elseif($booking->status === 'CONFIRMED' && $booking->trip_id && $booking->trip_status !== 'PLANNED')
+<section class="card">
+<p>Booking changes are unavailable after Trip execution has started.</p>
 </section>
 @endif
 @endsection

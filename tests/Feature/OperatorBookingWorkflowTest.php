@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Application\Bookings\ConfirmBookingAction;
 use App\Application\Holds\HoldActor;
 use App\Application\Holds\OrganizationHoldTtlPolicy;
+use App\Application\Trips\DepartTripAction;
+use App\Application\Trips\PrepareTripAction;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -96,6 +98,30 @@ class OperatorBookingWorkflowTest extends TestCase
         $context = $this->context();
         $inquiry = $this->confirmedInquiry($context, 'FICTIONAL-AMEND');
         $booking = DB::table('bookings')->first();
+        $trip = DB::table('trips')->first();
+        $preparePayload = [
+            'crew' => [[
+                'external_reference' => 'FICTIONAL-AMEND-CREW',
+                'display_name' => 'Fictional Amend Captain',
+                'role' => 'CAPTAIN',
+                'duty' => 'CAPTAIN',
+            ]],
+            'checklist' => [[
+                'code' => 'AMEND_READY',
+                'label' => 'Fictional readiness before amendment',
+                'required' => true,
+                'completed' => true,
+            ]],
+        ];
+        $this->app->make(PrepareTripAction::class)->execute(
+            $context['organization_id'],
+            (int) $trip->id,
+            $preparePayload,
+            (string) Str::uuid(),
+            HoldActor::operatorUser((int) $context['user']->id),
+        );
+        $this->assertDatabaseCount('crew_assignments', 1);
+        $this->assertDatabaseCount('trip_checklists', 1);
         $newBoat = $this->boat($context['organization_id'], 'Fictional Alternate Resource', 10, 15);
         $newTemplate = $this->template($context['organization_id'], 'Fictional Alternate Product');
         $newSlot = $this->slot($context['organization_id'], 'Fictional Afternoon Slot', '13:00:00', '17:00:00');
@@ -110,15 +136,52 @@ class OperatorBookingWorkflowTest extends TestCase
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'booking.amended')->count());
         $this->assertSame(1, DB::table('outbox_events')->where('event_type', 'booking.amended.v1')->count());
         $this->assertSame(3, (int) DB::table('organizations')->where('id', $context['organization_id'])->value('inventory_revision'));
+        $this->assertDatabaseCount('crew_assignments', 0);
+        $this->assertDatabaseCount('trip_checklists', 0);
+        $this->assertDatabaseCount('crew_members', 1);
+        $amendAudit = json_decode((string) DB::table('audit_logs')->where('action', 'booking.amended')->value('after_values'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame((int) $trip->id, $amendAudit['trip_id']);
+        $this->assertTrue($amendAudit['trip_readiness_invalidated']);
+        $this->assertSame(1, $amendAudit['crew_assignments_cleared']);
+        $this->assertSame(1, $amendAudit['checklist_items_cleared']);
+        $notReady = $this->app->make(DepartTripAction::class)->execute(
+            $context['organization_id'],
+            (int) $trip->id,
+            ['departed_at' => '2026-08-10T00:00:00Z'],
+            (string) Str::uuid(),
+            HoldActor::operatorUser((int) $context['user']->id),
+        );
+        $this->assertSame(409, $notReady->status);
+        $this->assertSame('TRIP_NOT_READY', $notReady->payload['code']);
+        $this->app->make(PrepareTripAction::class)->execute(
+            $context['organization_id'],
+            (int) $trip->id,
+            $preparePayload,
+            (string) Str::uuid(),
+            HoldActor::operatorUser((int) $context['user']->id),
+        );
         $this->post($path, [...$payload, 'service_date' => '2026-09-12'])->assertStatus(303)->assertSessionHasErrors('booking');
         $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'service_date' => '2026-09-11']);
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'booking.amended')->count());
+        $this->assertDatabaseCount('crew_assignments', 1);
+        $this->assertDatabaseCount('trip_checklists', 1);
         DB::table('allocations')->insert(['organization_id' => $context['organization_id'],            'boat_id' => $newBoat,            'allocation_type' => 'BLOCKED',            'status' => 'ACTIVE',            'business_start' => '2026-09-12 06:00:00',            'business_end' => '2026-09-12 10:00:00',            'occupied_start' => '2026-09-12 06:00:00',            'occupied_end' => '2026-09-12 10:00:00',            'created_at' => now(),            'updated_at' => now()]);
         $this->post($path, [...$payload, 'idempotency_key' => (string) Str::uuid(), 'service_date' => '2026-09-12'])->assertStatus(303)->assertSessionHasErrors('booking');
         $this->assertDatabaseHas('bookings', ['id' => $booking->id, 'service_date' => '2026-09-11']);
         $this->assertDatabaseHas('trips', ['booking_id' => $booking->id, 'planned_start' => '2026-09-11 06:00:00']);
         $this->assertSame(3, (int) DB::table('organizations')->where('id', $context['organization_id'])->value('inventory_revision'));
         $this->assertSame(1, DB::table('outbox_events')->where('event_type', 'booking.amended.v1')->count());
+        $this->assertDatabaseCount('crew_assignments', 1);
+        $this->assertDatabaseCount('trip_checklists', 1);
+        $departed = $this->app->make(DepartTripAction::class)->execute(
+            $context['organization_id'],
+            (int) $trip->id,
+            ['departed_at' => '2026-08-10T00:00:00Z'],
+            (string) Str::uuid(),
+            HoldActor::operatorUser((int) $context['user']->id),
+        );
+        $this->assertSame(200, $departed->status);
+        $this->assertSame('DEPARTED', $departed->payload['status']);
     }
 
     public function test_cancel_success_replay_terminal_and_exact_shared_effects(): void

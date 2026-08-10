@@ -182,7 +182,7 @@ class OperatorBookingWorkbenchTest extends TestCase
         $this->assertSame([], $this->references($this->get('/operator/bookings?view=all&q=%25')->assertOk()));
     }
 
-    public function test_detail_displays_booking_existing_dossier_and_trip_summary_without_trip_controls(): void
+    public function test_detail_displays_booking_dossier_trip_link_and_lifecycle_aware_controls(): void
     {
         $context = $this->context();
         $booking = $this->directBooking(
@@ -211,6 +211,8 @@ class OperatorBookingWorkbenchTest extends TestCase
             ->assertSee('Actual departed at: Not recorded')
             ->assertSee('Actual returned at: Not recorded')
             ->assertSee('Completed at: Not recorded')
+            ->assertSee('Open Trip Desk')
+            ->assertSee(route('operator.trips.show', $booking['trip_id']), false)
             ->assertSee('View Inquiry / Edit Operational Dossier')
             ->assertSee(route('operator.inquiries.show', $booking['inquiry_id']), false)
             ->assertDontSee('<button>Prepare', false)
@@ -219,6 +221,16 @@ class OperatorBookingWorkbenchTest extends TestCase
             ->assertDontSee('<button>Complete', false);
         $response->assertSee(route('operator.bookings.amend', $booking['id']), false)
             ->assertSee(route('operator.bookings.cancel', $booking['id']), false);
+
+        DB::table('trips')->where('id', $booking['trip_id'])->update([
+            'status' => 'DEPARTED',
+            'actual_departed_at' => '2026-09-10 01:00:00',
+        ]);
+        $this->get('/operator/bookings/'.$booking['id'])->assertOk()
+            ->assertSee('Booking changes are unavailable after Trip execution has started.')
+            ->assertSee('Open Trip Desk')
+            ->assertDontSee(route('operator.bookings.amend', $booking['id']), false)
+            ->assertDontSee(route('operator.bookings.cancel', $booking['id']), false);
     }
 
     public function test_booking_without_inquiry_is_listed_searchable_and_has_graceful_detail(): void
