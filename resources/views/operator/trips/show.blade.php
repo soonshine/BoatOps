@@ -157,13 +157,33 @@
 <button type="button" data-remove-row>Remove checklist row</button>
 </fieldset></template>
 <script>
+function nextRowIndex(type) {
+    const container = document.querySelector('[data-rows="' + type + '"]');
+    const indexes = Array.from(container.querySelectorAll('input[name]'))
+        .map(function (input) {
+            const match = input.name.match(new RegExp('^' + type + '\\[(\\d+)\\]'));
+            return match ? Number(match[1]) : null;
+        })
+        .filter(function (index) {
+            return Number.isInteger(index);
+        });
+
+    return indexes.length === 0 ? 0 : Math.max(...indexes) + 1;
+}
+
+const nextRowIndexes = {
+    crew: nextRowIndex('crew'),
+    checklist: nextRowIndex('checklist'),
+};
+
 document.addEventListener('click', function (event) {
     const addButton = event.target.closest('[data-add-row]');
     if (addButton) {
         const type = addButton.dataset.addRow;
         const container = document.querySelector('[data-rows="' + type + '"]');
         const template = document.querySelector('[data-template="' + type + '"]');
-        const index = container.querySelectorAll('[data-row]').length;
+        const index = nextRowIndexes[type];
+        nextRowIndexes[type] += 1;
         container.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', String(index)));
     }
     const removeButton = event.target.closest('[data-remove-row]');

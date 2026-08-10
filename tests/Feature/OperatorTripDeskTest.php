@@ -122,6 +122,88 @@ class OperatorTripDeskTest extends TestCase
         $this->post('/operator/trips/'.$deniedTrip['trip_id'].'/complete', ['idempotency_key' => (string) Str::uuid()])->assertForbidden();
     }
 
+    public function test_dynamic_prepare_rows_use_independent_monotonic_indexes_without_silent_data_loss(): void
+    {
+        $context = $this->context();
+        $record = $this->trip($context, 'FICTIONAL-ROW-INDEXES', '2026-08-10 20:00:00');
+        $this->actingAs($context['user']);
+        $initialCrew = [];
+        $initialChecklist = [];
+        foreach ([0, 1, 2] as $index) {
+            $initialCrew[$index] = [
+                'external_reference' => 'FICTIONAL-INITIAL-CREW-'.$index,
+                'display_name' => 'Fictional Initial Crew '.$index,
+                'role' => 'CREW',
+                'duty' => 'DUTY_'.$index,
+            ];
+            $initialChecklist[$index] = [
+                'code' => 'INITIAL_CHECK_'.$index,
+                'label' => 'Fictional initial check '.$index,
+                'required' => '1',
+                'completed' => '1',
+            ];
+        }
+
+        $page = $this->withSession(['_old_input' => [
+            'crew' => $initialCrew,
+            'checklist' => $initialChecklist,
+        ]])->get('/operator/trips/'.$record['trip_id'])->assertOk();
+        $content = $page->getContent();
+        foreach ([0, 1, 2] as $index) {
+            $this->assertStringContainsString('name="crew['.$index.'][external_reference]"', $content);
+            $this->assertStringContainsString('name="checklist['.$index.'][code]"', $content);
+        }
+        $this->assertStringContainsString("crew: nextRowIndex('crew')", $content);
+        $this->assertStringContainsString("checklist: nextRowIndex('checklist')", $content);
+        $this->assertStringContainsString('Math.max(...indexes) + 1', $content);
+        $this->assertStringContainsString('const index = nextRowIndexes[type];', $content);
+        $this->assertStringContainsString('nextRowIndexes[type] += 1;', $content);
+        $this->assertStringNotContainsString("container.querySelectorAll('[data-row]').length", $content);
+
+        $finalCrew = [];
+        $finalChecklist = [];
+        foreach ([0, 2, 3] as $index) {
+            $finalCrew[$index] = [
+                'external_reference' => 'FICTIONAL-SUBMITTED-CREW-'.$index,
+                'display_name' => 'Fictional Submitted Crew '.$index,
+                'role' => 'CREW',
+                'duty' => 'DUTY_'.$index,
+            ];
+            $finalChecklist[$index] = [
+                'code' => 'SUBMITTED_CHECK_'.$index,
+                'label' => 'Fictional submitted check '.$index,
+                'required' => '1',
+                'completed' => '1',
+            ];
+        }
+        $key = (string) Str::uuid();
+        $this->post('/operator/trips/'.$record['trip_id'].'/prepare', [
+            'idempotency_key' => $key,
+            'crew' => $finalCrew,
+            'checklist' => $finalChecklist,
+        ])->assertStatus(303)->assertSessionHasNoErrors();
+
+        $this->assertSame(3, DB::table('crew_assignments')->where('trip_id', $record['trip_id'])->count());
+        $this->assertSame(3, DB::table('trip_checklists')->where('trip_id', $record['trip_id'])->count());
+        foreach ([0, 2, 3] as $index) {
+            $this->assertDatabaseHas('crew_members', [
+                'organization_id' => $context['organization_id'],
+                'external_reference' => 'FICTIONAL-SUBMITTED-CREW-'.$index,
+            ]);
+            $this->assertDatabaseHas('trip_checklists', [
+                'organization_id' => $context['organization_id'],
+                'trip_id' => $record['trip_id'],
+                'code' => 'SUBMITTED_CHECK_'.$index,
+            ]);
+        }
+        $this->assertDatabaseHas('idempotency_keys', [
+            'organization_id' => $context['organization_id'],
+            'operation' => 'prepareTrip:'.$record['trip_id'],
+            'idempotency_key' => $key,
+        ]);
+        $this->assertDatabaseHas('trips', ['id' => $record['trip_id'], 'status' => 'PLANNED']);
+    }
+
     public function test_operator_workflow_shares_actions_enforces_time_safety_and_preserves_exact_side_effects(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10T10:00:00Z'));
