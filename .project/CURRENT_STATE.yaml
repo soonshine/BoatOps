@@ -1,168 +1,99 @@
-schema_version: 7
+schema_version: 8
 project: BoatOps
-updated_at: "2026-08-10T08:01:00+07:00"
+updated_at: "2026-08-10T11:44:00+07:00"
 
-phase: real-operations-pilot-mvp-wp3-authorized
+current_phase: CORE_SAFETY
 
-product_positioning:
-  product: "Reusable organization-scoped vessel inventory and operations platform"
-  ayany_specific: false
-  ayany_hard_coded_tenant: false
-  current_vessels_owned_by_ayany: NOT_ASSERTED
-  vessel_ownership_is_deployment_data: true
-  current_two_vessel_scenario: "Reference/validation operating scenario; not a product ownership assumption"
-  iteration_principle: "Time-to-real-use over feature completeness; iterate from actual operations."
-
-current_gate:
-  id: REAL_OPERATIONS_PILOT_MVP_IMPLEMENTATION
-  status: IMPLEMENTATION_AUTHORIZED
-  decision: OWNER_AUTHORIZED_STAGED_IMPLEMENTATION
-  implementation_authorized: true
-  implementation_sequence: "WP1 -> review -> WP2 -> review -> WP3 -> review"
-  current_authorized_slice: "WP3 Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
-  merge_authorized: false
-  deployment_authorized: false
-  production_data_authorized: false
-  scope_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
+north_star:
+  primary_user: REAL_VESSEL_OPERATOR
+  primary_surface: OPERATOR_WEB
+  inventory_model: WHOLE_VESSEL_OCCUPIED_INTERVAL
+  operational_authority_after_cutover: POSTGRESQL
+  priority_order:
+    - SAFETY_TRUTH
+    - TIME_TO_REAL_USE
+    - FEATURE_COMPLETENESS
+  organization_scoped: true
+  reusable: true
+  self_hostable: true
 
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  canonical_main_after_wp2: "763d22bfc4ddaf0a84df1188d50f6d40b2fa72fc"
-  d1_product_source_sha: "f9503b598b174b7a6891fcde0d984514a3cd0fcd"
-  scope_bounded_business_code_authorized: true
-  tags: 0
-  github_releases: 0
-  github_deployments: 0
-  github_environments: 0
-  main_branch_protected: false
-  repository_rulesets: 0
+  project_reset:
+    observed_origin_main_before_reset: "e0ee301e601c7d9db741e828990c477cf36a8d29"
+    observed_at: "2026-08-10T11:44:00+07:00"
 
-wp1:
-  id: PILOT_MVP_WP1_MINIMAL_OPERATIONAL_BOOKING_DOSSIER
-  status: COMPLETE_MERGED
-  branch: "hermes/pilot-mvp-wp1-booking-dossier"
-  pr: 8
-  reviewed_head_sha: "973e0456bf3c8672ae4ba03c61ac0a1c88cfd416"
-  primary_review: PASS
-  exact_head_ci:
-    run_id: 31310148095
-    result: success
-  merged_main_sha: "1114307d358e67d91ebcf742a26e9d7469209e67"
-  post_merge_main_ci:
-    run_id: 31310579582
-    result: success
-  merge_authorization_consumed: true
-  deployment: false
-  real_data: false
-  non_blocking_backlog:
-    - "Operator selling amount currently uses minor-unit entry; revisit UX from real Pilot feedback before expanding Finance semantics."
+real_operations_core:
+  inventory: BLOCKED_BY_OPEN_CORE_INVARIANTS
+  booking_workbench: ON_MAIN
+  trip_execution: CANDIDATE_IN_PR_12
+  primary_surface: OPERATOR_WEB
+  candidate_foundations: FOUNDATION_NOT_CURRENT_PRODUCT_PRIORITY
 
-wp2:
-  id: PILOT_MVP_WP2_MINIMAL_OPERATOR_BOOKING_WORKBENCH
-  status: COMPLETE_MERGED
-  branch: "hermes/pilot-mvp-wp2-booking-workbench"
-  pr: 10
-  reviewed_head_sha: "b340e7c84480c6bcc92ae62829cad0f7f0661fec"
-  primary_review: PASS
-  exact_head_ci:
-    run_id: 31317044622
-    result: success
-  merged_main_sha: "763d22bfc4ddaf0a84df1188d50f6d40b2fa72fc"
-  post_merge_main_ci:
-    run_id: 31346016491
-    result: success
-  merge_authorization_consumed: true
-  deployment: false
-  real_data: false
-  non_blocking_backlog:
-    - "Booking detail may still render Amend/Cancel controls after the linked Trip has progressed beyond PLANNED; authoritative actions reject invalid transitions. Integrate lifecycle-aware UI hints in WP3 without duplicating lifecycle authority."
+wp3_candidate:
+  pr: 12
+  draft: true
+  branch: "hermes/pilot-mvp-wp3-trip-desk"
+  merge_base_sha: "e0ee301e601c7d9db741e828990c477cf36a8d29"
+  head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
+  primary_review:
+    status: PASS_AT_REVIEWED_HEAD
+    reviewed_head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
+    exact_head_ci_run: 31350106392
+    exact_head_ci_result: SUCCESS
+  cross_invariant_review: BLOCKED
+  merge_readiness: BLOCKED
 
-mvp_readiness_audit:
-  id: REAL_OPERATIONS_PILOT_MVP_READINESS_AUDIT
-  status: COMPLETE
-  mode: READ_ONLY
-  independent_reviewer: Codex
-  independent_decision: PILOT_MVP_SCOPE_CAN_BE_FROZEN
-  primary_review: APPROVE_WITH_CORRECTION
-  correction: >-
-    Do not add PREPARED Trip status. Existing Operations API contract intentionally
-    keeps prepared Trips PLANNED. Invalidate stored crew/checklist readiness atomically
-    after a successful Trip-plan amendment and require re-prepare before departure.
+core_invariant_blockers:
+  - id: INV-P0-001
+    status: OPEN
+    severity: P0
+    provenance: PRESENT_AT_PROJECT_RESET_BASE
+  - id: INV-P0-002
+    status: OPEN
+    severity: P0
+    provenance: PRESENT_AT_PROJECT_RESET_BASE
 
-real_operations_pilot_mvp:
-  id: REAL_OPERATIONS_PILOT_MVP
-  status: IMPLEMENTATION_AUTHORIZED
-  roadmap: "docs/product/REAL_OPERATIONS_PILOT_MVP.md"
-  scope_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
-  work_packages:
-    wp1:
-      name: "Minimal Operational Booking Dossier"
-      status: COMPLETE_MERGED
-    wp2:
-      name: "Minimal Operator Booking Workbench"
-      status: COMPLETE_MERGED
-    wp3:
-      name: "Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair"
-      status: AUTHORIZED_TO_START
-  trip_status_contract:
-    add_prepared_status: false
-    preserved_flow: "PLANNED -> DEPARTED -> RETURNED -> COMPLETED"
-    preparation_semantics: "Readiness attached to PLANNED; amendment invalidates readiness."
-  explicit_exclusions:
-    - ChannelHub
-    - OTA
-    - WordPress inventory integration
-    - payment gateway
-    - full accounting/receivables/refunds/profit
-    - broad stock/fuel UI expansion
-    - CRM
-    - complex SaaS administration
-    - automated historical migration
-    - notification center
-    - reporting platform
-    - maintenance management
-    - vessel document management
-    - complex passenger manifest
-    - second-company onboarding
-    - public semantic-version release
+gates:
+  code:
+    status: BLOCKED
+    business_code_change_authorized: false
+    implementation_branch_commit_pr_authorized: false
+    merge_authorized: false
+  deployment:
+    status: NOT_OPEN
+    authorized: false
+  real_data_cutover:
+    status: NOT_OPEN
+    real_data_authorized: false
+    migration_authorized: false
+    cutover_authorized: false
+    authority_switch_authorized: false
+  release:
+    status: NOT_OPEN
+    tag_authorized: false
+    github_release_authorized: false
 
-accepted_boundaries:
-  - "WP1 and WP2 are reviewed, merged, and closed; their one-time merge authorizations are consumed."
-  - "WP3 may now be implemented inside the frozen MVP scope."
-  - "Future business-code merges remain separately authorized; current merge_authorized=false."
-  - "Trip status remains PLANNED -> DEPARTED -> RETURNED -> COMPLETED; no PREPARED state is authorized."
-  - "A successful Trip-plan amendment must invalidate stored readiness before later departure."
-  - "D1 remains fictional Demo validation only."
-  - "Real operations deployment is a separate gate and must use PostgreSQL as inventory authority."
-  - "Historical automated migration is not required for the first Pilot unless later evidence proves otherwise."
-  - "Current vessel ownership is not asserted as Ayany ownership."
-  - "Ayany is not a hard-coded tenant, vessel owner, or required integration."
-  - "ChannelHub remains separate and paused."
+next_decision:
+  id: OWNER_AUTHORIZE_BOUNDED_CORE_INVARIANT_REPAIR
+  status: NOT_AUTHORIZED
 
-authorizations:
-  mvp_readiness_audit_authorized: true
-  mvp_readiness_audit_complete: true
-  business_code_change_authorized: true
-  implementation_branch_authorized: true
-  implementation_commit_authorized: true
-  implementation_pr_authorized: true
-  merge_authorized: false
-  deployment_authorized: false
-  tag_authorized: false
-  release_authorized: false
-  production_enablement_authorized: false
-  production_data_authorized: false
-  google_sheet_migration_authorized: false
-  channelhub_authorized: false
-  ota_authorized: false
+stop_conditions:
+  - NO_PR12_MERGE
+  - NO_WP4_WP5_WP6
+  - NO_FEATURE_EXPANSION
+  - NO_DEPLOYMENT
+  - NO_PRODUCTION_ENABLEMENT
+  - NO_REAL_DATA
+  - NO_MIGRATION
+  - NO_CUTOVER
+  - NO_TAG
+  - NO_RELEASE
 
-next_task:
-  id: START_PILOT_MVP_WP3
-  owner: hermes
-  status: AUTHORIZED_NOT_STARTED
-  rule: >-
-    Implement only WP3 Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
-    against exact canonical main after WP2. Preserve the existing Trip status contract,
-    reuse shared Trip business semantics, use only synthetic/fictional fixtures, open a
-    bounded PR, and stop for primary review before any later merge/deployment decision.
+authorities:
+  charter: ".project/PROJECT_CHARTER.md"
+  current_gate: ".project/CURRENT_GATE.md"
+  review_evidence: ".project/REVIEW_QUEUE.md"
+  real_operations_path: "docs/product/REAL_OPERATIONS_PILOT_MVP.md"
+  historical_wp1_wp3_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"

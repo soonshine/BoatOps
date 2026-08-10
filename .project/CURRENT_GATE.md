@@ -1,138 +1,79 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-10 08:01 Asia/Bangkok
+Updated: 2026-08-10 11:44 Asia/Bangkok
 
-## Current authoritative decision
+## Current decision
 
-`WP1 = COMPLETE_MERGED / WP2 = COMPLETE_MERGED / WP3 = AUTHORIZED_TO_START`
+`CORE_SAFETY / PR12_MERGE_HOLD / TWO_CORE_INVENTORY_P0_OPEN`
 
-The Owner explicitly authorized merging WP2 after primary review, and that one-time merge authorization has been consumed.
+`NO_BUSINESS_CODE_CHANGE / NO_DEPLOYMENT / NO_REAL_DATA / NO_CUTOVER / NOT_RELEASED`
 
-WP2 canonical evidence:
+The exact machine state is `CURRENT_STATE.yaml`. Review identities and causal evidence are in `REVIEW_QUEUE.md`; they are not repeated here.
 
-- PR: `#10`
-- reviewed head: `b340e7c84480c6bcc92ae62829cad0f7f0661fec`
-- primary review: `PASS`
-- exact-head CI: Run `31317044622` = `SUCCESS`
-- merged main: `763d22bfc4ddaf0a84df1188d50f6d40b2fa72fc`
-- post-merge main CI: Run `31346016491` = `SUCCESS`
+This Gate authorizes neither an implementation nor a merge. A passing test, earlier review, or Draft PR cannot override an open operational-truth invariant.
 
-No deployment, real data, production enablement, migration/cutover, Tag or GitHub Release is authorized.
+## CODE / MERGE acceptance
 
-Canonical scope contract:
+### INV-P0-001 — inventory authority through occupied_end
 
-`docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md`
+Required outcome:
 
-## Closed slices
+- Trip/Booking completion does not release the occupied interval before `occupied_end`;
+- overlapping final HOLD, Confirm, Amend, and BLOCK decisions remain rejected before `occupied_end`;
+- availability/calendar projections remain consistent with command-side authority;
+- SQLite and PostgreSQL concurrency regressions prove the boundary.
 
-### WP1 — Minimal Operational Booking Dossier
+### INV-P0-002 — compatibility after completion
 
-Status: `COMPLETE_MERGED`.
+Required outcome:
 
-### WP2 — Minimal Operator Booking Workbench
+- a completed Booking continues to affect required same-organization, same-Boat, same-service-date slot compatibility;
+- incompatible final HOLD, Confirm, and Amend decisions remain rejected;
+- Operator Web, API/jobs, and calendar expose the same result.
 
-Status: `COMPLETE_MERGED`.
+### Shared acceptance
 
-Accepted WP2 implementation includes:
+Any later Owner-authorized repair must:
 
-- organization-scoped Booking list/detail;
-- Today / Upcoming / All views using organization-local date semantics;
-- bounded date/status/reference/customer filtering;
-- 25-row pagination;
-- WP1 dossier display without duplicating customer data;
-- direct/API-style Booking visibility when no Operator Inquiry exists;
-- Booking-context Amend/Cancel adapters that reuse the existing authoritative Application actions;
-- no new Booking lifecycle, no migration, no Trip mutation and no Finance expansion.
+1. change only what is necessary to close the two P0s;
+2. keep Web/API/jobs on shared Application Actions;
+3. preserve organization isolation;
+4. preserve correct audit, idempotency, inventory revision, and outbox evidence;
+5. pass focused and full PHPUnit, contracts, build, migration round-trip, dependency, formatting, and whitespace checks;
+6. pass exact-head PostgreSQL concurrency CI;
+7. receive independent cross-invariant review;
+8. stop for separate Owner merge authorization.
 
-Non-blocking Pilot UX backlog:
+No schema or implementation technique is prescribed here. Every rebase or repair commit creates a new candidate head; earlier head review and CI become history, not acceptance for the new head.
 
-- a Booking can remain `CONFIRMED` after the linked Trip progresses beyond `PLANNED`, so the Booking detail may still render Amend/Cancel controls even though the authoritative actions correctly reject those transitions. WP3 may add lifecycle-aware UI hints, but must not duplicate lifecycle authority in the UI.
+## Gate status
 
-## Current authorized slice — WP3
+- **CODE / MERGE:** `BLOCKED`; business-code change, implementation branch/commit/PR, and merge are not authorized.
+- **DEPLOYMENT:** `NOT_OPEN`; deployment and production enablement are not authorized.
+- **REAL DATA / CUTOVER:** `NOT_OPEN`; real data, migration, reconciliation, cutover, and authority switch are not authorized.
+- **RELEASE:** `NOT_OPEN`; Tag and GitHub Release are not authorized.
 
-### Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
+`merge != deploy != cutover != release`
 
-WP3 is now authorized to start.
+## Allowed now
 
-Business outcome:
+- read-only code, CI, deployment, and business-input discovery;
+- Owner decision on whether to authorize the exact two-P0 repair.
 
-> An operator can execute the confirmed Trip lifecycle from BoatOps while API and Operator UI reuse one authoritative Trip mutation path, and known readiness/timestamp integrity risks are repaired without expanding the Trip status contract.
+## Forbidden now
 
-Frozen required scope:
+- merge PR #12;
+- modify business code without a new bounded authorization;
+- start WP4/WP5/WP6 or another feature package;
+- expand Finance, Stock, CRM, reporting, ChannelHub, OTA, Public API, or Admin UI;
+- deploy or enable production;
+- read, import, migrate, or cut over real data;
+- create a Tag or GitHub Release.
 
-- extract/reuse shared Application Trip actions for Prepare / Depart / Return / Complete;
-- preserve existing API behavior by routing current Operations API adapters through the same shared actions;
-- add a minimal organization-scoped Operator Trip Desk / Today's Trips surface;
-- expose crew and checklist readiness required for Prepare/Depart;
-- allow authorized Operator execution of Prepare / Depart / Return / Complete;
-- preserve Trip status flow `PLANNED -> DEPARTED -> RETURNED -> COMPLETED`;
-- do **not** add a `PREPARED` status;
-- after a successful booking/Trip-plan amendment, invalidate stale readiness and require re-prepare before departure;
-- reject future `actual_departed_at`;
-- reject `actual_returned_at` earlier than departure;
-- reject future `actual_returned_at`;
-- ensure completion time cannot precede return time;
-- retain sufficient audit/idempotency evidence for preparation and execution mutations;
-- use only synthetic/fictional fixtures.
+## Next Owner decision
 
-## Not authorized in WP3
+`OWNER_AUTHORIZE_BOUNDED_CORE_INVARIANT_REPAIR`
 
-Do not implement:
+Only after an authorized repaired candidate passes this Gate and receives separate merge authorization may the Owner open:
 
-- a new `PREPARED` Trip state;
-- a second Trip state machine;
-- ChannelHub;
-- OTA;
-- WordPress inventory integration;
-- payment gateway;
-- receivables/refunds/full Finance/profit;
-- broad stock/fuel UI expansion;
-- CRM;
-- passenger manifest expansion beyond existing minimal crew/checklist execution needs;
-- maintenance/documents;
-- automated historical migration;
-- SaaS super-admin;
-- production deployment or real data.
-
-## Must reuse
-
-- existing Trip tables and status semantics;
-- current Operations API Trip behavior as characterization baseline;
-- existing Booking Amend/Cancel actions and inventory authority;
-- WP1 operational dossier and WP2 Booking Workbench read surfaces;
-- Operator auth/membership;
-- idempotency/audit patterns;
-- PostgreSQL concurrency/inventory protection.
-
-## Merge and deployment boundary
-
-WP1 and WP2 merge authorizations are consumed.
-
-Future business-code merge remains separately gated:
-
-`merge_authorized=false`
-
-Real Operations Deployment remains a separate later gate requiring PostgreSQL, actual organization/vessels/rules/operators, scheduler, backup/restore, health/logging, PII protection, explicit real-data authorization and cutover.
-
-D1 SQLite is not the Pilot production database baseline.
-
-## Authorization boundary
-
-- readiness audit = `COMPLETE`
-- MVP scope = `FROZEN`
-- WP1 = `COMPLETE_MERGED`
-- WP2 = `COMPLETE_MERGED`
-- WP3 business-code implementation = `AUTHORIZED`
-- implementation branch/commit/PR = `AUTHORIZED`
-- future business-code merge = `NOT_AUTHORIZED`
-- deployment = `NOT_AUTHORIZED`
-- production enablement = `NOT_AUTHORIZED`
-- production data = `NOT_AUTHORIZED`
-- migration/cutover = `NOT_AUTHORIZED`
-- Tag/Release = `NOT_AUTHORIZED`
-
-## Next allowed action
-
-`HERMES_IMPLEMENT_PILOT_MVP_WP3`
-
-`WP1_COMPLETE_MERGED / WP2_COMPLETE_MERGED / WP3_AUTHORIZED / NO_DEPLOYMENT / NO_REAL_DATA / NO_FUTURE_MERGE_AUTHORIZATION`
+`REAL_OPERATIONS_DEPLOYMENT_READINESS`

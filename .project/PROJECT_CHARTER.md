@@ -2,121 +2,177 @@
 
 Status: `ACTIVE`
 
-Charter version: `1.1`
+Charter version: `2.0`
 
-Effective date: `2026-08-09` (Asia/Bangkok)
+Effective: `2026-08-10` (when merged to `main`)
 
-## 1. Product mission
+## 1. Mission
 
-BoatOps is a reusable, self-hostable vessel inventory and operations platform for charter, yacht, speedboat, excursion, and local-activity operators.
+> **BoatOps exists to give real vessel operators one safe, simple source of truth for whole-vessel availability, bookings, and trip execution.**
 
-BoatOps is **not an Ayany-specific product**. Ayany is not hard-coded as a tenant, vessel owner, or operator. The current two-vessel Plan A / Plan B scenario is a reference operating scenario used to build and validate the product; vessel ownership, operating rights, schedules, prices, buffers, and other commercial rules are deployment-specific data and must not be inferred as Ayany facts.
+第一目标：让真实 Operator 每天安全、简单地管理整船库存、订单和出航。
 
-The core operational workflow is:
+第二目标：在不牺牲第一目标的前提下，保持 organization-scoped、可复用、可自托管，不硬编码 Ayany、船只、时段、价格或渠道规则。
 
-`INQUIRY -> HOLD -> CONFIRMED -> AMEND / CANCEL`
+永久优先级：
 
-`BLOCKED` is an independent inventory state used to close a vessel or time range.
+> **Safety / Operational Truth > Time-to-Real-Use > Feature Completeness**
 
-BoatOps should remain usable by another organization without requiring Ayany, WordPress, Google Sheet, ChannelHub, OTA integrations, or any Ayany-specific code path.
+## 2. Current product boundary
 
-## 2. Product and tenancy boundary
+Authoritative inventory model:
 
-BoatOps is organization-scoped. Organization boundaries are the primary tenant and authorization boundary for operational data.
+`Organization + Boat + Occupied Interval`
 
-Core product assumptions:
+Current scope:
 
-- vessels are operational resources; BoatOps must not assume they are owned by the deploying organization;
-- ownership, operating rights, commercial representation, and sales-channel relationships are distinct business concepts and must remain deployment data unless a future gate explicitly models them;
-- schedules, buffers, HOLD policy, weather policy, slot compatibility, prices, commissions, and operator identities are organization/deployment configuration, not global product constants;
-- demo vessel names, demo times, synthetic operators, and synthetic prices are validation fixtures only;
-- no Ayany-specific vessel ownership or operating rule may be derived from a demo fixture, hostname, or deployment location.
+- whole-vessel charter, yacht, speedboat, private excursion/tour;
+- Availability, HOLD, Booking, BLOCK, Trip, Audit;
+- organization-scoped operations.
 
-## 3. Current product capability baseline
+Not currently promised:
 
-The current reviewed source baseline includes:
+- seat/ticket/shared-capacity inventory;
+- seats remaining, cabins, or passenger allocation;
+- generic local-activity capacity management.
 
-- whole-vessel availability and occupied-interval adjudication;
-- inquiry, HOLD, confirmation, amendment, cancellation, BLOCK, and release;
-- authenticated Operator MVP for calendar, inquiry/HOLD, booking workflow, BLOCK management, and audit views;
-- Trip execution foundations including crew/checklist and prepare/depart/return/complete state transitions;
-- slot catalog, compatibility rules, schedule projections, and custom/date-specific slot foundations;
-- Inventory Provider API and internal Operations API contracts;
-- PostgreSQL conflict/concurrency validation in CI;
-- operations-finance, stock, cash-posting, and reversal foundations that remain candidate capabilities until separately accepted for real operations.
+This is a deliberate boundary, not a missing seat-inventory feature.
 
-A capability existing in source does not mean it is deployed, production-enabled, or accepted for real business data.
+## 3. Primary surface and architecture
 
-## 4. Non-negotiable architecture rules
+Primary product surface: **Operator Web**
 
-1. BoatOps is the authoritative inventory and operations source of truth for an organization once that deployment is explicitly approved for production use.
-2. Production conflict decisions are adjudicated transactionally by PostgreSQL. A UI, cache, spreadsheet, ChannelHub, or agent may not overrule the database result.
-3. Inventory is whole-vessel plus occupied time interval. Service time, buffer-before, and buffer-after are distinct facts.
-4. HOLD, CONFIRMED booking, and BLOCK all create authoritative occupied intervals. Cancel, release, expiry, and amendment must change authority atomically and leave an audit trail.
-5. Calendar projections and simulations are read models. Final HOLD and confirm commands must always re-adjudicate availability.
-6. Custom slots are first-class definitions or date-specific instances; they are not free-text exceptions hidden in an order note.
-7. API, Operator UI, jobs, and future integrations must reuse the same application/domain actions for the same authoritative state mutation. No parallel inventory-rule path is allowed.
-8. ChannelHub is a separate system. It may use a versioned BoatOps API but must never write the BoatOps database directly.
-9. Finance and stock may reference vessels, trips, and bookings, but they do not decide whether a time slot is sellable.
+```text
+Booking:   Availability -> Inquiry -> HOLD -> Confirm -> Amend / Cancel
+Trip:      Confirmed Booking -> Today's Trips -> Prepare -> Depart -> Return -> Complete
+Inventory: BLOCK -> Release
+Audit:     cross-cutting
+```
 
-## 5. Public Demo boundary
+Internal APIs, jobs, outbox, and events are secondary integration surfaces. Public API expansion requires a real consumer.
 
-The public Demo is a disposable product demonstration, not a production operator surface.
+```mermaid
+flowchart LR
+    Web["Operator Web"] --> Actions["Shared Application Actions"]
+    API["Internal API"] --> Actions
+    Jobs["Jobs"] --> Actions
+    Actions --> DB["Transactional PostgreSQL"]
+    Actions --> Support["Audit / Idempotency / Outbox"]
+```
 
-- It contains only synthetic organizations, vessels, bookings, finance, stock, and operator identities.
-- It must use a physically isolated dataset and must never share a production BoatOps database.
-- Its public served runtime is read-only: public HTTP requests may not create or update application, authentication, session, cache, audit, queue, finance, stock, or inventory rows.
-- In `public_read_only` mode, the application API is closed; only explicitly approved public GET pages and health/static pages may be reachable.
-- A private fictional Operator runtime may exist for bounded validation if it uses the same isolated fictional dataset and is not publicly exposed.
-- Demo seeders may modify only the explicitly resolved fictional organization.
-- The Demo must never accept imported Google Sheet data, real customer data, real prices, real contracts, real financial records, or real operations data.
-- A deployed Demo remains `DEMO / NOT_PRODUCTION / NOT_RELEASED` unless a later gate explicitly changes that status.
+Web-first is a product priority, not a Web-owned business-rule path. Controllers remain thin authorization/validation/transport adapters.
 
-## 6. System boundaries
+Four product layers:
 
-- BoatOps owns vessels/resources, occupied intervals, slot definitions, HOLDs, confirmed bookings, blocks, amendments, cancellations, trips, and inventory revisions.
-- ChannelHub owns channel adapters, channel credentials, publishing jobs, external mappings, retries, and channel-facing availability caches.
-- ChannelHub calls BoatOps through an authenticated and versioned interface. It does not share tables or credentials with BoatOps.
-- WordPress is content/SEO only unless a later contract explicitly authorizes an integration; it is never inventory truth.
-- Google Sheet may be a migration/reconciliation source during an authorized cutover, but it is not allowed to overrule BoatOps inventory once BoatOps becomes production truth.
+1. **Core Operational Truth** — Organization, Boat, Slot, Allocation, HOLD, Booking, BLOCK, Trip, Audit, Idempotency.
+2. **Operator Web** — the daily work surface; Blade + small JS until real use proves otherwise.
+3. **Integration Surface** — APIs/jobs/events; maintenance-first and contract-stable.
+4. **Candidate Foundations** — Finance/Fuel/Expense/Stock/Cash/Reversal/Rate; `FOUNDATION / NOT_CURRENT_PRODUCT_PRIORITY`.
 
-## 7. Security and data handling
+## 4. Permanent invariants
 
-- Credentials are supplied through an approved secret source or environment reference; plaintext credentials are forbidden in Git, task prompts, reports, screenshots, logs, and configuration files.
-- A credential that appears in a task log is treated as exposed and must be rotated, revoked, cleaned locally, and checked against Git history.
-- Demo and test credentials must be synthetic and must not grant access to any real service or dataset.
-- No agent may inspect browser cookies, password stores, local storage, or session stores.
-- Public repository evidence must contain no customer PII, production backup, real contract, real quote, real financial data, or server secret.
+1. PostgreSQL becomes final inventory-conflict authority only after explicit cutover.
+2. Final HOLD/Confirm/Amend/Cancel/release/expiry/BLOCK decisions are transactional and auditable.
+3. Calendar and availability are projections; commands re-adjudicate authority.
+4. Web/API/jobs use the same Application Actions.
+5. Service time, buffers, and occupied interval are distinct facts.
+6. **Booking or Trip completion must not end physical inventory authority before `occupied_end`.**
+7. **A completed Booking retains its required same-service-date slot-compatibility effect.**
+8. Trip/Booking lifecycle and inventory authority are related but not identical state machines.
+9. Cross-organization data is neither visible nor mutable.
+10. Demo and production data/runtime remain isolated.
 
-## 8. Sources of truth
+A green test or earlier review does not override a newly proven invariant violation. Implementation details belong to a bounded CODE Gate, not this Charter.
 
-In descending order:
+## 5. Development model
 
-1. explicit Owner decision;
-2. this Charter;
-3. `.project/CURRENT_STATE.yaml`;
-4. `.project/CURRENT_GATE.md` and `.project/REVIEW_QUEUE.md`;
-5. reviewed Git commits and reproducible deployment/test evidence;
-6. agent reports and chat history.
+```text
+CORE SAFETY
+-> DEPLOYMENT READINESS
+-> PILOT CUTOVER
+-> REAL USE
+-> OBSERVED PAIN
+-> NEXT MINIMUM CHANGE
+-> CORE SAFETY
+```
 
-Chat history and an executor's self-report are never sufficient proof of code, deployment, data isolation, or test success. When an accepted deployment occurs outside GitHub, a later governance alignment must record the accepted non-secret evidence in Git so the repository can again become the authoritative project ledger.
+There is no preplanned WP4/WP5/WP6.
 
-## 9. Project roles
+Every change must be the smallest observable, reversible vertical slice that protects a universal invariant or resolves demonstrated real-use pain.
 
-- Owner: product goal, real business rules, merge/deployment/data/launch authority.
-- ChatGPT reviewer: architecture, scope, review, blocker classification, gate decision, and the next bounded instruction.
-- Hermes: bounded implementation/execution, tests, progress, and evidence.
-- Claude Code: optional builder delegated by Hermes; its availability must not block the project.
-- Codex: optional independent milestone reviewer when explicitly requested; it does not replace the Owner or the primary project reviewer.
+Issue classes:
 
-The executor cannot approve its own gate. The reviewer cannot treat an executor report as independent evidence.
+- `core-safety` — incorrect operational truth;
+- `real-use-blocker` — Operator cannot finish the workflow;
+- `observed-pain` — repeated friction from real use;
+- `future` — unproven idea, not scheduled by default.
 
-## 10. Gate and release discipline
+## 6. Sources of truth and observability
 
-- Merge, deployment, Tag, GitHub Release, data migration, and production enablement are separate authorizations.
-- Passing tests does not itself authorize merge or deployment.
-- A gate is complete only when every stated acceptance criterion has reproducible evidence and the reviewer records `APPROVED` / `COMPLETE`.
-- If an authorization flag is false in `CURRENT_STATE.yaml`, no agent may perform that action unless the Owner explicitly supersedes it.
-- Work must stop on scope drift, a failed safety invariant, an unexplained data mutation, or evidence that cannot be reproduced.
-- Demo deployment success must never be reclassified as production enablement.
-- Product gate identifiers (`G*`), deployment/validation identifiers (`D*`), and future semantic version Tags/Releases are separate namespaces and must not be conflated.
+| Fact | Authority |
+| --- | --- |
+| Mission, scope, invariants, permanent Gates | this Charter |
+| Current machine state | `.project/CURRENT_STATE.yaml` |
+| Allowed/forbidden/next action | `.project/CURRENT_GATE.md` |
+| Review blockers and evidence ledger | `.project/REVIEW_QUEUE.md` |
+| Code and tests | exact Git SHA/diff and reproducible CI |
+| Deployment | immutable manifest and receipt |
+| Operations after cutover | production PostgreSQL |
+| History | existing closure/release receipts and Git/PR history |
+
+Before cutover, BoatOps must not be described as live operational authority. Chat or executor self-report is not proof.
+
+Minimum Pilot observability must answer:
+
+- who changed which object, when, and with what result;
+- why inventory blocked/released and which revision resulted;
+- idempotency replay/conflict and outbox failure status;
+- deployed source/config identity;
+- scheduler, health, backup/restore, and rollback status;
+- where an Operator left BoatOps to finish work and why.
+
+Reuse audit, idempotency, revision, outbox, constraints, health, and receipts before building analytics.
+
+## 7. Progressive complexity and non-goals
+
+Add only the smallest proven need:
+
+- capacity field only for real vessel-limit risk;
+- Product/Slot mapping only after repeated wrong combinations;
+- Admin Web only when repeat provisioning is error-prone;
+- Finance/CRM/reporting/maintenance only for a real blocker or repeated pain;
+- API/ChannelHub/OTA only for a real consumer.
+
+Current non-goals:
+
+- SPA rewrite;
+- ChannelHub/OTA/WordPress inventory integration;
+- payment gateway/full accounting/CRM/reporting platform;
+- broad Stock/Fuel UI, maintenance/documents, complex manifest;
+- full-history automation, SaaS super-admin, second-company onboarding;
+- public semantic-version Release.
+
+## 8. Deployment boundaries
+
+Organization, vessel ownership/rights, schedules, buffers, HOLD TTL, compatibility, pricing, weather, and Operator identity are reviewed deployment facts.
+
+Future controlled provisioning should first use an idempotent reviewed manifest/one-time command with validation and rollback; a general Admin UI is not required until repeated deployment proves the need.
+
+ChannelHub remains separate, never writes BoatOps tables, and cannot confirm from cache while BoatOps is unavailable. WordPress is not inventory authority. A spreadsheet may be an authorized migration/reconciliation source but cannot overrule BoatOps after cutover.
+
+## 9. Permanent Gates
+
+1. **CODE / MERGE** — exact diff, invariants, tests, CI, independent review; never deploys.
+2. **DEPLOYMENT** — exact source/config, PostgreSQL, secrets, scheduler, monitoring, backup/restore, rollback; never admits real data.
+3. **REAL DATA / CUTOVER** — admitted scope, reconciliation, rollback, prior-system boundary, authority-switch moment; never creates a public Release.
+4. **RELEASE** — license, version, Tag, GitHub Release, install/upgrade commitments.
+
+`merge != deploy != cutover != release`
+
+Passing tests or a Draft PR never advances another Gate.
+
+Owner grants product and Gate authority. Reviewer classifies scope/evidence. Executor performs only the bounded task and never self-approves.
+
+Secrets, cookies/browser storage, customer PII, real contracts/quotes/finance, and production backups are forbidden in public Git, reports, screenshots, and fixtures.
+
+Stop on scope drift, failed safety, unexplained mutation, unreproducible evidence, or any false authorization in `CURRENT_STATE.yaml`.
