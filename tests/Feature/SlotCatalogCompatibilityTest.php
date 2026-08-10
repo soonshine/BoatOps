@@ -320,6 +320,160 @@ class SlotCatalogCompatibilityTest extends TestCase
             ]);
     }
 
+    public function test_completed_booking_remains_a_bounded_compatibility_fact_for_hold_confirm_and_amend(): void
+    {
+        $context = $this->context();
+        $serviceDate = '2026-09-20';
+        $amId = $this->slotId($context['organization_id'], 'AM_4H');
+        $pmId = $this->slotId($context['organization_id'], 'PM_4H');
+        $amHold = $this->createSlotHold($context, 'AM_4H', $serviceDate, 'COMPLETED-AM')
+            ->assertCreated();
+        $amBooking = $this->confirmHold($context, $amHold->json('hold_id'), 'COMPLETED-AM')
+            ->assertCreated();
+        $amBookingId = (int) $amBooking->json('booking_id');
+        $amAllocationId = (int) DB::table('bookings')->where('id', $amBookingId)->value('allocation_id');
+        DB::table('bookings')->where('id', $amBookingId)->update(['status' => 'COMPLETED']);
+        DB::table('allocations')->where('id', $amAllocationId)->update(['status' => 'COMPLETED']);
+
+        $this->availability($context, 'PM_4H', $serviceDate)
+            ->assertOk()
+            ->assertJson([
+                'available' => false,
+                'code' => 'SLOT_COMPATIBILITY_CONFLICT',
+            ]);
+        $this->createSlotHold($context, 'PM_4H', $serviceDate, 'COMPLETED-DENY-HOLD')
+            ->assertConflict()
+            ->assertJson(['code' => 'SLOT_COMPATIBILITY_CONFLICT']);
+
+        $context['boat_id'] = $context['other_boat_id'];
+        $this->availability($context, 'PM_4H', $serviceDate)
+            ->assertOk()
+            ->assertJson(['available' => true]);
+        $context['boat_id'] = (int) DB::table('bookings')->where('id', $amBookingId)->value('boat_id');
+        $this->availability($context, 'PM_4H', '2026-09-21')
+            ->assertOk()
+            ->assertJson(['available' => true]);
+
+        app(SlotCompatibilityService::class)->setRule(
+            $context['organization_id'],
+            $amId,
+            $pmId,
+            'ALLOW',
+        );
+        $this->availability($context, 'PM_4H', $serviceDate)
+            ->assertOk()
+            ->assertJson(['available' => true]);
+        $pmHold = $this->createSlotHold($context, 'PM_4H', $serviceDate, 'COMPLETED-ALLOW-HOLD')
+            ->assertCreated();
+
+        app(SlotCompatibilityService::class)->setRule(
+            $context['organization_id'],
+            $amId,
+            $pmId,
+            'DENY',
+        );
+        $this->confirmHold($context, $pmHold->json('hold_id'), 'COMPLETED-ALLOW-HOLD')
+            ->assertConflict()
+            ->assertJson(['code' => 'SLOT_COMPATIBILITY_CONFLICT']);
+        $this->assertDatabaseHas('holds', ['id' => $pmHold->json('hold_id'), 'status' => 'ACTIVE']);
+        $this->assertDatabaseHas('allocations', ['hold_id' => $pmHold->json('hold_id'), 'status' => 'ACTIVE']);
+        $this->assertDatabaseMissing('bookings', ['external_reference' => 'COMPLETED-ALLOW-HOLD']);
+        $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson('/api/v1/holds/'.$pmHold->json('hold_id').':release', [
+                'external_reference' => 'COMPLETED-ALLOW-HOLD',
+            ])->assertOk();
+
+        $amendHold = $this->createSlotHold($context, 'AM_4H', '2026-09-22', 'COMPLETED-AMEND')
+            ->assertCreated();
+        $amendBooking = $this->confirmHold($context, $amendHold->json('hold_id'), 'COMPLETED-AMEND')
+            ->assertCreated();
+        $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson('/api/v1/bookings/'.$amendBooking->json('booking_id').':amend', [
+                'external_reference' => 'COMPLETED-AMEND',
+                'boat_id' => $context['boat_id'],
+                'trip_template_id' => $context['trip_template_id'],
+                'slot_offering_id' => $pmId,
+                'service_date' => $serviceDate,
+            ])->assertConflict()->assertJson(['code' => 'SLOT_COMPATIBILITY_CONFLICT']);
+        $this->assertDatabaseHas('bookings', [
+            'id' => $amendBooking->json('booking_id'),
+            'service_date' => '2026-09-22',
+            'status' => 'CONFIRMED',
+        ]);
+
+        $cancelHold = $this->createSlotHold($context, 'AM_4H', '2026-09-23', 'CANCELLED-AM')
+            ->assertCreated();
+        $cancelBooking = $this->confirmHold($context, $cancelHold->json('hold_id'), 'CANCELLED-AM')
+            ->assertCreated();
+        $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson('/api/v1/bookings/'.$cancelBooking->json('booking_id').':cancel', [
+                'external_reference' => 'CANCELLED-AM',
+            ])->assertOk();
+        $this->availability($context, 'PM_4H', '2026-09-23')
+            ->assertOk()
+            ->assertJson(['available' => true]);
+    }
+
+    public function test_complete_at_occupied_end_preserves_same_date_compatibility_for_the_next_hold(): void
+    {
+        $context = $this->context();
+        $hold = $this->createSlotHold($context, 'AM_4H', '2026-09-24', 'COMPLETE-CROSS-INVARIANT')
+            ->assertCreated();
+        $booking = $this->confirmHold(
+            $context,
+            $hold->json('hold_id'),
+            'COMPLETE-CROSS-INVARIANT',
+        )->assertCreated();
+        $tripId = (int) $booking->json('trip_id');
+        $tripPath = '/api/internal/v1/trips/'.$tripId;
+
+        $this->travelTo(CarbonImmutable::parse('2026-09-24T05:00:00Z'));
+        $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson($tripPath.':prepare', [
+                'crew' => [[
+                    'external_reference' => 'FICTIONAL-CROSS-CAPTAIN',
+                    'display_name' => 'Fictional Cross Captain',
+                    'role' => 'CAPTAIN',
+                    'duty' => 'CAPTAIN',
+                ]],
+                'checklist' => [[
+                    'code' => 'CROSS_READY',
+                    'label' => 'Fictional cross-invariant readiness',
+                    'required' => true,
+                    'completed' => true,
+                ]],
+            ])->assertOk();
+        $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson($tripPath.':depart', ['departed_at' => '2026-09-24T04:00:00Z'])
+            ->assertOk();
+        $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson($tripPath.':return', ['returned_at' => '2026-09-24T05:00:00Z'])
+            ->assertOk();
+        $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson($tripPath.':complete')
+            ->assertOk()
+            ->assertJson(['status' => 'COMPLETED']);
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->json('booking_id'),
+            'status' => 'COMPLETED',
+        ]);
+        $this->assertDatabaseHas('allocations', [
+            'booking_id' => $booking->json('booking_id'),
+            'status' => 'COMPLETED',
+        ]);
+        $this->createSlotHold($context, 'PM_4H', '2026-09-24', 'COMPLETE-CROSS-LOSER', '2026-09-24T05:30:00Z')
+            ->assertConflict()
+            ->assertJson(['code' => 'SLOT_COMPATIBILITY_CONFLICT']);
+    }
+
     public function test_competing_requests_for_the_same_slot_have_exactly_one_winner(): void
     {
         $context = $this->context();

@@ -110,9 +110,17 @@ final class SlotCalendarReadModel
             : DB::table('allocations')
                 ->where('organization_id', $organization->id)
                 ->whereIn('boat_id', $boatIds)
-                ->where('status', 'ACTIVE')
-                ->where('occupied_start', '<', $localRangeEnd->utc())
-                ->where('occupied_end', '>', $localRangeStart->utc())
+                ->where(function ($query) use ($from, $to, $localRangeEnd, $localRangeStart): void {
+                    $query->where(function ($query) use ($localRangeEnd, $localRangeStart): void {
+                        $query->where('status', 'ACTIVE')
+                            ->where('occupied_start', '<', $localRangeEnd->utc())
+                            ->where('occupied_end', '>', $localRangeStart->utc());
+                    })->orWhere(function ($query) use ($from, $to): void {
+                        $query->where('status', 'COMPLETED')
+                            ->where('allocation_type', 'BOOKING')
+                            ->whereBetween('service_date', [$from, $to]);
+                    });
+                })
                 ->orderBy('boat_id')
                 ->orderBy('occupied_start')
                 ->orderBy('id')
@@ -146,7 +154,7 @@ final class SlotCalendarReadModel
             $selectedDateAllocations = $allocationsByBoat->get($boatId, collect())
                 ->filter(fn (object $allocation): bool => $selectedDateStart !== null
                     && $selectedDateEnd !== null
-                    && $this->overlapsUtcDay($allocation, $selectedDateStart, $selectedDateEnd))
+                    && $this->isRelevantOnDate($allocation, $selectedDate, $selectedDateStart, $selectedDateEnd))
                 ->values();
 
             if ($selectedBoat === null || $selectedEntry === null || $selectedEntry->status !== 'ACTIVE'
@@ -192,7 +200,12 @@ final class SlotCalendarReadModel
                 }
 
                 $dateAllocations = $boatAllocations
-                    ->filter(fn (object $allocation): bool => $this->overlapsUtcDay($allocation, $dateStart, $dateEnd))
+                    ->filter(fn (object $allocation): bool => $this->isRelevantOnDate(
+                        $allocation,
+                        $date,
+                        $dateStart,
+                        $dateEnd,
+                    ))
                     ->values();
                 $slots = [];
 
@@ -286,6 +299,7 @@ final class SlotCalendarReadModel
                 $dateResults[] = [
                     'date' => $date,
                     'allocations' => $dateAllocations
+                        ->filter(static fn (object $allocation): bool => (string) $allocation->status === 'ACTIVE')
                         ->map(fn (object $allocation): array => $this->serializeAllocation($allocation, $timezone))
                         ->all(),
                     'slots' => $slots,
@@ -464,6 +478,21 @@ final class SlotCalendarReadModel
 
         return $occupiedStart->lessThan($dateEnd->utc())
             && $occupiedEnd->greaterThan($dateStart->utc());
+    }
+
+    private function isRelevantOnDate(
+        object $allocation,
+        string $date,
+        CarbonImmutable $dateStart,
+        CarbonImmutable $dateEnd,
+    ): bool {
+        if ((string) $allocation->status === 'COMPLETED'
+            && (string) $allocation->allocation_type === 'BOOKING') {
+            return $allocation->service_date !== null
+                && (string) $allocation->service_date === $date;
+        }
+
+        return $this->overlapsUtcDay($allocation, $dateStart, $dateEnd);
     }
 
     private function exactDate(string $date, string $field): CarbonImmutable

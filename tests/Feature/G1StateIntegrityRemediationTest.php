@@ -95,7 +95,7 @@ class G1StateIntegrityRemediationTest extends TestCase
     }
 
     #[DataProvider('cancelAllowedTripStates')]
-    public function test_cancel_allows_planned_and_prepared_trip_states(string $tripStatus): void
+    public function test_cancel_allows_only_the_planned_trip_state(string $tripStatus): void
     {
         [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Cancel Allowed');
         $reference = 'CANCEL-ALLOWED-'.$tripStatus;
@@ -113,7 +113,7 @@ class G1StateIntegrityRemediationTest extends TestCase
     }
 
     #[DataProvider('cancelIllegalTripStates')]
-    public function test_cancel_rejects_departed_returned_and_completed_trips_without_partial_writes(string $tripStatus): void
+    public function test_cancel_rejects_every_non_planned_trip_state_without_partial_writes(string $tripStatus): void
     {
         [$organizationId, $boatId, $templateId] = $this->inventory('Fictional Cancel Illegal');
         $reference = 'CANCEL-ILLEGAL-'.$tripStatus;
@@ -323,17 +323,19 @@ class G1StateIntegrityRemediationTest extends TestCase
     /** @return array<string, array{string}> */
     public static function cancelAllowedTripStates(): array
     {
-        return ['planned' => ['PLANNED'], 'prepared' => ['PREPARED']];
+        return ['planned' => ['PLANNED']];
     }
 
     /** @return array<string, array{string}> */
     public static function cancelIllegalTripStates(): array
     {
         return [
+            'prepared' => ['PREPARED'],
             'departed' => ['DEPARTED'],
             'returned' => ['RETURNED'],
             'completed' => ['COMPLETED'],
             'cancelled' => ['CANCELLED'],
+            'unknown' => ['FICTIONAL_UNKNOWN'],
         ];
     }
 

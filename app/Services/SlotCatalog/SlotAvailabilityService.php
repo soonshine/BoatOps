@@ -23,7 +23,7 @@ final class SlotAvailabilityService
         ?int $excludeAllocationId = null,
         bool $lockForUpdate = false,
     ): array {
-        $query = DB::table('allocations')
+        $activePhysicalAllocations = DB::table('allocations')
             ->where('organization_id', $organizationId)
             ->where('boat_id', $boatId)
             ->where('status', 'ACTIVE')
@@ -36,18 +36,30 @@ final class SlotAvailabilityService
             })
             ->orderBy('id');
 
+        $completedBookingCompatibilityFacts = DB::table('allocations')
+            ->where('organization_id', $organizationId)
+            ->where('boat_id', $boatId)
+            ->where('status', 'COMPLETED')
+            ->where('allocation_type', 'BOOKING')
+            ->where('service_date', $candidate->serviceDate)
+            ->orderBy('id');
+
         if ($excludeAllocationId !== null) {
-            $query->where('id', '!=', $excludeAllocationId);
+            $activePhysicalAllocations->where('id', '!=', $excludeAllocationId);
+            $completedBookingCompatibilityFacts->where('id', '!=', $excludeAllocationId);
         }
 
         if ($lockForUpdate) {
-            $query->lockForUpdate();
+            $activePhysicalAllocations->lockForUpdate();
+            $completedBookingCompatibilityFacts->lockForUpdate();
         }
 
         $policies = $this->compatibility->policiesForOrganization($organizationId);
         $candidateIdentityIds = $candidate->compatibilityIdentityIds();
+        $allocations = $activePhysicalAllocations->get()
+            ->concat($completedBookingCompatibilityFacts->get());
 
-        foreach ($query->get() as $allocation) {
+        foreach ($allocations as $allocation) {
             $existingIdentityIds = $this->allocationIdentityIds($allocation);
 
             if (
@@ -68,7 +80,8 @@ final class SlotAvailabilityService
                 ];
             }
 
-            if ($this->occupiedIntervalsOverlap($candidate, $allocation)) {
+            if ($this->isActivePhysicalAllocation($allocation)
+                && $this->occupiedIntervalsOverlap($candidate, $allocation)) {
                 return [
                     'available' => false,
                     'code' => 'SLOT_UNAVAILABLE',
@@ -106,12 +119,17 @@ final class SlotAvailabilityService
         $best = null;
 
         foreach ($allocations as $allocation) {
+            if (! $this->isCompatibilityFact($allocation)) {
+                continue;
+            }
+
             $existingIdentityIds = $this->allocationIdentityIds($allocation);
             $sameServiceDate = $allocation->service_date !== null
                 && (string) $allocation->service_date === $candidate->serviceDate;
             $directIdentity = $sameServiceDate
                 && array_intersect($candidateIdentityIds, $existingIdentityIds) !== [];
-            $physicalOverlap = $this->occupiedIntervalsOverlap($candidate, $allocation);
+            $physicalOverlap = $this->isActivePhysicalAllocation($allocation)
+                && $this->occupiedIntervalsOverlap($candidate, $allocation);
             $compatibilityConflict = ! $directIdentity
                 && $sameServiceDate
                 && $candidateIdentityIds !== []
@@ -199,6 +217,22 @@ final class SlotAvailabilityService
 
         return $existingStart->lessThan($candidate->occupiedEnd)
             && $existingEnd->greaterThan($candidate->occupiedStart);
+    }
+
+    private function isActivePhysicalAllocation(object $allocation): bool
+    {
+        return ! property_exists($allocation, 'status')
+            || (string) $allocation->status === 'ACTIVE';
+    }
+
+    private function isCompatibilityFact(object $allocation): bool
+    {
+        return $this->isActivePhysicalAllocation($allocation)
+            || (
+                property_exists($allocation, 'status')
+                && (string) $allocation->status === 'COMPLETED'
+                && (string) $allocation->allocation_type === 'BOOKING'
+            );
     }
 
     private function serviceIntervalsOverlap(ResolvedSlot $candidate, object $allocation): bool

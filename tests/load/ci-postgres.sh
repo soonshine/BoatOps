@@ -145,3 +145,38 @@ export BOATOPS_APP_DIR="$GITHUB_WORKSPACE"
 node tests/load/hold-concurrency.mjs
 node tests/load/hold-expiry-race.mjs
 node tests/load/operation-races.mjs
+
+CORE_SAFETY_RESULT="$(node tests/load/core-safety-inventory.mjs)"
+echo "$CORE_SAFETY_RESULT"
+CORE_SAFETY_TRIP_ID="$(node -e 'console.log(JSON.parse(process.argv[1]).trip_id)' "$CORE_SAFETY_RESULT")"
+CORE_SAFETY_BOOKING_ID="$(node -e 'console.log(JSON.parse(process.argv[1]).booking_id)' "$CORE_SAFETY_RESULT")"
+CORE_SAFETY_ORGANIZATION_ID="$(node -e 'console.log(JSON.parse(process.argv[1]).organization_id)' "$CORE_SAFETY_RESULT")"
+CORE_SAFETY_EXPECTED_REVISION="$(node -e 'console.log(JSON.parse(process.argv[1]).expected_revision)' "$CORE_SAFETY_RESULT")"
+CORE_SAFETY_COMPLETE_KEY="$(node -e 'console.log(JSON.parse(process.argv[1]).complete_key)' "$CORE_SAFETY_RESULT")"
+
+CORE_SAFETY_DB_STATE="$("${PSQL[@]}" --tuples-only --no-align --field-separator='|' --command="
+    SELECT concat_ws('|',
+        trips.status,
+        bookings.status,
+        allocations.status,
+        organizations.inventory_revision,
+        (SELECT count(*) FROM outbox_events
+            WHERE organization_id = ${CORE_SAFETY_ORGANIZATION_ID}
+              AND event_type = 'trip.completed.v1'),
+        (SELECT count(*) FROM audit_logs
+            WHERE organization_id = ${CORE_SAFETY_ORGANIZATION_ID}
+              AND action = 'trip.completed'),
+        (SELECT count(*) FROM idempotency_keys
+            WHERE organization_id = ${CORE_SAFETY_ORGANIZATION_ID}
+              AND operation = 'completeTrip:${CORE_SAFETY_TRIP_ID}'
+              AND idempotency_key = '${CORE_SAFETY_COMPLETE_KEY}')
+    )
+    FROM trips
+    JOIN bookings ON bookings.id = trips.booking_id
+    JOIN allocations ON allocations.id = bookings.allocation_id
+    JOIN organizations ON organizations.id = trips.organization_id
+    WHERE trips.id = ${CORE_SAFETY_TRIP_ID}
+      AND bookings.id = ${CORE_SAFETY_BOOKING_ID};
+")"
+test "$CORE_SAFETY_DB_STATE" = "RETURNED|CONFIRMED|ACTIVE|${CORE_SAFETY_EXPECTED_REVISION}|0|0|0"
+echo 'Verified PostgreSQL early Complete is side-effect free and preserves ACTIVE inventory authority against competing HOLD/BLOCK.'

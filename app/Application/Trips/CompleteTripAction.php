@@ -42,12 +42,12 @@ final class CompleteTripAction
                 return $this->error('INVALID_TRANSITION', 'Only a returned trip can be completed.', 409);
             }
 
-            $now = now()->utc();
+            $validationNow = now()->utc();
             if (! $trip->actual_returned_at) {
                 return $this->error('VALIDATION_FAILED', 'A valid return time is required before completion.', 422);
             }
             $actualReturnedAt = CarbonImmutable::parse($trip->actual_returned_at)->utc();
-            if ($actualReturnedAt->greaterThan($now)) {
+            if ($actualReturnedAt->greaterThan($validationNow)) {
                 return $this->error('VALIDATION_FAILED', 'A trip with a future return time cannot be completed.', 422);
             }
 
@@ -61,6 +61,16 @@ final class CompleteTripAction
                 : null;
             if (! $booking || $booking->status !== 'CONFIRMED' || ! $allocation || $allocation->status !== 'ACTIVE') {
                 return $this->error('INVALID_TRANSITION', 'The trip booking must still own active inventory.', 409, true);
+            }
+
+            $now = now()->utc();
+            $occupiedEnd = CarbonImmutable::parse((string) $allocation->occupied_end, 'UTC')->utc();
+            if ($now->lessThan($occupiedEnd)) {
+                return $this->error(
+                    'INVALID_TRANSITION',
+                    'The trip cannot be completed before the occupied inventory interval ends.',
+                    409,
+                );
             }
 
             DB::table('trips')->where('organization_id', $organization->id)->where('id', $trip->id)->update([

@@ -61,8 +61,8 @@ class CancelBookingAction
                 || ! $this->tripMatchesBooking($trip, $lockedBooking)) {
                 return $this->inventoryIntegrityError();
             }
-            if (! in_array($trip->status, ['PLANNED', 'PREPARED'], true)) {
-                return $this->error('INVALID_TRANSITION', 'A departed or completed trip cannot be cancelled.', 409);
+            if ($trip->status !== 'PLANNED') {
+                return $this->error('INVALID_TRANSITION', 'Only a planned trip can be cancelled.', 409);
             }
 
             $now = now()->utc();

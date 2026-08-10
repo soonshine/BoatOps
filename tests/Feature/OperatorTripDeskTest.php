@@ -270,6 +270,16 @@ class OperatorTripDeskTest extends TestCase
 
         $completeKey = (string) Str::uuid();
         $complete = ['idempotency_key' => $completeKey];
+        $this->post($tripPath.'/complete', $complete)->assertStatus(303)->assertSessionHasErrors('trip');
+        $this->assertDatabaseHas('trips', ['id' => $record['trip_id'], 'status' => 'RETURNED']);
+        $this->assertDatabaseHas('bookings', ['id' => $record['booking_id'], 'status' => 'CONFIRMED']);
+        $this->assertDatabaseHas('allocations', ['id' => $record['allocation_id'], 'status' => 'ACTIVE']);
+        $this->assertSame(0, DB::table('idempotency_keys')
+            ->where('operation', 'completeTrip:'.$record['trip_id'])
+            ->where('idempotency_key', $completeKey)
+            ->count());
+
+        $this->travelTo(CarbonImmutable::parse('2026-08-10T11:00:00Z'));
         $this->post($tripPath.'/complete', $complete)->assertStatus(303)->assertSessionHasNoErrors();
         $this->post($tripPath.'/complete', $complete)->assertStatus(303)->assertSessionHasNoErrors();
         $this->assertDatabaseHas('trips', ['id' => $record['trip_id'], 'status' => 'COMPLETED']);

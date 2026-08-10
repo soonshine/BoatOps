@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Application\Blocks\CreateBlockAction;
+use App\Application\Holds\CreateHoldAction;
+use App\Application\Holds\HoldActor;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -132,6 +135,56 @@ class TripApplicationActionsTest extends TestCase
 
         DB::table('trips')->where('id', $trip['trip_id'])->update(['actual_returned_at' => '2026-08-10 10:00:00']);
         $completeKey = (string) Str::uuid();
+        $this->withToken($context['token'])->withHeader('Idempotency-Key', $completeKey)->postJson($base.':complete')
+            ->assertConflict()->assertJson([
+                'code' => 'INVALID_TRANSITION',
+                'retryable' => false,
+            ]);
+        $this->assertDatabaseHas('trips', ['id' => $trip['trip_id'], 'status' => 'RETURNED']);
+        $this->assertDatabaseHas('bookings', ['id' => $trip['booking_id'], 'status' => 'CONFIRMED']);
+        $this->assertDatabaseHas('allocations', ['id' => $trip['allocation_id'], 'status' => 'ACTIVE']);
+        $this->assertSame(0, DB::table('outbox_events')->where('event_type', 'trip.completed.v1')->count());
+        $this->assertSame(0, DB::table('audit_logs')->where('action', 'trip.completed')->count());
+        $this->assertSame(0, DB::table('idempotency_keys')
+            ->where('operation', 'completeTrip:'.$trip['trip_id'])
+            ->where('idempotency_key', $completeKey)
+            ->count());
+        $this->assertSame(0, (int) DB::table('organizations')->where('id', $context['organization_id'])->value('inventory_revision'));
+
+        $hold = app(CreateHoldAction::class)->execute(
+            $context['organization_id'],
+            [
+                'external_reference' => 'FICTIONAL-BUFFER-HOLD',
+                'boat_id' => $context['boat_id'],
+                'trip_template_id' => $context['template_id'],
+                'starts_at' => '2026-08-10T11:45:00Z',
+                'ends_at' => '2026-08-10T12:15:00Z',
+                'expires_at' => '2026-08-10T10:30:00Z',
+            ],
+            (string) Str::uuid(),
+            HoldActor::apiClient($context['api_client_id']),
+        );
+        $this->assertSame(409, $hold->status);
+        $this->assertSame('SLOT_UNAVAILABLE', $hold->payload['code']);
+
+        $block = app(CreateBlockAction::class)->execute(
+            $context['organization_id'],
+            [
+                'external_reference' => 'FICTIONAL-BUFFER-BLOCK',
+                'boat_id' => $context['boat_id'],
+                'starts_at' => '2026-08-10T11:45:00Z',
+                'ends_at' => '2026-08-10T12:15:00Z',
+                'reason_code' => 'MAINTENANCE',
+            ],
+            (string) Str::uuid(),
+            HoldActor::apiClient($context['api_client_id']),
+        );
+        $this->assertSame(409, $block->status);
+        $this->assertSame('SLOT_UNAVAILABLE', $block->payload['code']);
+        $this->assertDatabaseMissing('holds', ['external_reference' => 'FICTIONAL-BUFFER-HOLD']);
+        $this->assertDatabaseMissing('blocks', ['external_reference' => 'FICTIONAL-BUFFER-BLOCK']);
+
+        $this->travelTo(CarbonImmutable::parse('2026-08-10T12:00:00Z'));
         $complete = $this->withToken($context['token'])->withHeader('Idempotency-Key', $completeKey)->postJson($base.':complete')
             ->assertOk()->assertJson(['status' => 'COMPLETED', 'inventory_revision' => 1]);
         $replay = $this->withToken($context['token'])->withHeader('Idempotency-Key', $completeKey)->postJson($base.':complete')->assertOk();
@@ -141,6 +194,14 @@ class TripApplicationActionsTest extends TestCase
         $completedAt = CarbonImmutable::parse((string) DB::table('trips')->where('id', $trip['trip_id'])->value('completed_at'), 'UTC');
         $returnedAt = CarbonImmutable::parse((string) DB::table('trips')->where('id', $trip['trip_id'])->value('actual_returned_at'), 'UTC');
         $this->assertTrue($completedAt->greaterThanOrEqualTo($returnedAt));
+
+        $laterTrip = $this->trip($context, 'FICTIONAL-AFTER-OCCUPIED-END');
+        $this->prepare($context, $laterTrip['trip_id'], 'FICTIONAL-LATER-CREW');
+        $laterBase = '/api/internal/v1/trips/'.$laterTrip['trip_id'];
+        $this->travelTo(CarbonImmutable::parse('2026-08-10T12:01:00Z'));
+        $this->command($context, $laterBase.':depart', ['departed_at' => '2026-08-10T12:01:00Z'])->assertOk();
+        $this->command($context, $laterBase.':return', ['returned_at' => '2026-08-10T12:01:00Z'])->assertOk();
+        $this->command($context, $laterBase.':complete')->assertOk()->assertJson(['status' => 'COMPLETED']);
 
         $pastTrip = $this->trip($context, 'FICTIONAL-PAST-DEPARTURE');
         $this->prepare($context, $pastTrip['trip_id'], 'FICTIONAL-PAST-CREW');
@@ -163,7 +224,7 @@ class TripApplicationActionsTest extends TestCase
             'name' => 'Fictional Action Boat',
             'status' => 'ACTIVE',
             'buffer_before_minutes' => 0,
-            'buffer_after_minutes' => 0,
+            'buffer_after_minutes' => 30,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -202,8 +263,11 @@ class TripApplicationActionsTest extends TestCase
             'boat_id' => $context['boat_id'],
             'allocation_type' => 'BOOKING',
             'status' => 'ACTIVE',
+            'service_date' => '2026-08-10',
+            'service_start' => '2026-08-10 08:00:00',
+            'service_end' => '2026-08-10 11:30:00',
             'business_start' => '2026-08-10 08:00:00',
-            'business_end' => '2026-08-10 12:00:00',
+            'business_end' => '2026-08-10 11:30:00',
             'occupied_start' => '2026-08-10 08:00:00',
             'occupied_end' => '2026-08-10 12:00:00',
             'created_at' => now(),
@@ -215,8 +279,11 @@ class TripApplicationActionsTest extends TestCase
             'trip_template_id' => $context['template_id'],
             'external_reference' => $reference,
             'status' => 'CONFIRMED',
+            'service_date' => '2026-08-10',
+            'service_start' => '2026-08-10 08:00:00',
+            'service_end' => '2026-08-10 11:30:00',
             'business_start' => '2026-08-10 08:00:00',
-            'business_end' => '2026-08-10 12:00:00',
+            'business_end' => '2026-08-10 11:30:00',
             'allocation_id' => $allocationId,
             'confirmed_at' => now(),
             'created_at' => now(),
@@ -230,7 +297,7 @@ class TripApplicationActionsTest extends TestCase
             'trip_template_id' => $context['template_id'],
             'status' => 'PLANNED',
             'planned_start' => '2026-08-10 08:00:00',
-            'planned_end' => '2026-08-10 12:00:00',
+            'planned_end' => '2026-08-10 11:30:00',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
