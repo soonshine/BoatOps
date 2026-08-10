@@ -1,21 +1,21 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-09 18:20 Asia/Bangkok
+Updated: 2026-08-10 08:01 Asia/Bangkok
 
 ## Current authoritative decision
 
-`WP1 = COMPLETE_MERGED / WP2 = AUTHORIZED_TO_START / WP3 = WAIT_FOR_WP2_REVIEW`
+`WP1 = COMPLETE_MERGED / WP2 = COMPLETE_MERGED / WP3 = AUTHORIZED_TO_START`
 
-The Owner explicitly authorized merging WP1 after primary review, and that one-time merge authorization has been consumed.
+The Owner explicitly authorized merging WP2 after primary review, and that one-time merge authorization has been consumed.
 
-WP1 canonical evidence:
+WP2 canonical evidence:
 
-- PR: `#8`
-- reviewed head: `973e0456bf3c8672ae4ba03c61ac0a1c88cfd416`
+- PR: `#10`
+- reviewed head: `b340e7c84480c6bcc92ae62829cad0f7f0661fec`
 - primary review: `PASS`
-- exact-head CI: Run `31310148095` = `SUCCESS`
-- merged main: `1114307d358e67d91ebcf742a26e9d7469209e67`
-- post-merge main CI: Run `31310579582` = `SUCCESS`
+- exact-head CI: Run `31317044622` = `SUCCESS`
+- merged main: `763d22bfc4ddaf0a84df1188d50f6d40b2fa72fc`
+- post-merge main CI: Run `31346016491` = `SUCCESS`
 
 No deployment, real data, production enablement, migration/cutover, Tag or GitHub Release is authorized.
 
@@ -23,84 +23,90 @@ Canonical scope contract:
 
 `docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md`
 
-## Closed slice — WP1
+## Closed slices
 
-### Minimal Operational Booking Dossier
+### WP1 — Minimal Operational Booking Dossier
 
-WP1 is complete and merged.
+Status: `COMPLETE_MERGED`.
 
-Accepted implementation includes the minimum structured operational dossier, organization scoping, safe validation, PII-safe generic audit behavior, editable dossier after Inquiry/HOLD/Confirm, and no change to authoritative Inventory/Booking lifecycle semantics.
+### WP2 — Minimal Operator Booking Workbench
 
-The implementation did not create a rate snapshot or fake unknown tax/commission values.
+Status: `COMPLETE_MERGED`.
+
+Accepted WP2 implementation includes:
+
+- organization-scoped Booking list/detail;
+- Today / Upcoming / All views using organization-local date semantics;
+- bounded date/status/reference/customer filtering;
+- 25-row pagination;
+- WP1 dossier display without duplicating customer data;
+- direct/API-style Booking visibility when no Operator Inquiry exists;
+- Booking-context Amend/Cancel adapters that reuse the existing authoritative Application actions;
+- no new Booking lifecycle, no migration, no Trip mutation and no Finance expansion.
 
 Non-blocking Pilot UX backlog:
 
-- selling amount is currently entered in minor units; reconsider operator-facing amount UX only from real Pilot feedback or a later bounded product decision.
+- a Booking can remain `CONFIRMED` after the linked Trip progresses beyond `PLANNED`, so the Booking detail may still render Amend/Cancel controls even though the authoritative actions correctly reject those transitions. WP3 may add lifecycle-aware UI hints, but must not duplicate lifecycle authority in the UI.
 
-## Current authorized slice — WP2
+## Current authorized slice — WP3
 
-### Minimal Operator Booking Workbench
+### Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
 
-WP2 is now authorized to start.
+WP3 is now authorized to start.
 
 Business outcome:
 
-> An operator can find and manage real operational bookings directly from BoatOps without relying on the Inquiry list or an external spreadsheet.
+> An operator can execute the confirmed Trip lifecycle from BoatOps while API and Operator UI reuse one authoritative Trip mutation path, and known readiness/timestamp integrity risks are repaired without expanding the Trip status contract.
 
-Minimum frozen surfaces:
+Frozen required scope:
 
-- organization-scoped booking list;
-- booking detail;
-- today / upcoming / all views or equivalent filters;
-- date filter;
-- status filter;
-- reference/customer search;
-- pagination;
-- display of WP1 dossier, vessel/service timing, booking state and Trip state;
-- reuse existing Amend and Cancel actions from the booking context.
+- extract/reuse shared Application Trip actions for Prepare / Depart / Return / Complete;
+- preserve existing API behavior by routing current Operations API adapters through the same shared actions;
+- add a minimal organization-scoped Operator Trip Desk / Today's Trips surface;
+- expose crew and checklist readiness required for Prepare/Depart;
+- allow authorized Operator execution of Prepare / Depart / Return / Complete;
+- preserve Trip status flow `PLANNED -> DEPARTED -> RETURNED -> COMPLETED`;
+- do **not** add a `PREPARED` status;
+- after a successful booking/Trip-plan amendment, invalidate stale readiness and require re-prepare before departure;
+- reject future `actual_departed_at`;
+- reject `actual_returned_at` earlier than departure;
+- reject future `actual_returned_at`;
+- ensure completion time cannot precede return time;
+- retain sufficient audit/idempotency evidence for preparation and execution mutations;
+- use only synthetic/fictional fixtures.
 
-Rules:
-
-- do not introduce a second Booking lifecycle;
-- derive lifecycle from existing Inquiry/HOLD/Booking/Trip relationships;
-- existing authoritative Inventory actions remain the only mutation path;
-- reuse WP1 dossier rather than copy customer fields into a second competing model;
-- organization isolation and `booking_workflow` permission remain mandatory;
-- synthetic/fictional fixtures only.
-
-## Not authorized in WP2
+## Not authorized in WP3
 
 Do not implement:
 
-- WP3 Trip Desk/refactor/safety repair;
-- new `PREPARED` Trip state;
+- a new `PREPARED` Trip state;
+- a second Trip state machine;
 - ChannelHub;
 - OTA;
 - WordPress inventory integration;
 - payment gateway;
 - receivables/refunds/full Finance/profit;
+- broad stock/fuel UI expansion;
 - CRM;
-- complex passenger manifest;
+- passenger manifest expansion beyond existing minimal crew/checklist execution needs;
 - maintenance/documents;
 - automated historical migration;
 - SaaS super-admin;
 - production deployment or real data.
 
-## Frozen later slice — WP3
+## Must reuse
 
-### Shared Trip Actions + Minimal Operator Trip Desk + Safety Repair
-
-Status: `WAIT_FOR_WP2_REVIEW`.
-
-Trip status remains:
-
-`PLANNED -> DEPARTED -> RETURNED -> COMPLETED`
-
-No `PREPARED` state is authorized.
+- existing Trip tables and status semantics;
+- current Operations API Trip behavior as characterization baseline;
+- existing Booking Amend/Cancel actions and inventory authority;
+- WP1 operational dossier and WP2 Booking Workbench read surfaces;
+- Operator auth/membership;
+- idempotency/audit patterns;
+- PostgreSQL concurrency/inventory protection.
 
 ## Merge and deployment boundary
 
-WP1 merge authorization is consumed.
+WP1 and WP2 merge authorizations are consumed.
 
 Future business-code merge remains separately gated:
 
@@ -115,8 +121,8 @@ D1 SQLite is not the Pilot production database baseline.
 - readiness audit = `COMPLETE`
 - MVP scope = `FROZEN`
 - WP1 = `COMPLETE_MERGED`
-- WP2 business-code implementation = `AUTHORIZED`
-- WP3 start = `WAIT_FOR_WP2_REVIEW`
+- WP2 = `COMPLETE_MERGED`
+- WP3 business-code implementation = `AUTHORIZED`
 - implementation branch/commit/PR = `AUTHORIZED`
 - future business-code merge = `NOT_AUTHORIZED`
 - deployment = `NOT_AUTHORIZED`
@@ -127,6 +133,6 @@ D1 SQLite is not the Pilot production database baseline.
 
 ## Next allowed action
 
-`HERMES_IMPLEMENT_PILOT_MVP_WP2`
+`HERMES_IMPLEMENT_PILOT_MVP_WP3`
 
-`WP1_COMPLETE_MERGED / WP2_AUTHORIZED / WP3_WAIT / NO_DEPLOYMENT / NO_REAL_DATA / NO_FUTURE_MERGE_AUTHORIZATION`
+`WP1_COMPLETE_MERGED / WP2_COMPLETE_MERGED / WP3_AUTHORIZED / NO_DEPLOYMENT / NO_REAL_DATA / NO_FUTURE_MERGE_AUTHORIZATION`
