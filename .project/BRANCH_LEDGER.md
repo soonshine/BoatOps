@@ -1,6 +1,6 @@
 # BoatOps Branch Ledger
 
-Updated: 2026-08-10 14:21 Asia/Bangkok
+Updated: 2026-08-11 09:35 Asia/Bangkok
 
 This file classifies known remote branches so an agent cannot infer authority from branch age, naming, or a commit that happens to be ahead of `main`.
 
@@ -26,20 +26,23 @@ Owner granted repository-governance cleanup authorization on 2026-08-09 after th
 
 ## Current canonical integration identity
 
-Project Reset PR #13 was merged after the historical D1 governance alignment above.
+Project Reset PR #13 and Core Safety reconciliation PR #14 were followed by the separately reviewed and authorized merge of PR #12.
 
-- pre-reset base: `e0ee301e601c7d9db741e828990c477cf36a8d29`;
-- Project Reset head: `aede9a495b1a6f98a218fd0d26d944b469f86980`;
-- current canonical `main`: `32f817c4618d522b6d73253b3f1dcdc12018a78f`;
-- post-main CI: Run `31360041676`, `Quality and contracts` SUCCESS and `PostgreSQL concurrency` SUCCESS;
-- D1 deployed product source remains separately fixed at `f9503b598b174b7a6891fcde0d984514a3cd0fcd`.
+- Project Reset resulting main: `32f817c4618d522b6d73253b3f1dcdc12018a78f`;
+- Core Safety reconciliation resulting main: `1f300c071f9066ff83e102798999e0852cedf7fa`;
+- PR #12 candidate head: `f3f3a2adee5a76e62f70cc41cef111aa9feb0178`;
+- PR #12 merge commit/current canonical `main`: `5f1424f189865ca412577510c1ada450e838da18`;
+- merge parents: `1f300c071f9066ff83e102798999e0852cedf7fa` and `f3f3a2adee5a76e62f70cc41cef111aa9feb0178`;
+- post-main CI: Run `31448746777`, overall SUCCESS, `Quality and contracts` SUCCESS, and `PostgreSQL concurrency` SUCCESS;
+- D1 deployed product source remains separately fixed at `f9503b598b174b7a6891fcde0d984514a3cd0fcd` and remains fictional Demo history only.
 
 ## Known branches
 
 | Branch | Recorded head / relation | Classification | Cleanup disposition |
 | --- | --- | --- | --- |
-| `main` | integration head `32f817c4618d522b6d73253b3f1dcdc12018a78f`; D1 deployed product source `f9503b5...` | CANONICAL | Preserve |
-| `hermes/pilot-mvp-wp3-trip-desk` | `d841418c24c90c30ceeb203e17150e55cb46d538` | ACTIVE DRAFT / REPAIR REQUIRED / DO_NOT MERGE | Rebase only after this governance reconciliation merges; keep merge blocked |
+| `main` | integration head `5f1424f189865ca412577510c1ada450e838da18`; D1 deployed product source `f9503b5...` | CANONICAL / CORE SAFETY COMPLETE | Preserve |
+| `governance/post-pr12-deployment-readiness` | candidate from exact `5f1424f189865ca412577510c1ada450e838da18` | ACTIVE GOVERNANCE-ONLY DRAFT / NOT MERGED | Primary review; no merge without separate Owner authorization |
+| `hermes/pilot-mvp-wp3-trip-desk` | `f3f3a2adee5a76e62f70cc41cef111aa9feb0178`; merged by PR #12 into `5f1424f...` | MERGED / HISTORICAL CORE SAFETY CANDIDATE | Preserve for evidence; do not reuse as active implementation authority |
 | `agent/d1-governance-alignment` | PR #2 source branch | MERGED GOVERNANCE | Delete when repository tooling permits |
 | `agent/d0-1-receipt-canonicalization` | D0.1 receipt canonicalization | CURRENT GOVERNANCE MAINTENANCE | Delete after merge |
 | `codex/boatops-g1-post-merge-receipt` | `f9503b598b174b7a6891fcde0d984514a3cd0fcd` | HISTORICAL / ANCESTOR | Delete when repository tooling permits |
@@ -71,10 +74,14 @@ Therefore:
 
 ## Repository-maintenance limitation
 
-The connected GitHub toolset used for this governance pass does not expose remote branch deletion or branch-protection/ruleset mutation. Therefore those platform mutations are not represented as completed merely because Owner authorization exists.
+Live GitHub public metadata observed on 2026-08-11 reports:
 
-Until the platform actions are actually executed:
+- `main.protected = false`;
+- repository rulesets count = `0`;
+- Issue #4, `Governance: protect main and remove superseded branches`, remains OPEN.
+
+This task does not authorize branch deletion or branch-protection/ruleset mutation. Until those platform actions are separately authorized, executed, and verified:
 
 - branch classifications in this ledger remain authoritative;
 - `main` must be treated as unprotected at the GitHub platform level;
-- all agents must continue to obey `.project/AGENT_RULES.md` and require CI plus reviewer/Owner authorization before merge.
+- all agents must continue to obey `.project/AGENT_RULES.md` and require both CI jobs plus reviewer/Owner authorization before merge.

@@ -1,139 +1,139 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-10 14:21 Asia/Bangkok
+Updated: 2026-08-11 09:35 Asia/Bangkok
 
 ## Current decision
 
-This governance reconciliation is a candidate until merged to canonical `main`.
+```text
+REAL_OPERATIONS_DEPLOYMENT_READINESS
+CORE_SAFETY_COMPLETE
+DEPLOYMENT_READINESS_ASSESSMENT_OPEN
+DEPLOYMENT_NOT_AUTHORIZED
+```
 
-While this governance PR is Draft or unmerged:
+This governance synchronization is a Draft candidate until separately reviewed and merged to canonical `main`. It records the transition from merged Core Safety to evidence-based Deployment Readiness; it does not deploy anything and grants no authority over production, real data, Cutover, Tag, or Release.
 
-`GOVERNANCE_RECONCILIATION_CANDIDATE / NO_ACTION_WHILE_UNMERGED`
-
-Only after this exact governance change is merged to canonical `main`:
-
-`CORE_SAFETY / BOUNDED_REPAIR_AUTHORIZED / PR12_MERGE_BLOCKED / TWO_REQUIRED_CORE_INVARIANTS`
-
-The authorization scope is exactly:
-
-`BOUNDED_CORE_SAFETY_REPAIR_ONLY`
-
-The exact machine state is `CURRENT_STATE.yaml`. Review identities and causal evidence are in `REVIEW_QUEUE.md`.
-
-## Required Core Safety repair
-
-### INV-P0-001 - physical inventory authority through occupied_end
-
-The repair must prove:
-
-1. physical inventory remains authoritative through `occupied_end`;
-2. at least one non-zero buffer case is covered;
-3. an overlapping HOLD before `occupied_end` remains rejected;
-4. an overlapping BLOCK before `occupied_end` remains rejected;
-5. Confirm and Amend cannot bypass the same authority;
-6. Calendar and availability do not advertise materially unsafe availability;
-7. behavior at and after the `occupied_end` boundary is explicit;
-8. inventory revision, outbox, and idempotency remain correct and exactly once;
-9. a PostgreSQL regression proves the real constraint path.
-
-No new Trip or Allocation state is required unless the invariant is otherwise impossible to preserve.
-
-### INV-P0-002 - completed Booking same-service-date compatibility
-
-The repair must prove:
-
-1. a completed Booking retains the relevant same-date compatibility effect;
-2. the effect is limited to the same organization, Boat, service date, and relevant Slot identity;
-3. it does not become a permanent physical-overlap blocker;
-4. HOLD, Confirm, and Amend use the correct result;
-5. Calendar exposes the same compatibility result;
-6. an incompatible pair remains rejected after the first Booking completes;
-7. an explicitly ALLOWed, non-overlapping pair remains sellable.
-
-Physical occupied-interval authority and logical same-service-date compatibility remain separate invariants.
-
-## Allowed adjacent hardening
-
-### INV-P0-004 - Cancel fail-closed cleanup
-
-This cleanup is optional and is the only adjacent hardening allowed in the current repair.
-
-If implemented, it must prove:
-
-1. Cancel accepts `Trip.status = PLANNED`;
-2. Cancel rejects `PREPARED`;
-3. unknown or non-contract Trip states reject fail closed;
-4. rejection causes no partial write;
-5. the stale test expecting PREPARED cancellation is replaced;
-6. no new Trip state is introduced.
-
-## Primary reconciliation boundaries
-
-- `INV-P0-003`: downgraded to `DEFENSE_IN_DEPTH`; not a current Gate requirement. A tiny reuse of existing validation is acceptable only if it adds no scope while repairing Complete.
-- `REALUSE-P1-001`: `DEFER_OBSERVED_PAIN_REQUIRED`; do not add Inquiry selection editing or re-HOLD behavior now.
-- `REALUSE-P1-002`: `DEFER_UNTIL_REAL_COMPLIANCE_OR_AUDIT_NEED`; do not expand readiness history or audit PII now.
-
-Codex's raw counter-audit severities are evidence, not current Gate authority after Primary reconciliation.
-
-## CODE / MERGE status after this governance change is merged
-
-- **Business-code change:** `AUTHORIZED`, limited to `BOUNDED_CORE_SAFETY_REPAIR_ONLY`.
-- **Implementation branch/commit/PR:** `AUTHORIZED`, limited to the same scope.
-- **PR #12 rebase:** `AUTHORIZED` onto the then-current exact canonical `main`.
-- **PR #12 merge:** `NOT_AUTHORIZED / BLOCKED`.
-- **DEPLOYMENT:** `NOT_OPEN`.
-- **PRODUCTION ENABLEMENT:** `NOT_AUTHORIZED`.
-- **REAL DATA / MIGRATION / CUTOVER / AUTHORITY SWITCH:** `NOT_OPEN / NOT_AUTHORIZED`.
-- **TAG / RELEASE:** `NOT_OPEN / NOT_AUTHORIZED`.
-
-Passing tests, CI, or review never grants merge, deployment, cutover, or release authority.
+The exact machine state is `CURRENT_STATE.yaml`. Review identities and the Deployment Readiness evidence queue are in `REVIEW_QUEUE.md`.
 
 `merge != deploy != cutover != release`
 
-## Next implementation action after governance merge
+## Core Safety closure
 
-`HERMES_REBASE_PR12_AND_IMPLEMENT_BOUNDED_CORE_SAFETY_REPAIR`
+PR #12 is merged and closed.
 
-Allowed implementation:
+- candidate head: `f3f3a2adee5a76e62f70cc41cef111aa9feb0178`;
+- merge commit/current canonical main: `5f1424f189865ca412577510c1ada450e838da18`;
+- exact candidate CI Run `31374570259`: both jobs SUCCESS;
+- Primary cross-invariant review: PASS;
+- Codex narrow counter-audit: PASS;
+- post-main CI Run `31448746777`: overall SUCCESS; both jobs SUCCESS.
 
-1. rebase PR #12 onto the then-current exact `main`;
-2. repair `INV-P0-001`;
-3. repair `INV-P0-002`;
-4. optionally apply only the `INV-P0-004` fail-closed cleanup;
-5. add tests directly necessary to prove those outcomes.
+Current invariant disposition:
 
-Every rebase or repair commit creates a new candidate head. Review and CI from `d841418c24c90c30ceeb203e17150e55cb46d538` remain history and cannot accept the new head.
+```text
+INV-P0-001 CLOSED / MERGED
+INV-P0-002 CLOSED / MERGED
+INV-P0-004 MERGED BOUNDED HARDENING
+NO OPEN CORE SAFETY P0
+```
 
-## Explicitly not required or authorized
+`INV-P0-003` remains `DEFENSE_IN_DEPTH / NOT_CURRENT_CORE_BLOCKER`. `REALUSE-P1-001` and `REALUSE-P1-002` remain deferred under their accepted evidence thresholds.
 
-- a generalized Complete corruption or integrity framework;
-- Inquiry selection editing or re-HOLD redesign;
-- richer readiness history or audit framework;
-- passenger capacity or Product/Slot mapping;
-- provisioning or Admin UI;
-- Finance, CRM, Stock, reporting, notifications, maintenance, ChannelHub, OTA, or Public API expansion;
-- deployment work or production enablement;
-- real data, migration, reconciliation, cutover, or authority switch;
-- Tag or GitHub Release;
-- WP4, WP5, WP6, or another feature package.
+## Deployment Readiness question
 
-## Required validation for the future repair
+> Can one controlled Pilot environment run the already-merged whole-vessel workflow safely?
 
-The repaired exact head must pass:
+Current classification:
 
-- focused and full PHPUnit;
-- Pint;
-- contracts and event fixtures;
-- frontend build;
-- SQLite migration round-trip;
-- Composer and NPM dependency audits;
-- whitespace checks;
-- exact-head `Quality and contracts` GitHub CI;
-- exact-head `PostgreSQL concurrency` GitHub CI;
-- independent cross-invariant review.
+`DEPLOYMENT_READINESS_NOT_YET_PROVEN`
 
-It must then stop for:
+Source capability is materially suitable, but required production runtime, infrastructure, provisioning, governance, and real business-configuration evidence is incomplete.
 
-`OWNER_AUTHORIZE_PR12_MERGE`
+This Gate is evidence collection and minimum deployment-only closure. It is not a feature-development package.
 
-Only after a separately authorized merge may the Owner consider opening `REAL_OPERATIONS_DEPLOYMENT_READINESS`.
+## Allowed now
+
+- read-only Deployment Readiness investigation;
+- infrastructure and configuration design;
+- collection and review of real Pilot business inputs without entering customer records;
+- design of one bounded, transactional provisioning manifest/command;
+- synthetic smoke-test and restore-test planning;
+- governance synchronization and review.
+
+These allowed activities do not authorize implementation unless a later Owner decision names an exact bounded artifact.
+
+## Current blockers and missing proof
+
+### Concrete blockers
+
+1. `DR-04`: no reviewed executable provisioning command/manifest currently creates Organization, Boat/buffers, Trip Template, Slot applicability/compatibility, HOLD TTL, Operator User, and membership as one bounded transaction with validation and rollback.
+2. `DR-16`: live GitHub branch metadata reports `main.protected = false`; repository rulesets count is zero; Issue #4 remains open.
+3. `DR-17`: real Pilot organization, vessel, buffer, slot, compatibility, TTL, timezone, operator, and service-boundary values have not been supplied or approved.
+
+### Runtime proof not yet available
+
+- production PostgreSQL target, migration/runtime roles, TLS mode, timezone, and connection proof;
+- production environment manifest with `APP_ENV=production`, `APP_DEBUG=false`, Demo disabled, and non-secret presence checks;
+- runtime-injected APP_KEY, DB credentials, Operator credentials, and any required API credentials with rotation ownership;
+- authenticated real Operator account/membership and least-privilege runtime proof;
+- HTTPS plus private or appropriately restricted ingress and trusted-proxy/header proof;
+- scheduler process, one-minute HOLD expiry execution, overlap prevention, and failure visibility;
+- health, DB-connectivity, 500/DB/scheduler error visibility, and log retention/access proof;
+- PostgreSQL backup schedule/retention and an actual synthetic restore test;
+- deployment abort/rollback receipt and bounded synthetic Pilot smoke receipt.
+
+## Deployment Readiness constraints
+
+- first Pilot remains one organization and preferably one Boat or a very small fleet;
+- PostgreSQL is mandatory; SQLite is forbidden for a real Pilot;
+- Operator Web is primary; manual Booking entry is sufficient;
+- no automated sales channels or external outbox consumer are required for the first Pilot;
+- external payment/refund handling remains outside BoatOps;
+- weather/closure uses BLOCK;
+- historical migration is not required;
+- only approved future active bookings may later be manually entered or admitted through a separately authorized controlled import;
+- after an explicit Cutover there must be no uncontrolled dual write.
+
+## Conditional business decisions
+
+### Passenger capacity
+
+`CONDITIONAL / BUSINESS_INPUT_REQUIRED`
+
+If every Pilot Booking is operationally capped at or below the safe minimum Boat capacity, use reviewed SOP/configuration and add no code. Only a proven heterogeneous-capacity overbooking risk can justify later consideration of one bounded `boats.max_passengers` guard. Seat inventory remains out of scope.
+
+### Product to Slot
+
+`CONDITIONAL / BUSINESS_INPUT_REQUIRED`
+
+Use reviewed configuration/SOP if the Operator can reliably choose valid Slots. A mapping/filter is considered only after repeated real error evidence. No Product engine is authorized.
+
+## Four Gate status
+
+| Gate | Status | Authorization |
+| --- | --- | --- |
+| CODE / MERGE | `CORE_SAFETY_COMPLETE` | No new application code or feature package authorized; this governance Draft is not authorized to merge |
+| DEPLOYMENT | `READINESS_ASSESSMENT_OPEN` | `DEPLOYMENT_AUTHORIZED = false` |
+| REAL DATA / CUTOVER | `NOT_OPEN` | Real data, migration, Cutover, and authority switch all false |
+| RELEASE | `NOT_OPEN` | Tag and GitHub Release false |
+
+## Explicitly not authorized
+
+- WP4, WP5, WP6, or another feature package;
+- CRM, Finance expansion, Admin UI, Capacity engine, Product engine, ChannelHub, OTA, or SPA rewrite;
+- production deploy or production enablement;
+- live database provisioning;
+- real customer or future Booking entry;
+- historical migration, reconciliation, or dual-write operation;
+- Cutover or authority switch;
+- Tag or GitHub Release.
+
+Passing tests, CI, a Draft PR, or a readiness assessment never advances another Gate.
+
+## Next decision
+
+This Draft must stop for:
+
+`PRIMARY_REVIEW_POST_PR12_GOVERNANCE_AND_DEPLOYMENT_READINESS`
+
+Only after Primary Review may the Owner consider a new, exact authorization for the smallest Deployment Readiness closure artifacts. Actual Deployment remains a separate later decision.
