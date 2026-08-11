@@ -1,0 +1,80 @@
+{
+  "version": "v1",
+  "organization": {
+    "name": "Synthetic BoatOps Pilot Lab",
+    "timezone": "Asia/Bangkok"
+  },
+  "boats": [
+    {
+      "name": "Synthetic Vessel One",
+      "buffer_before_minutes": 0,
+      "buffer_after_minutes": 0,
+      "safe_max_party_size_or_sop_limit": "Synthetic smoke only; no real passengers"
+    }
+  ],
+  "trip_templates": [
+    {
+      "code": "SYNTH_CHARTER",
+      "name": "Synthetic Private Charter"
+    }
+  ],
+  "slots": [
+    {
+      "identity": "SYNTH_SMOKE_AM",
+      "name": "Synthetic Smoke AM",
+      "service_start": "08:00",
+      "service_end": "09:00",
+      "additional_buffer_before_minutes": 0,
+      "additional_buffer_after_minutes": 0,
+      "operating_time_status": "FICTIONAL_VALIDATION_SCENARIO",
+      "applicable_boats": ["Synthetic Vessel One"]
+    },
+    {
+      "identity": "SYNTH_BLOCK_PM",
+      "name": "Synthetic Block PM",
+      "service_start": "20:00",
+      "service_end": "21:00",
+      "additional_buffer_before_minutes": 0,
+      "additional_buffer_after_minutes": 0,
+      "operating_time_status": "FICTIONAL_VALIDATION_SCENARIO",
+      "applicable_boats": ["Synthetic Vessel One"]
+    }
+  ],
+  "compatibility": [
+    {
+      "slot_a": "SYNTH_SMOKE_AM",
+      "slot_b": "SYNTH_BLOCK_PM",
+      "policy": "ALLOW",
+      "reason": "Fictional non-overlapping same-day smoke scenario"
+    }
+  ],
+  "hold_ttl_minutes": 30,
+  "operator": {
+    "name": "Synthetic Pilot Operator",
+    "email": "synthetic.operator@example.invalid",
+    "organization_membership": "ACTIVE",
+    "required_permissions": {
+      "can_calendar_read": true,
+      "can_booking_workflow": true,
+      "can_block": true
+    }
+  },
+  "pilot_service_boundary": {
+    "included": [
+      "Synthetic whole-vessel booking workflow",
+      "Synthetic BLOCK workflow",
+      "Synthetic audit verification"
+    ],
+    "excluded": [
+      "Real customer data",
+      "Payments",
+      "OTA or ChannelHub"
+    ]
+  },
+  "product_to_slot_sop": [
+    {
+      "product": "Synthetic Private Charter",
+      "approved_slots": ["SYNTH_SMOKE_AM", "SYNTH_BLOCK_PM"]
+    }
+  ]
+}
