@@ -16,7 +16,8 @@ final class ProvisionPilot
     public function __construct(
         private readonly SlotCatalogService $slotCatalog,
         private readonly SlotCompatibilityService $slotCompatibility,
-    ) {}
+    ) {
+    }
 
     /** @return array<string, mixed> */
     public function execute(
