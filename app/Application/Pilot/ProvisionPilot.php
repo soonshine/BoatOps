@@ -13,10 +13,17 @@ final class ProvisionPilot
 {
     public const OPERATOR_PASSWORD_ENV = 'BOATOPS_PILOT_OPERATOR_PASSWORD';
 
+    private readonly SlotCatalogService $slotCatalog;
+
+    private readonly SlotCompatibilityService $slotCompatibility;
+
     public function __construct(
-        private readonly SlotCatalogService $slotCatalog,
-        private readonly SlotCompatibilityService $slotCompatibility,
-    ) {}
+        SlotCatalogService $slotCatalog,
+        SlotCompatibilityService $slotCompatibility,
+    ) {
+        $this->slotCatalog = $slotCatalog;
+        $this->slotCompatibility = $slotCompatibility;
+    }
 
     /** @return array<string, mixed> */
     public function execute(
