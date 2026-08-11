@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-11 10:56 Asia/Bangkok
+Updated: 2026-08-11 11:42 Asia/Bangkok
 
 ## Current decision
 
@@ -18,6 +18,18 @@ The exact machine state is `CURRENT_STATE.yaml`. Review identities and the Deplo
 
 `merge != deploy != cutover != release`
 
+## Canonical source identity
+
+Live canonical source identity is resolved from GitHub `refs/heads/main` at every review, merge, Deployment, Cutover, and Release Gate.
+
+The verified governance baseline for PR #16 is `1864469b1b159442ecc598c919faa75431dca778`. This is immutable evidence of the `main` state against which PR #16 was authored and reviewed. It is not a prediction or promise of the commit that would result from merging PR #16.
+
+```text
+LIVE_BRANCH_REF_IS_EXTERNAL_STATE
+STORED_SHA = HISTORICAL_FACT | REVIEWED_CANDIDATE | VERIFIED_BASELINE
+FUTURE_SELF_MERGE_SHA_EMBEDDING = FORBIDDEN
+```
+
 ## Core Safety closure
 
 PR #12 is merged and closed.
@@ -32,7 +44,8 @@ PR #12 is merged and closed.
 PR #15 governance closure is also merged and closed.
 
 - reviewed head: `65bbb8b03d370332b8afd35f71dcc64b6cdab02d`;
-- merge commit/current canonical main: `1864469b1b159442ecc598c919faa75431dca778`;
+- historical PR #15 merge commit: `1864469b1b159442ecc598c919faa75431dca778`;
+- PR #16 verified authoring/review baseline: `1864469b1b159442ecc598c919faa75431dca778`;
 - merge parents: `5f1424f189865ca412577510c1ada450e838da18` and `65bbb8b03d370332b8afd35f71dcc64b6cdab02d`;
 - exact-head CI Run `31453362814`: both jobs SUCCESS;
 - Primary Review: PASS;

@@ -1,6 +1,6 @@
 # BoatOps Review Queue and Evidence Ledger
 
-Last updated: 2026-08-11 10:56 Asia/Bangkok
+Last updated: 2026-08-11 11:42 Asia/Bangkok
 
 This file has two jobs:
 
@@ -30,7 +30,7 @@ PR state: CLOSED / MERGED
 candidate head: f3f3a2adee5a76e62f70cc41cef111aa9feb0178
 merge base: 1f300c071f9066ff83e102798999e0852cedf7fa
 PR #12 merge commit/resulting main: 5f1424f189865ca412577510c1ada450e838da18
-current canonical main after PR #15: 1864469b1b159442ecc598c919faa75431dca778
+PR #16 verified main baseline after PR #15: 1864469b1b159442ecc598c919faa75431dca778
 ```
 
 Acceptance evidence:
@@ -59,10 +59,12 @@ There is no open Core Safety P0.
 PR state: CLOSED / MERGED
 reviewed head: 65bbb8b03d370332b8afd35f71dcc64b6cdab02d
 merge base: 5f1424f189865ca412577510c1ada450e838da18
-merge commit/current canonical main: 1864469b1b159442ecc598c919faa75431dca778
+historical PR #15 merge commit: 1864469b1b159442ecc598c919faa75431dca778
 merge parents:
   5f1424f189865ca412577510c1ada450e838da18
   65bbb8b03d370332b8afd35f71dcc64b6cdab02d
+PR #16 verified main baseline before changes: 1864469b1b159442ecc598c919faa75431dca778
+LIVE_CANONICAL_MAIN: resolve GitHub refs/heads/main at Gate time
 ```
 
 Acceptance evidence:
@@ -77,7 +79,7 @@ The canonical phase is `REAL_OPERATIONS_DEPLOYMENT_READINESS`; classification re
 
 | ID | Area | Status | Existing evidence | Missing proof or input |
 | --- | --- | --- | --- | --- |
-| `DR-01` | Exact source | `PASS` | Canonical main `1864469b...` and post-main CI Run `31454471881` are exact and successful | Future deployment manifest must record source/build SHA and config identity |
+| `DR-01` | Exact source | `PASS` | PR #16 verified baseline `1864469b...` and its post-main CI Run `31454471881` are exact and successful; live `main` is resolved externally at Gate time | Future deployment manifest must record the then-live source/build SHA and config identity |
 | `DR-02` | PostgreSQL | `CONDITIONAL` | CI uses PostgreSQL 17, runs migrations, verifies the validated GiST exclusion constraint, and exercises real HTTP concurrency | Real instance, migration/runtime roles, extension permission, TLS mode, UTC setting, and connectivity |
 | `DR-03` | Production env | `NOT_PROVEN` | `config/app.php` supports environment-injected `APP_ENV`, `APP_DEBUG`, and `APP_KEY` | Reviewed runtime manifest proving `APP_ENV=production`, `APP_DEBUG=false`, `DB_CONNECTION=pgsql`, and required key presence without values |
 | `DR-04` | Provisioning | `BLOCKED` | Read-only design confirms existing schema/services support a small command with no migration; minimum design is recorded below | Implementation, tests, example manifest, exact-head CI, and execution receipt do not exist and are not authorized |
@@ -298,7 +300,7 @@ This sequence is not authorized to run against production or real data by this g
 | WP3 post-main CI | Run `31448746777` | OVERALL SUCCESS / BOTH JOBS SUCCESS |
 | Deployment Readiness governance PR / head | `#15` / `65bbb8b03d370332b8afd35f71dcc64b6cdab02d` | MERGED / PRIMARY REVIEW PASS |
 | PR #15 exact-head CI | Run `31453362814` | BOTH JOBS SUCCESS |
-| PR #15 merge commit/current main | `1864469b1b159442ecc598c919faa75431dca778` | CANONICAL DEPLOYMENT READINESS PHASE |
+| PR #15 historical merge commit / PR #16 verified baseline | `1864469b1b159442ecc598c919faa75431dca778` | IMMUTABLE EVIDENCE / DEPLOYMENT READINESS PHASE BASELINE |
 | PR #15 post-main CI | Run `31454471881` | OVERALL SUCCESS / BOTH JOBS SUCCESS |
 
 ## Interpretation boundaries
@@ -308,4 +310,5 @@ This sequence is not authorized to run against production or real data by this g
 - `INV-P0-003` is not reopened.
 - Capacity and Product-Slot remain conditional business decisions, not pre-authorized code.
 - Historical D1 evidence proves only an isolated fictional SQLite Demo, not real-Pilot PostgreSQL readiness.
+- Live canonical identity is always resolved from GitHub `refs/heads/main` at Gate time. Recorded SHAs are historical facts, reviewed candidates, or verified baselines; none predicts the future commit created by merging the document that contains it.
 - PR #15 is merged history; this new closure-plan Draft grants no merge, DR-04 implementation, DR-16 mutation, Deployment, real-data, migration, Cutover, authority-switch, Tag, or Release authorization.

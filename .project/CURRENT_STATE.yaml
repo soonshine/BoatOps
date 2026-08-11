@@ -1,6 +1,6 @@
-schema_version: 11
+schema_version: 12
 project: BoatOps
-updated_at: "2026-08-11T10:56:00+07:00"
+updated_at: "2026-08-11T11:42:00+07:00"
 
 current_phase: REAL_OPERATIONS_DEPLOYMENT_READINESS
 
@@ -20,7 +20,24 @@ north_star:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  current_canonical_main_sha: "1864469b1b159442ecc598c919faa75431dca778"
+  canonical_identity:
+    branch: main
+    ref: "refs/heads/main"
+    live_source: GITHUB_REF
+    verification_required_at_gate_time: true
+    verification_gates:
+      - REVIEW
+      - MERGE
+      - DEPLOYMENT
+      - CUTOVER
+      - RELEASE
+  governance_verified_baseline:
+    main_sha: "1864469b1b159442ecc598c919faa75431dca778"
+    purpose: PR16_AUTHORING_AND_PRIMARY_REVIEW_BASELINE
+  identity_invariant:
+    live_branch_ref_is_external_state: true
+    recorded_baseline_is_future_live_head_promise: false
+    embed_future_self_merge_sha: false
   pr12_closure:
     pr: 12
     status: MERGED_CLOSED
