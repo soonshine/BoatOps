@@ -1,6 +1,6 @@
-schema_version: 10
+schema_version: 12
 project: BoatOps
-updated_at: "2026-08-11T09:35:00+07:00"
+updated_at: "2026-08-11T11:42:00+07:00"
 
 current_phase: REAL_OPERATIONS_DEPLOYMENT_READINESS
 
@@ -20,7 +20,24 @@ north_star:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  current_canonical_main_sha: "5f1424f189865ca412577510c1ada450e838da18"
+  canonical_identity:
+    branch: main
+    ref: "refs/heads/main"
+    live_source: GITHUB_REF
+    verification_required_at_gate_time: true
+    verification_gates:
+      - REVIEW
+      - MERGE
+      - DEPLOYMENT
+      - CUTOVER
+      - RELEASE
+  governance_verified_baseline:
+    main_sha: "1864469b1b159442ecc598c919faa75431dca778"
+    purpose: PR16_AUTHORING_AND_PRIMARY_REVIEW_BASELINE
+  identity_invariant:
+    live_branch_ref_is_external_state: true
+    recorded_baseline_is_future_live_head_promise: false
+    embed_future_self_merge_sha: false
   pr12_closure:
     pr: 12
     status: MERGED_CLOSED
@@ -41,6 +58,28 @@ repository:
     post_main_ci:
       run: 31448746777
       head_sha: "5f1424f189865ca412577510c1ada450e838da18"
+      overall: SUCCESS
+      quality_and_contracts: SUCCESS
+      postgresql_concurrency: SUCCESS
+  pr15_closure:
+    pr: 15
+    status: MERGED_CLOSED
+    branch: "governance/post-pr12-deployment-readiness"
+    base_sha: "5f1424f189865ca412577510c1ada450e838da18"
+    reviewed_head_sha: "65bbb8b03d370332b8afd35f71dcc64b6cdab02d"
+    merge_commit_sha: "1864469b1b159442ecc598c919faa75431dca778"
+    merge_parents:
+      - "5f1424f189865ca412577510c1ada450e838da18"
+      - "65bbb8b03d370332b8afd35f71dcc64b6cdab02d"
+    primary_review: PASS
+    candidate_ci:
+      run: 31453362814
+      head_sha: "65bbb8b03d370332b8afd35f71dcc64b6cdab02d"
+      quality_and_contracts: SUCCESS
+      postgresql_concurrency: SUCCESS
+    post_main_ci:
+      run: 31454471881
+      head_sha: "1864469b1b159442ecc598c919faa75431dca778"
       overall: SUCCESS
       quality_and_contracts: SUCCESS
       postgresql_concurrency: SUCCESS
@@ -70,6 +109,7 @@ core_safety:
 deployment_readiness:
   status: NOT_YET_PROVEN
   assessment_mode: SOURCE_AND_CONFIGURATION_LEVEL_ONLY
+  closure_plan_status: DEFINED_NOT_AUTHORIZED
   production_runtime_changed: false
   real_data_used: false
   pilot_hypothesis:
@@ -124,11 +164,79 @@ deployment_readiness:
   conditional_business_decisions:
     capacity: BUSINESS_INPUT_REQUIRED_NO_CAPACITY_ENGINE_AUTHORIZED
     product_slot: BUSINESS_INPUT_REQUIRED_NO_PRODUCT_ENGINE_AUTHORIZED
+  closure_streams:
+    dr04_provisioning:
+      bucket: BOUNDED_CODE_ARTIFACT
+      design_status: COMPLETE
+      implementation_status: NOT_AUTHORIZED
+      proposed_command: "pilot:provision {manifest} {--validate}"
+      schema_migration_required: false
+    dr16_main_protection:
+      bucket: REPOSITORY_PLATFORM_MUTATION
+      live_main_protected: false
+      live_ruleset_count: 0
+      issue_4: OPEN
+      mutation_status: NOT_AUTHORIZED
+    dr17_pilot_configuration:
+      bucket: OWNER_OPERATOR_INPUT
+      status: OWNER_INPUT_REQUIRED
+      customer_records_required: false
+    target_runtime_proof:
+      bucket: TARGET_RUNTIME_PROOF
+      status: TARGET_REQUIRED_NOT_AUTHORIZED
+      hosting_target_selected: false
+      synthetic_data_only: true
+  closure_bucket_assignments:
+    - id: DR-01
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-02
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-03
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-04
+      bucket: BOUNDED_CODE_ARTIFACT
+    - id: DR-05
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-06
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-07
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-08
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-09
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-10
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-11
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-12
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-13
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-14
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-15
+      bucket: NOT_REQUIRED_FOR_FIRST_PILOT
+    - id: DR-16
+      bucket: REPOSITORY_PLATFORM_MUTATION
+    - id: DR-17
+      bucket: OWNER_OPERATOR_INPUT
+    - id: DR-18
+      bucket: CONDITIONAL_NO_CODE_DEFAULT
+    - id: DR-19
+      bucket: CONDITIONAL_NO_CODE_DEFAULT
+    - id: DR-20
+      bucket: OWNER_OPERATOR_INPUT
+    - id: DR-21
+      bucket: TARGET_RUNTIME_PROOF
+    - id: DR-22
+      bucket: TARGET_RUNTIME_PROOF
 
 governance_candidate:
-  branch: "governance/post-pr12-deployment-readiness"
+  branch: "governance/deployment-readiness-closure-plan"
   scope: GOVERNANCE_ONLY_FOUR_FILES
   status: DRAFT_REVIEW_REQUIRED
+  purpose: MECHANICAL_BOOKKEEPING_AND_MINIMUM_CLOSURE_PLAN
   effective_only_after_merge_to_canonical_main: true
 
 gates:
@@ -155,13 +263,20 @@ gates:
     github_release_authorized: false
 
 next_action:
-  id: PRIMARY_REVIEW_POST_PR12_GOVERNANCE_AND_DEPLOYMENT_READINESS
-  scope: REVIEW_GOVERNANCE_SYNC_AND_MISSING_READINESS_PROOF
+  id: PRIMARY_REVIEW_MINIMUM_DEPLOYMENT_READINESS_CLOSURE_PLAN
+  scope: REVIEW_BOOKKEEPING_CORRECTION_AND_MINIMUM_CLOSURE_SEQUENCE
 
 next_owner_decision:
-  id: OWNER_AUTHORIZE_MINIMUM_DEPLOYMENT_READINESS_CLOSURE_PLAN
+  id: OWNER_DECIDE_MINIMUM_DEPLOYMENT_READINESS_CLOSURE_ACTIONS
   status: NOT_AUTHORIZED
   prerequisite: PRIMARY_REVIEW_ACCEPTS_THIS_GOVERNANCE_CANDIDATE
+
+owner_decisions_required:
+  - PROVIDE_AND_APPROVE_DR17_PILOT_CONFIGURATION
+  - AUTHORIZE_DR16_MINIMUM_MAIN_PROTECTION_MUTATION
+  - AUTHORIZE_BOUNDED_DR04_PROVISIONING_IMPLEMENTATION
+  - SELECT_OR_CONFIRM_HOSTING_RUNTIME_TARGET
+  - LATER_AUTHORIZE_SYNTHETIC_TARGET_RUNTIME_PROOF
 
 stop_conditions:
   - NO_APPLICATION_CODE_CHANGE
