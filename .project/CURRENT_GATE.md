@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-11 09:35 Asia/Bangkok
+Updated: 2026-08-11 10:56 Asia/Bangkok
 
 ## Current decision
 
@@ -8,10 +8,11 @@ Updated: 2026-08-11 09:35 Asia/Bangkok
 REAL_OPERATIONS_DEPLOYMENT_READINESS
 CORE_SAFETY_COMPLETE
 DEPLOYMENT_READINESS_ASSESSMENT_OPEN
+MINIMUM_CLOSURE_PLAN_DEFINED_NOT_AUTHORIZED
 DEPLOYMENT_NOT_AUTHORIZED
 ```
 
-This governance synchronization is a Draft candidate until separately reviewed and merged to canonical `main`. It records the transition from merged Core Safety to evidence-based Deployment Readiness; it does not deploy anything and grants no authority over production, real data, Cutover, Tag, or Release.
+PR #15 is merged and the canonical phase is `REAL_OPERATIONS_DEPLOYMENT_READINESS`. The current four-file closure-plan candidate only corrects post-merge bookkeeping and defines the shortest future evidence sequence. It remains a Draft until separately reviewed and merged; it does not close any DR item or grant authority over code implementation, repository settings, production, real data, Cutover, Tag, or Release.
 
 The exact machine state is `CURRENT_STATE.yaml`. Review identities and the Deployment Readiness evidence queue are in `REVIEW_QUEUE.md`.
 
@@ -22,11 +23,20 @@ The exact machine state is `CURRENT_STATE.yaml`. Review identities and the Deplo
 PR #12 is merged and closed.
 
 - candidate head: `f3f3a2adee5a76e62f70cc41cef111aa9feb0178`;
-- merge commit/current canonical main: `5f1424f189865ca412577510c1ada450e838da18`;
+- PR #12 merge commit/resulting main: `5f1424f189865ca412577510c1ada450e838da18`;
 - exact candidate CI Run `31374570259`: both jobs SUCCESS;
 - Primary cross-invariant review: PASS;
 - Codex narrow counter-audit: PASS;
 - post-main CI Run `31448746777`: overall SUCCESS; both jobs SUCCESS.
+
+PR #15 governance closure is also merged and closed.
+
+- reviewed head: `65bbb8b03d370332b8afd35f71dcc64b6cdab02d`;
+- merge commit/current canonical main: `1864469b1b159442ecc598c919faa75431dca778`;
+- merge parents: `5f1424f189865ca412577510c1ada450e838da18` and `65bbb8b03d370332b8afd35f71dcc64b6cdab02d`;
+- exact-head CI Run `31453362814`: both jobs SUCCESS;
+- Primary Review: PASS;
+- post-main CI Run `31454471881`: overall SUCCESS; both jobs SUCCESS.
 
 Current invariant disposition:
 
@@ -50,6 +60,19 @@ Current classification:
 Source capability is materially suitable, but required production runtime, infrastructure, provisioning, governance, and real business-configuration evidence is incomplete.
 
 This Gate is evidence collection and minimum deployment-only closure. It is not a feature-development package.
+
+## Minimum closure streams
+
+| Stream | Bucket | Current state | Boundary |
+| --- | --- | --- | --- |
+| `DR-04 Provisioning` | `BOUNDED_CODE_ARTIFACT` | Design complete; implementation absent | Separate Owner authorization required before code |
+| `DR-16 Main protection` | `REPOSITORY_PLATFORM_MUTATION` | `main.protected=false`; rulesets `0`; Issue #4 OPEN | Settings mutation not authorized |
+| `DR-17 Pilot configuration` | `OWNER_OPERATOR_INPUT` | Real values not supplied | No customer records; no invented defaults |
+| `TARGET_RUNTIME_PROOF` | `TARGET_RUNTIME_PROOF` | Hosting target required; proof not authorized | One coherent synthetic package after target selection |
+
+The DR-04 minimum design is one `pilot:provision {manifest} {--validate}` Artisan command, one versioned non-secret manifest parser/DTO, one transactional application service, focused tests, and at most one fictional example manifest. It requires no schema migration. Exact-match re-runs succeed unchanged; any existing-value drift fails closed without partial writes. Secrets remain outside the manifest.
+
+The target-runtime package must verify exact SHA, PostgreSQL, production env, Demo disabled, secret injection, HTTPS/restricted access, Operator login, scheduler, health, logs, PII controls, backup, restore, abort/rollback, and the synthetic Login-to-Audit smoke sequence. Hosting selection is a prerequisite; customer data is forbidden.
 
 ## Allowed now
 
@@ -108,11 +131,30 @@ If every Pilot Booking is operationally capped at or below the safe minimum Boat
 
 Use reviewed configuration/SOP if the Operator can reliably choose valid Slots. A mapping/filter is considered only after repeated real error evidence. No Product engine is authorized.
 
+## Minimum future execution order
+
+1. Merge this bookkeeping correction only after Primary Review.
+2. In parallel: collect DR-17 inputs, prepare the DR-16 mutation, retain the reviewed DR-04 design, and select a hosting/runtime target.
+3. After DR-17 manifest shape is approved, separately authorize and implement the bounded DR-04 artifact.
+4. Separately authorize and execute the minimum DR-16 repository protection mutation.
+5. Against the selected target, separately authorize one synthetic target-runtime proof package.
+6. Run the bounded synthetic Pilot smoke only after the candidate runtime exists.
+7. Perform a final Deployment Readiness review.
+8. Ask the Owner for a separate Deployment decision; do not ask for Cutover yet.
+
+## Owner decisions required next
+
+1. Provide and approve the blank DR-17 Pilot configuration inputs.
+2. Authorize the minimum DR-16 `main` protection mutation.
+3. Authorize the bounded DR-04 provisioning implementation after the manifest shape is approved.
+4. Select or confirm one hosting/runtime target.
+5. Later authorize synthetic target-runtime proof against that target.
+
 ## Four Gate status
 
 | Gate | Status | Authorization |
 | --- | --- | --- |
-| CODE / MERGE | `CORE_SAFETY_COMPLETE` | No new application code or feature package authorized; this governance Draft is not authorized to merge |
+| CODE / MERGE | `CORE_SAFETY_COMPLETE` | No application code or feature package authorized; this closure-plan Draft is not authorized to merge |
 | DEPLOYMENT | `READINESS_ASSESSMENT_OPEN` | `DEPLOYMENT_AUTHORIZED = false` |
 | REAL DATA / CUTOVER | `NOT_OPEN` | Real data, migration, Cutover, and authority switch all false |
 | RELEASE | `NOT_OPEN` | Tag and GitHub Release false |
@@ -132,8 +174,8 @@ Passing tests, CI, a Draft PR, or a readiness assessment never advances another 
 
 ## Next decision
 
-This Draft must stop for:
+This closure-plan Draft must stop for:
 
-`PRIMARY_REVIEW_POST_PR12_GOVERNANCE_AND_DEPLOYMENT_READINESS`
+`PRIMARY_REVIEW_MINIMUM_DEPLOYMENT_READINESS_CLOSURE_PLAN`
 
-Only after Primary Review may the Owner consider a new, exact authorization for the smallest Deployment Readiness closure artifacts. Actual Deployment remains a separate later decision.
+Only after Primary Review may the Owner separately decide the five bounded actions above. DR-04 implementation, DR-16 mutation, runtime proof, actual Deployment, and every later Gate remain unauthorized.
