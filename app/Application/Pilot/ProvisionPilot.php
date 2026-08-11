@@ -94,6 +94,7 @@ final class ProvisionPilot
             if ($existing !== null) {
                 $this->assertBoatMatches($existing, $boat);
                 $boatIds[$boat['name']] = (int) $existing->id;
+
                 continue;
             }
 
@@ -122,6 +123,7 @@ final class ProvisionPilot
             $existing = $rows->first();
             if ($existing !== null) {
                 $this->assertTripTemplateMatches($existing, $template);
+
                 continue;
             }
             $now = now()->utc();
@@ -153,6 +155,7 @@ final class ProvisionPilot
             if ($existing !== null) {
                 $this->assertSlotMatches($organizationId, $existing, $slot, $expectedBoatIds);
                 $slotIds[$slot['identity']] = (int) $existing->id;
+
                 continue;
             }
 
@@ -189,6 +192,7 @@ final class ProvisionPilot
                 if ((string) $existing->policy !== $rule['policy'] || $this->nullableString($existing->reason) !== $rule['reason']) {
                     $this->drift('compatibility pair '.$rule['slot_a'].'/'.$rule['slot_b']);
                 }
+
                 continue;
             }
             $this->slotCompatibility->setRule(
