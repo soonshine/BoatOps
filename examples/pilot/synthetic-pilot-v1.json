@@ -1,0 +1,44 @@
+{
+    "version": 1,
+    "organization": {
+        "name": "Synthetic BoatOps Pilot",
+        "timezone": "Asia/Bangkok"
+    },
+    "boats": [
+        {
+            "name": "Synthetic Vessel 01",
+            "buffer_before_minutes": 30,
+            "buffer_after_minutes": 30
+        }
+    ],
+    "trip_templates": [
+        {
+            "code": "SYNTH-4H",
+            "name": "Synthetic Four Hour Charter"
+        }
+    ],
+    "slots": [
+        {
+            "code": "SYNTH_AM_4H",
+            "name": "Synthetic Morning Four Hours",
+            "service_start_time": "08:00:00",
+            "service_end_time": "12:00:00",
+            "duration_minutes": 240,
+            "operating_time_status": "FICTIONAL_VALIDATION_SCENARIO",
+            "applicable_boats": [
+                "Synthetic Vessel 01"
+            ]
+        }
+    ],
+    "compatibility": [],
+    "hold_ttl_minutes": 30,
+    "operator": {
+        "name": "Synthetic Operator",
+        "email": "synthetic.operator@example.test",
+        "permissions": {
+            "can_calendar_read": true,
+            "can_booking_workflow": true,
+            "can_block": true
+        }
+    }
+}
