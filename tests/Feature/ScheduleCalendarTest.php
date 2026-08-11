@@ -169,6 +169,53 @@ class ScheduleCalendarTest extends TestCase
         $this->assertNull($otherBoatPm['conflict_code']);
     }
 
+    public function test_calendar_uses_completed_booking_compatibility_without_reporting_physical_occupancy(): void
+    {
+        $context = $this->context();
+        $hold = $this->createHold($context, 'AM_4H', '2026-09-15', 'CALENDAR-COMPLETED');
+        $booking = $this->withToken($context['token'])
+            ->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson('/api/v1/bookings:confirm', [
+                'hold_id' => $hold->json('hold_id'),
+                'external_reference' => 'CALENDAR-COMPLETED',
+                'rate_snapshot' => [
+                    'source_reference' => 'FICTIONAL-CALENDAR-COMPLETED',
+                    'currency' => 'THB',
+                    'selling_amount_minor' => 100000,
+                    'tax_amount_minor' => 0,
+                    'commission_amount_minor' => 0,
+                    'quoted_at' => '2026-08-01T00:00:00Z',
+                    'valid_until' => '2026-08-01T01:00:00Z',
+                ],
+            ])->assertCreated();
+        $bookingId = (int) $booking->json('booking_id');
+        $allocationId = (int) DB::table('bookings')->where('id', $bookingId)->value('allocation_id');
+        DB::table('bookings')->where('id', $bookingId)->update(['status' => 'COMPLETED']);
+        DB::table('allocations')->where('id', $allocationId)->update(['status' => 'COMPLETED']);
+
+        $calendar = $this->calendar($context, '2026-09-15', '2026-09-15')->assertOk();
+        $sameBoatPm = $this->slot($calendar->json(), $context['boat_id'], 'PM_4H');
+        $otherBoatPm = $this->slot($calendar->json(), $context['other_boat_id'], 'PM_4H');
+
+        $this->assertSame('UNAVAILABLE', $sameBoatPm['status']);
+        $this->assertSame('SLOT_COMPATIBILITY_CONFLICT', $sameBoatPm['conflict_code']);
+        $this->assertFalse($sameBoatPm['selectable']);
+        $this->assertSame('AVAILABLE', $otherBoatPm['status']);
+        $this->assertCount(0, $calendar->json('boats.0.dates.0.allocations'));
+
+        $this->withToken($context['token'])
+            ->postJson('/api/internal/v1/schedule/compatibility-rules', [
+                'first_slot_offering_id' => $this->slotId($context['organization_id'], 'AM_4H'),
+                'second_slot_offering_id' => $this->slotId($context['organization_id'], 'PM_4H'),
+                'policy' => 'ALLOW',
+                'reason' => 'Fictional completed Booking calendar allowance',
+            ])->assertOk();
+        $allowedCalendar = $this->calendar($context, '2026-09-15', '2026-09-15')->assertOk();
+        $allowedPm = $this->slot($allowedCalendar->json(), $context['boat_id'], 'PM_4H');
+        $this->assertSame('AVAILABLE', $allowedPm['status']);
+        $this->assertTrue($allowedPm['selectable']);
+    }
+
     public function test_bangkok_date_boundary_and_date_specific_custom_slot_are_not_cut_by_server_timezone(): void
     {
         $context = $this->context(15, 20);

@@ -5,6 +5,8 @@ namespace App\Application\Bookings;
 use App\Application\Holds\ExpireDueHoldAction;
 use App\Application\Holds\HoldActor;
 use App\Application\Holds\HoldIdempotencyContext;
+use App\Services\SlotCatalog\ResolvedSlot;
+use App\Services\SlotCatalog\SlotAvailabilityService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -13,7 +15,10 @@ class ConfirmBookingAction
 {
     use BookingActionSupport;
 
-    public function __construct(private readonly ExpireDueHoldAction $expireDueHold) {}
+    public function __construct(
+        private readonly ExpireDueHoldAction $expireDueHold,
+        private readonly SlotAvailabilityService $slotAvailability,
+    ) {}
 
     /** @param array<string, mixed> $input */
     public function execute(int $organizationId, array $input, string $idempotencyKey, HoldActor $actor): BookingActionResult
@@ -75,6 +80,17 @@ class ConfirmBookingAction
 
             if ($expiry->changed) {
                 return new BookingActionResult($expiry->status, $expiry->payload, true);
+            }
+
+            $decision = $this->slotAvailability->decide(
+                (int) $organization->id,
+                (int) $lockedHold->boat_id,
+                $this->resolvedSlotFromHold($lockedHold, (string) $organization->timezone),
+                excludeAllocationId: (int) $allocation->id,
+                lockForUpdate: true,
+            );
+            if (! $decision['available']) {
+                return $this->error($decision['code'], $decision['message'], 409);
             }
 
             $now = now()->utc();
@@ -253,5 +269,28 @@ class ConfirmBookingAction
         }
 
         return $this->matchingInventoryIntervals($allocation, $hold);
+    }
+
+    private function resolvedSlotFromHold(object $hold, string $timezone): ResolvedSlot
+    {
+        $serviceStart = CarbonImmutable::parse((string) ($hold->service_start ?? $hold->business_start), 'UTC')->utc();
+        $serviceEnd = CarbonImmutable::parse((string) ($hold->service_end ?? $hold->business_end), 'UTC')->utc();
+
+        return new ResolvedSlot(
+            serviceStart: $serviceStart,
+            serviceEnd: $serviceEnd,
+            occupiedStart: CarbonImmutable::parse((string) $hold->occupied_start, 'UTC')->utc(),
+            occupiedEnd: CarbonImmutable::parse((string) $hold->occupied_end, 'UTC')->utc(),
+            serviceDate: $hold->service_date === null
+                ? $serviceStart->setTimezone($timezone)->format('Y-m-d')
+                : (string) $hold->service_date,
+            slotOfferingId: $hold->slot_offering_id === null ? null : (int) $hold->slot_offering_id,
+            customSlotInstanceId: $hold->custom_slot_instance_id === null ? null : (int) $hold->custom_slot_instance_id,
+            slotCode: $hold->slot_code_snapshot === null ? null : (string) $hold->slot_code_snapshot,
+            slotName: $hold->slot_name_snapshot === null ? null : (string) $hold->slot_name_snapshot,
+            durationMinutes: $hold->slot_duration_minutes_snapshot === null
+                ? (int) $serviceStart->diffInMinutes($serviceEnd)
+                : (int) $hold->slot_duration_minutes_snapshot,
+        );
     }
 }

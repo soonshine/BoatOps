@@ -100,6 +100,23 @@ class AmendBookingAction
                 }
 
                 $now = now()->utc();
+                $tripId = (int) $trip->id;
+                $crewAssignmentsCleared = DB::table('crew_assignments')
+                    ->where('organization_id', $organization->id)
+                    ->where('trip_id', $tripId)
+                    ->count();
+                $checklistItemsCleared = DB::table('trip_checklists')
+                    ->where('organization_id', $organization->id)
+                    ->where('trip_id', $tripId)
+                    ->count();
+                DB::table('crew_assignments')
+                    ->where('organization_id', $organization->id)
+                    ->where('trip_id', $tripId)
+                    ->delete();
+                DB::table('trip_checklists')
+                    ->where('organization_id', $organization->id)
+                    ->where('trip_id', $tripId)
+                    ->delete();
                 DB::table('allocations')->where('id', $allocation->id)->update([
                     'boat_id' => $input['boat_id'],
                     ...$slot->databaseValues(),
@@ -118,7 +135,6 @@ class AmendBookingAction
                     'planned_end' => $slot->serviceEnd,
                     'updated_at' => $now,
                 ]);
-                $tripId = (int) DB::table('trips')->where('booking_id', $lockedBooking->id)->value('id');
                 DB::table('organizations')->where('id', $organization->id)->increment('inventory_revision');
                 $revision = (int) DB::table('organizations')->where('id', $organization->id)->value('inventory_revision');
                 $occurredAt = $now->format('Y-m-d\TH:i:s\Z');
@@ -182,6 +198,10 @@ class AmendBookingAction
                         'business_end' => $slot->serviceEnd->format('Y-m-d\TH:i:s\Z'),
                         'slot_offering_id' => $slot->slotOfferingId,
                         'custom_slot_instance_id' => $slot->customSlotInstanceId,
+                        'trip_id' => $tripId,
+                        'trip_readiness_invalidated' => true,
+                        'crew_assignments_cleared' => $crewAssignmentsCleared,
+                        'checklist_items_cleared' => $checklistItemsCleared,
                     ], JSON_THROW_ON_ERROR),
                     'created_at' => $now,
                     'updated_at' => $now,

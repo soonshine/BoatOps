@@ -31,9 +31,9 @@ class OperatorFoundationTest extends TestCase
     public function test_login_landing_and_navigation_follow_first_granted_permission_and_fail_closed(): void
     {
         $matrix = [
-            'read-only' => [true, false, false, '/operator/calendar', ['Calendar', 'Audit trail'], ['Inquiries', 'Bookings', 'BLOCKs']],
-            'booking-only' => [false, true, false, '/operator/inquiries', ['Inquiries', 'Bookings'], ['Calendar', 'Audit trail', 'BLOCKs']],
-            'block-only' => [false, false, true, '/operator/blocks', ['BLOCKs'], ['Calendar', 'Audit trail', 'Inquiries', 'Bookings']],
+            'read-only' => [true, false, false, '/operator/calendar', ['Calendar', 'Audit trail'], ['Inquiries', 'Bookings', 'Trips', 'BLOCKs']],
+            'booking-only' => [false, true, false, '/operator/inquiries', ['Inquiries', 'Bookings', 'Trips'], ['Calendar', 'Audit trail', 'BLOCKs']],
+            'block-only' => [false, false, true, '/operator/blocks', ['BLOCKs'], ['Calendar', 'Audit trail', 'Inquiries', 'Bookings', 'Trips']],
         ];
 
         foreach ($matrix as $label => [$read, $booking, $block, $landing, $visible, $hidden]) {
@@ -244,10 +244,10 @@ class OperatorFoundationTest extends TestCase
         try {
             $this->app->detectEnvironment(fn () => 'production');
             config(['demo_site.mode' => 'public_read_only', 'demo_site.isolated_dataset' => true, 'database.default' => 'sqlite', 'database.connections.sqlite.url' => null, 'cache.default' => 'file', 'cache.limiter' => 'file', 'session.driver' => 'file', 'queue.default' => 'sync']);
-            foreach (['/operator/login', '/operator/calendar', '/operator/blocks', '/operator/blocks/9/release', '/operator/inquiries', '/operator/inquiries/create', '/operator/inquiries/9', '/operator/inquiries/9/dossier', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release', '/operator/inquiries/9/holds/8/confirm', '/operator/inquiries/9/bookings/7/amend', '/operator/inquiries/9/bookings/7/cancel', '/operator/bookings', '/operator/bookings/7', '/operator/bookings/7/amend', '/operator/bookings/7/cancel'] as $p) {
+            foreach (['/operator/login', '/operator/calendar', '/operator/blocks', '/operator/blocks/9/release', '/operator/inquiries', '/operator/inquiries/create', '/operator/inquiries/9', '/operator/inquiries/9/dossier', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release', '/operator/inquiries/9/holds/8/confirm', '/operator/inquiries/9/bookings/7/amend', '/operator/inquiries/9/bookings/7/cancel', '/operator/bookings', '/operator/bookings/7', '/operator/bookings/7/amend', '/operator/bookings/7/cancel', '/operator/trips', '/operator/trips/7', '/operator/trips/7/prepare', '/operator/trips/7/depart', '/operator/trips/7/return', '/operator/trips/7/complete'] as $p) {
                 $this->get($p)->assertNotFound();
             }$this->get('/api/v1/inventory/revision')->assertNotFound();
-            foreach (['/operator/login', '/operator/blocks', '/operator/blocks/9/release', '/operator/inquiries/9/dossier', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release', '/operator/inquiries/9/holds/8/confirm', '/operator/inquiries/9/bookings/7/amend', '/operator/inquiries/9/bookings/7/cancel', '/operator/bookings/7/amend', '/operator/bookings/7/cancel'] as $path) {
+            foreach (['/operator/login', '/operator/blocks', '/operator/blocks/9/release', '/operator/inquiries/9/dossier', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release', '/operator/inquiries/9/holds/8/confirm', '/operator/inquiries/9/bookings/7/amend', '/operator/inquiries/9/bookings/7/cancel', '/operator/bookings/7/amend', '/operator/bookings/7/cancel', '/operator/trips/7/prepare', '/operator/trips/7/depart', '/operator/trips/7/return', '/operator/trips/7/complete'] as $path) {
                 $this->post($path)->assertStatus(405)->assertHeader('Allow', 'GET');
             }
         } finally {

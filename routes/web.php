@@ -9,6 +9,8 @@ use App\Http\Controllers\Operator\BookingWorkflowController;
 use App\Http\Controllers\Operator\InquiryController;
 use App\Http\Controllers\Operator\OperatorCalendarController;
 use App\Http\Controllers\Operator\OperatorSessionController;
+use App\Http\Controllers\Operator\TripDeskController;
+use App\Http\Controllers\Operator\TripWorkflowController;
 use App\Http\Middleware\ResolveDemoSiteContext;
 use Illuminate\Support\Facades\Route;
 
@@ -37,6 +39,12 @@ Route::prefix('operator')->name('operator.')->group(function (): void {
     Route::get('/bookings/{booking}', [BookingWorkbenchController::class, 'show'])->whereNumber('booking')->middleware('operator.membership:booking_workflow')->name('bookings.show');
     Route::post('/bookings/{booking}/amend', [BookingWorkflowController::class, 'amendFromBooking'])->whereNumber('booking')->middleware('operator.membership:booking_workflow')->name('bookings.amend');
     Route::post('/bookings/{booking}/cancel', [BookingWorkflowController::class, 'cancelFromBooking'])->whereNumber('booking')->middleware('operator.membership:booking_workflow')->name('bookings.cancel');
+    Route::get('/trips', [TripDeskController::class, 'index'])->middleware('operator.membership:booking_workflow')->name('trips.index');
+    Route::get('/trips/{trip}', [TripDeskController::class, 'show'])->whereNumber('trip')->middleware('operator.membership:booking_workflow')->name('trips.show');
+    Route::post('/trips/{trip}/prepare', [TripWorkflowController::class, 'prepare'])->whereNumber('trip')->middleware('operator.membership:booking_workflow')->name('trips.prepare');
+    Route::post('/trips/{trip}/depart', [TripWorkflowController::class, 'depart'])->whereNumber('trip')->middleware('operator.membership:booking_workflow')->name('trips.depart');
+    Route::post('/trips/{trip}/return', [TripWorkflowController::class, 'return'])->whereNumber('trip')->middleware('operator.membership:booking_workflow')->name('trips.return');
+    Route::post('/trips/{trip}/complete', [TripWorkflowController::class, 'complete'])->whereNumber('trip')->middleware('operator.membership:booking_workflow')->name('trips.complete');
 });
 
 Route::get('/api-docs', function () {
