@@ -1,8 +1,8 @@
-schema_version: 9
+schema_version: 10
 project: BoatOps
-updated_at: "2026-08-10T14:21:00+07:00"
+updated_at: "2026-08-11T09:35:00+07:00"
 
-current_phase: CORE_SAFETY
+current_phase: REAL_OPERATIONS_DEPLOYMENT_READINESS
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -20,146 +20,125 @@ north_star:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  current_canonical_main_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
-  project_reset:
-    pr: 13
+  current_canonical_main_sha: "5f1424f189865ca412577510c1ada450e838da18"
+  pr12_closure:
+    pr: 12
     status: MERGED_CLOSED
-    observed_origin_main_before_reset: "e0ee301e601c7d9db741e828990c477cf36a8d29"
-    reset_head_sha: "aede9a495b1a6f98a218fd0d26d944b469f86980"
-    resulting_main_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
+    branch: "hermes/pilot-mvp-wp3-trip-desk"
+    base_sha: "1f300c071f9066ff83e102798999e0852cedf7fa"
+    candidate_head_sha: "f3f3a2adee5a76e62f70cc41cef111aa9feb0178"
+    merge_commit_sha: "5f1424f189865ca412577510c1ada450e838da18"
+    merge_parents:
+      - "1f300c071f9066ff83e102798999e0852cedf7fa"
+      - "f3f3a2adee5a76e62f70cc41cef111aa9feb0178"
+    primary_cross_invariant_review: PASS
+    codex_narrow_counter_audit: PASS
+    candidate_ci:
+      run: 31374570259
+      head_sha: "f3f3a2adee5a76e62f70cc41cef111aa9feb0178"
+      quality_and_contracts: SUCCESS
+      postgresql_concurrency: SUCCESS
     post_main_ci:
-      run: 31360041676
-      head_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
+      run: 31448746777
+      head_sha: "5f1424f189865ca412577510c1ada450e838da18"
+      overall: SUCCESS
       quality_and_contracts: SUCCESS
       postgresql_concurrency: SUCCESS
 
-counter_audit:
-  id: CODEX_BOATOPS_PROJECT_WIDE_PRE_REAL_USE_AUDIT
-  mode: READ_ONLY
-  main_sha: "32f817c4618d522b6d73253b3f1dcdc12018a78f"
-  pr12_head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
-  north_star_result: PASS
-  mutation_result: NO_CODE_NO_GOVERNANCE_NO_DEPLOYMENT_NO_DATA
-  findings_status: SUBJECT_TO_PRIMARY_RECONCILIATION
-  independently_confirmed:
-    - INV-P0-001
-    - INV-P0-002
-  proposed_findings:
-    - INV-P0-003
-    - INV-P0-004
-    - REALUSE-P1-001
-    - REALUSE-P1-002
+core_safety:
+  status: COMPLETE
+  open_p0_blockers: []
+  invariants:
+    - id: INV-P0-001
+      status: CLOSED_MERGED
+      classification: UNIVERSAL_CORE_INVARIANT
+    - id: INV-P0-002
+      status: CLOSED_MERGED
+      classification: UNIVERSAL_CORE_INVARIANT
+    - id: INV-P0-003
+      status: DEFERRED
+      classification: DEFENSE_IN_DEPTH_NOT_CURRENT_CORE_BLOCKER
+    - id: INV-P0-004
+      status: MERGED_BOUNDED_HARDENING
+      classification: CANCEL_FAIL_CLOSED_TO_PLANNED_ONLY
+  deferred_real_use_findings:
+    - id: REALUSE-P1-001
+      status: DEFER_OBSERVED_PAIN_REQUIRED
+    - id: REALUSE-P1-002
+      status: DEFER_UNTIL_REAL_COMPLIANCE_OR_AUDIT_NEED
 
-primary_reconciliation:
-  - id: INV-P0-001
-    status: ACCEPTED
-    priority: P0_CORE_SAFETY
-    nature: UNIVERSAL_INVARIANT
-    current_core_blocker: true
-    repair_required: true
-  - id: INV-P0-002
-    status: ACCEPTED
-    priority: P0_CORE_SAFETY
-    nature: UNIVERSAL_INVARIANT
-    current_core_blocker: true
-    repair_required: true
-  - id: INV-P0-003
-    status: DOWNGRADED
-    classification: DEFENSE_IN_DEPTH
-    current_core_blocker: false
-    repair_required_now: false
-  - id: INV-P0-004
-    status: DOWNGRADED
-    classification: BOUNDED_FAIL_CLOSED_HARDENING
-    current_core_blocker: false
-    allowed_in_current_repair: true
-  - id: REALUSE-P1-001
-    status: DOWNGRADED
-    classification: DEFER_OBSERVED_PAIN_REQUIRED
-    current_core_blocker: false
-    repair_required_now: false
-  - id: REALUSE-P1-002
-    status: DOWNGRADED
-    classification: DEFER_UNTIL_REAL_COMPLIANCE_OR_AUDIT_NEED
-    current_core_blocker: false
-    repair_required_now: false
+deployment_readiness:
+  status: NOT_YET_PROVEN
+  assessment_mode: SOURCE_AND_CONFIGURATION_LEVEL_ONLY
+  production_runtime_changed: false
+  real_data_used: false
+  pilot_hypothesis:
+    organizations: 1
+    fleet: ONE_BOAT_OR_VERY_SMALL_FLEET
+    database: POSTGRESQL
+    inventory: WHOLE_VESSEL_ONLY
+    primary_surface: OPERATOR_WEB
+    booking_entry: MANUAL
+    automated_sales_channels: false
+    payment_and_refund: EXTERNAL
+    weather_and_closure: BLOCK
+    access: PRIVATE_OR_APPROPRIATELY_RESTRICTED
+    historical_migration: NOT_REQUIRED_FOR_PILOT
+    dual_write: FORBIDDEN_AFTER_CUTOVER
+  readiness_items:
+    DR-01_EXACT_SOURCE: PASS
+    DR-02_POSTGRESQL: CONDITIONAL
+    DR-03_PRODUCTION_ENV: NOT_PROVEN
+    DR-04_CONTROLLED_PROVISIONING: BLOCKED
+    DR-05_DEMO_PRODUCTION_ISOLATION: PASS
+    DR-06_OPERATOR_ACCESS: NOT_PROVEN
+    DR-07_TLS_PRIVATE_ACCESS: NOT_PROVEN
+    DR-08_SECRETS: NOT_PROVEN
+    DR-09_SCHEDULER_RUNTIME: NOT_PROVEN
+    DR-10_HEALTH: CONDITIONAL
+    DR-11_LOGS_ERRORS: NOT_PROVEN
+    DR-12_PII_SAFETY: CONDITIONAL
+    DR-13_BACKUP: NOT_PROVEN
+    DR-14_RESTORE: NOT_PROVEN
+    DR-15_OUTBOX_CONSUMER: NOT_REQUIRED_FOR_PILOT
+    DR-16_BRANCH_PROTECTION: BLOCKED
+    DR-17_REAL_BUSINESS_CONFIGURATION: BLOCKED
+    DR-18_PASSENGER_CAPACITY: CONDITIONAL_BUSINESS_INPUT_REQUIRED
+    DR-19_PRODUCT_SLOT: CONDITIONAL_BUSINESS_INPUT_REQUIRED
+    DR-20_CUTOVER_MODEL: CONDITIONAL
+    DR-21_ABORT_ROLLBACK: NOT_PROVEN
+    DR-22_PILOT_SMOKE: NOT_PROVEN
+  current_blockers:
+    - DR-04_NO_REVIEWED_EXECUTABLE_PROVISIONING_METHOD
+    - DR-16_MAIN_UNPROTECTED_ISSUE_4_OPEN
+    - DR-17_REAL_PILOT_CONFIGURATION_NOT_SUPPLIED
+  runtime_proof_missing:
+    - PRODUCTION_POSTGRESQL_INSTANCE_PERMISSIONS_TLS_AND_TIMEZONE
+    - PRODUCTION_ENVIRONMENT_AND_SECRET_INJECTION
+    - REAL_OPERATOR_ACCOUNT_AND_MEMBERSHIP
+    - HTTPS_PRIVATE_OR_RESTRICTED_INGRESS
+    - SCHEDULER_PROCESS_AND_FAILURE_VISIBILITY
+    - RUNTIME_HEALTH_DATABASE_CONNECTIVITY_AND_LOG_VISIBILITY
+    - POSTGRESQL_BACKUP_RETENTION_AND_TESTED_RESTORE
+    - CUTOVER_ABORT_AND_SYNTHETIC_SMOKE_RECEIPTS
+  conditional_business_decisions:
+    capacity: BUSINESS_INPUT_REQUIRED_NO_CAPACITY_ENGINE_AUTHORIZED
+    product_slot: BUSINESS_INPUT_REQUIRED_NO_PRODUCT_ENGINE_AUTHORIZED
 
-core_safety_scope:
-  status: FROZEN
-  authorization_scope: BOUNDED_CORE_SAFETY_REPAIR_ONLY
-  required_repairs:
-    - INV-P0-001
-    - INV-P0-002
-  optional_adjacent_hardening:
-    - INV-P0-004
-  explicitly_not_required:
-    - INV-P0-003_GENERALIZED_COMPLETE_CORRUPTION_FRAMEWORK
-    - REALUSE-P1-001_INQUIRY_SELECTION_OR_REHOLD
-    - REALUSE-P1-002_RICHER_READINESS_HISTORY
-    - PASSENGER_CAPACITY
-    - PRODUCT_SLOT_MAPPING
-    - PROVISIONING_OR_ADMIN_UI
-    - FEATURE_EXPANSION
-    - DEPLOYMENT_WORK
-
-real_operations_core:
-  inventory: BLOCKED_BY_TWO_REQUIRED_CORE_INVARIANTS
-  booking_workbench: ON_MAIN
-  trip_execution: CANDIDATE_IN_PR_12
-  primary_surface: OPERATOR_WEB
-  candidate_foundations: FOUNDATION_NOT_CURRENT_PRODUCT_PRIORITY
-
-wp3_candidate:
-  pr: 12
-  state: OPEN
-  draft: true
-  merged: false
-  branch: "hermes/pilot-mvp-wp3-trip-desk"
-  merge_base_sha: "e0ee301e601c7d9db741e828990c477cf36a8d29"
-  head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
-  needs_rebase_to_current_main: true
-  primary_review:
-    status: PASS_AT_REVIEWED_HEAD
-    reviewed_head_sha: "d841418c24c90c30ceeb203e17150e55cb46d538"
-    exact_head_ci_run: 31350106392
-    exact_head_ci_result: SUCCESS
-  cross_invariant_review: BLOCKED
-  merge_readiness: BLOCKED
-
-core_invariant_blockers:
-  - id: INV-P0-001
-    status: ACCEPTED_OPEN
-    priority: P0_CORE_SAFETY
-    nature: UNIVERSAL_INVARIANT
-    provenance: PRESENT_AT_PROJECT_RESET_BASE
-  - id: INV-P0-002
-    status: ACCEPTED_OPEN
-    priority: P0_CORE_SAFETY
-    nature: UNIVERSAL_INVARIANT
-    provenance: PRESENT_AT_PROJECT_RESET_BASE
-
-optional_authorized_hardening:
-  - id: INV-P0-004
-    status: OPTIONAL
-    scope: CANCEL_FAIL_CLOSED_TO_PLANNED_ONLY
-
-governance_candidate_guard:
-  effective_condition: THIS_GOVERNANCE_RECONCILIATION_MERGED_TO_CANONICAL_MAIN
-  while_candidate_unmerged:
-    business_code_change_authorized: false
-    implementation_branch_commit_pr_authorized: false
-    pr12_rebase_authorized: false
+governance_candidate:
+  branch: "governance/post-pr12-deployment-readiness"
+  scope: GOVERNANCE_ONLY_FOUR_FILES
+  status: DRAFT_REVIEW_REQUIRED
+  effective_only_after_merge_to_canonical_main: true
 
 gates:
   code:
-    status: BOUNDED_REPAIR_AUTHORIZED_AFTER_GOVERNANCE_MERGE
-    authorization_scope: BOUNDED_CORE_SAFETY_REPAIR_ONLY
-    authorization_effective_condition: THIS_GOVERNANCE_RECONCILIATION_MERGED_TO_CANONICAL_MAIN
-    business_code_change_authorized: true
-    implementation_branch_commit_pr_authorized: true
-    merge_authorized: false
+    status: CORE_SAFETY_COMPLETE
+    application_code_change_authorized: false
+    feature_expansion_authorized: false
+    governance_pr_merge_authorized: false
   deployment:
-    status: NOT_OPEN
+    status: READINESS_ASSESSMENT_OPEN
     authorized: false
     deployment_authorized: false
     production_enablement_authorized: false
@@ -176,18 +155,16 @@ gates:
     github_release_authorized: false
 
 next_action:
-  id: HERMES_REBASE_PR12_AND_IMPLEMENT_BOUNDED_CORE_SAFETY_REPAIR
-  effective_condition: THIS_GOVERNANCE_RECONCILIATION_MERGED_TO_CANONICAL_MAIN
+  id: PRIMARY_REVIEW_POST_PR12_GOVERNANCE_AND_DEPLOYMENT_READINESS
+  scope: REVIEW_GOVERNANCE_SYNC_AND_MISSING_READINESS_PROOF
 
 next_owner_decision:
-  id: OWNER_AUTHORIZE_PR12_MERGE
+  id: OWNER_AUTHORIZE_MINIMUM_DEPLOYMENT_READINESS_CLOSURE_PLAN
   status: NOT_AUTHORIZED
-  prerequisite: REPAIRED_EXACT_HEAD_ACCEPTED
+  prerequisite: PRIMARY_REVIEW_ACCEPTS_THIS_GOVERNANCE_CANDIDATE
 
 stop_conditions:
-  - NO_ACTION_FROM_UNMERGED_GOVERNANCE_CANDIDATE
-  - NO_PR12_MERGE
-  - BOUNDED_CORE_SAFETY_REPAIR_ONLY
+  - NO_APPLICATION_CODE_CHANGE
   - NO_WP4_WP5_WP6
   - NO_FEATURE_EXPANSION
   - NO_DEPLOYMENT
@@ -195,6 +172,7 @@ stop_conditions:
   - NO_REAL_DATA
   - NO_MIGRATION
   - NO_CUTOVER
+  - NO_AUTHORITY_SWITCH
   - NO_TAG
   - NO_RELEASE
 
@@ -202,5 +180,6 @@ authorities:
   charter: ".project/PROJECT_CHARTER.md"
   current_gate: ".project/CURRENT_GATE.md"
   review_evidence: ".project/REVIEW_QUEUE.md"
+  branch_ledger: ".project/BRANCH_LEDGER.md"
   real_operations_path: "docs/product/REAL_OPERATIONS_PILOT_MVP.md"
   historical_wp1_wp3_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
