@@ -16,8 +16,7 @@ final class ProvisionPilot
     public function __construct(
         private readonly SlotCatalogService $slotCatalog,
         private readonly SlotCompatibilityService $slotCompatibility,
-    ) {
-    }
+    ) {}
 
     /** @return array<string, mixed> */
     public function execute(
@@ -68,7 +67,7 @@ final class ProvisionPilot
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-            $writes++;
+            $writes += 1;
         } else {
             $this->assertOrganizationMatches($organization, $data['organization']);
             $organizationId = (int) $organization->id;
@@ -101,7 +100,7 @@ final class ProvisionPilot
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-            $writes++;
+            $writes += 1;
         }
 
         foreach ($data['trip_templates'] as $template) {
@@ -127,7 +126,7 @@ final class ProvisionPilot
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-            $writes++;
+            $writes += 1;
         }
 
         $slotIds = [];
@@ -166,7 +165,7 @@ final class ProvisionPilot
                 ],
                 boatIds: $expectedBoatIds,
             );
-            $writes++;
+            $writes += 1;
         }
 
         foreach ($data['compatibility'] as $rule) {
@@ -192,7 +191,7 @@ final class ProvisionPilot
                 policy: $rule['policy'],
                 reason: $rule['reason'],
             );
-            $writes++;
+            $writes += 1;
         }
 
         $setting = DB::table('organization_settings')
@@ -214,7 +213,7 @@ final class ProvisionPilot
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-            $writes++;
+            $writes += 1;
         }
 
         $userRows = DB::table('users')->where('email', $data['operator']['email'])->lockForUpdate()->get();
@@ -228,7 +227,7 @@ final class ProvisionPilot
             }
             $userId = (int) $user->id;
         } else {
-            if (! is_string($operatorPassword) || mb_strlen($operatorPassword) < 12) {
+            if (is_string($operatorPassword) === false || mb_strlen($operatorPassword) < 12) {
                 throw new RuntimeException('MISSING_OPERATOR_SECRET: set '.self::OPERATOR_PASSWORD_ENV.' to at least 12 characters for first provisioning.');
             }
             $now = now()->utc();
@@ -239,7 +238,7 @@ final class ProvisionPilot
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-            $writes++;
+            $writes += 1;
         }
 
         $membership = DB::table('operator_memberships')->where('user_id', $userId)->lockForUpdate()->first();
@@ -258,7 +257,7 @@ final class ProvisionPilot
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
-            $writes++;
+            $writes += 1;
         }
 
         return $writes;
@@ -303,7 +302,7 @@ final class ProvisionPilot
             $expectedBoatIds = [];
             $canCompareBoats = true;
             foreach ($slot['applicable_boats'] as $boatName) {
-                if (! isset($boatIds[$boatName])) {
+                if (isset($boatIds[$boatName]) === false) {
                     $canCompareBoats = false;
                     break;
                 }
@@ -319,7 +318,7 @@ final class ProvisionPilot
         }
 
         foreach ($data['compatibility'] as $rule) {
-            if (! isset($slotIds[$rule['slot_a']], $slotIds[$rule['slot_b']])) {
+            if (isset($slotIds[$rule['slot_a']], $slotIds[$rule['slot_b']]) === false) {
                 continue;
             }
             $ids = [$slotIds[$rule['slot_a']], $slotIds[$rule['slot_b']]];
