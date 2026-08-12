@@ -95,6 +95,18 @@ final class PilotProvisioningTest extends TestCase
         $this->assertSame([], $this->provisionedCounts());
     }
 
+    public function test_verified_operating_time_is_accepted_and_unknown_status_is_rejected(): void
+    {
+        $verified = $this->manifest();
+        $verified['slots'][0]['operating_time_status'] = 'VERIFIED';
+
+        $this->assertSame('VERIFIED', PilotManifest::fromArray($verified)->slots[0]['operating_time_status']);
+
+        $invalid = $this->manifest();
+        $invalid['slots'][0]['operating_time_status'] = 'NOT_A_REAL_STATUS';
+        $this->assertInvalidManifest($invalid);
+    }
+
     public function test_late_configuration_drift_rolls_back_every_partial_write(): void
     {
         User::create([

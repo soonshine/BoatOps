@@ -146,7 +146,7 @@ final readonly class PilotManifest
 
             $operatingTimeStatus = strtoupper(self::string($slot['operating_time_status'], "{$path}.operating_time_status"));
 
-            if (! in_array($operatingTimeStatus, ['UNVERIFIED', 'DEMO_DEFAULT_UNVERIFIED', 'FICTIONAL_VALIDATION_SCENARIO'], true)) {
+            if (! in_array($operatingTimeStatus, ['UNVERIFIED', 'DEMO_DEFAULT_UNVERIFIED', 'FICTIONAL_VALIDATION_SCENARIO', 'VERIFIED'], true)) {
                 throw PilotProvisioningException::invalidManifest("{$path}.operating_time_status is invalid.");
             }
 
