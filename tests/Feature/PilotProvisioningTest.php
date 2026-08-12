@@ -100,7 +100,17 @@ final class PilotProvisioningTest extends TestCase
         $verified = $this->manifest();
         $verified['slots'][0]['operating_time_status'] = 'VERIFIED';
 
-        $this->assertSame('VERIFIED', PilotManifest::fromArray($verified)->slots[0]['operating_time_status']);
+        $manifest = PilotManifest::fromArray($verified);
+
+        $this->assertSame('VERIFIED', $manifest->slots[0]['operating_time_status']);
+        $this->assertSame(
+            'CREATED',
+            app(PilotProvisioningService::class)->provision($manifest, 'synthetic-password'),
+        );
+        $this->assertDatabaseHas('slot_offerings', [
+            'code' => 'SYNTH_AM_4H',
+            'operating_time_status' => 'VERIFIED',
+        ]);
 
         $invalid = $this->manifest();
         $invalid['slots'][0]['operating_time_status'] = 'NOT_A_REAL_STATUS';
