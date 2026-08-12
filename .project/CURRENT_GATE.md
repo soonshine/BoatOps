@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-12 11:20 Asia/Bangkok
+Updated: 2026-08-12 12:00 Asia/Bangkok
 
 ## Current decision
 
@@ -148,9 +148,12 @@ NO_NEW_FEATURE_DEVELOPMENT
 UNLESS:
   - REAL_PILOT_BLOCKER
   - OBSERVED_OPERATIONAL_PAIN
+  - UNIVERSAL_CORE_SAFETY_DEFECT
 ```
 
 Admin UI, setup wizard, capacity/seat inventory, Product engine, CRM, Finance expansion, reporting, maintenance, historical migration, ChannelHub, OTA, second-company onboarding, and SaaS administration remain deferred.
+
+Routine progress does not require a governance-only PR. State/document updates normally travel with the relevant implementation PR.
 
 ## Parallel item
 
