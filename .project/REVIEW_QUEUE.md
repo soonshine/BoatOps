@@ -1,25 +1,22 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-13 12:29 Asia/Bangkok
+Last updated: 2026-08-13 17:05 Asia/Bangkok
 
-The primary active queue remains unresolved Real Pilot execution work. CAL-UX-001 integration is complete and recorded only as closed evidence. Completed Deployment Readiness, DR04, DR17 input, synthetic runtime, backup, restore, rollback, and scheduler items are closed evidence below, not active blockers.
+The primary active queue now contains only the remaining authenticated Operator gate and the next genuine Plan C order. CAL-UX-001 integration and the passwordless TEST reconciliation are recorded as completed evidence. Completed Deployment Readiness, DR04, DR17 input, synthetic runtime, backup, restore, rollback, and scheduler items are closed evidence below, not active blockers.
 
 ## Active queue
 
 | ID | Status | Next proof |
 | --- | --- | --- |
-| `REAL-PILOT-DEPLOY` | `PENDING / TEST_ONLY` | Deploy the exact Real Pilot implementation candidate to TEST and record the deployed SHA plus `/up=200` |
-| `PLAN-C-PROVISION` | `PENDING / OPERATOR_SECRET_NOT_CONFIGURED` | Inject the TEST-only Operator secret, validate the private manifest, prove first result `CREATED`, then exact rerun `UNCHANGED` |
-| `CAO-LOGIN-SMOKE` | `PENDING / AFTER_PROVISIONING` | Login as Cao on TEST, reach `/operator/calendar`, and confirm the four Plan C Slots are visible |
-| `FIRST-REAL-PLAN-C-VERTICAL-SLICE` | `PENDING / NEXT_REAL_ORDER` | After provisioning and login smoke, run the next genuine Plan C order from Inquiry through Audit; do not invent an order |
+| `AUTHENTICATED-OPERATOR-SMOKE` | `DEFERRED / NO_PASSWORD` | Complete later through an Owner-approved existing credential path; do not create, reset, rotate, or bypass credentials |
+| `FIRST-REAL-PLAN-C-VERTICAL-SLICE` | `WAITING / NEXT_GENUINE_ORDER` | After authenticated Operator smoke, run the next genuine Plan C order from Inquiry through Audit; do not invent an order |
 | `DR16` | `PARALLEL_BEFORE_CUTOVER / NOT_CURRENT_REAL_PILOT_BLOCKER` | Keep `main.protected=false` visible; require separate authorization before any GitHub settings mutation |
 
 ## Operational order
 
 ```text
-REAL-PILOT-DEPLOY
--> PLAN-C-PROVISION
--> CAO-LOGIN-SMOKE
+AUTHENTICATED-OPERATOR-SMOKE
+-> WAIT-FOR-NEXT-GENUINE-PLAN-C-ORDER
 -> FIRST-REAL-PLAN-C-VERTICAL-SLICE
 -> RECORD_OBSERVED_OPERATIONAL_PAIN
 ```
@@ -37,7 +34,10 @@ PR #19 = MERGED / CLOSED
 implementation = fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa
 merge commit = 77db16f16617ddcbb09ebf66d83a65a0c97695e5
 integration = COMPLETE
-deployment = NOT_AUTHORIZED / NOT_DEPLOYED
+deployment = TEST_ONLY_DEPLOYED
+test source = b93846bfbdabc12fc83307392b3fa896aaf323c3
+Fleet Inventory source present = true
+unauthenticated Calendar boundary = PASS
 ```
 
 ## Current GitHub snapshot
@@ -91,7 +91,7 @@ PR #19:
 | `VERIFIED` observed-pain fix | `COMPLETE` | Commit `987eba04a1dc9073be6c02631792808debc35635`; only `PilotManifest.php` and `PilotProvisioningTest.php` changed |
 | Candidate tests | `PASS` | Pint PASS; PilotProvisioning 7 tests / 39 assertions; full PHP suite 283 tests / 3293 assertions; GitHub CI SUCCESS |
 | PR #18 integration | `MERGED / CLOSED` | Head `71d2da4cfaa28c9fe8ecc31d7925d004c89e9236` merged into `main` as `00a029c9a3dcd2122a958514e845334d0a295ac9` |
-| CAL-UX-001 / PR #19 integration | `COMPLETE / MERGED / CLOSED` | Accepted implementation `fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa` merged into `main` as `77db16f16617ddcbb09ebf66d83a65a0c97695e5`; deployment not authorized |
+| CAL-UX-001 / PR #19 integration | `COMPLETE / MERGED / CLOSED` | Accepted implementation `fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa` merged into `main` as `77db16f16617ddcbb09ebf66d83a65a0c97695e5`; TEST deployment verified at `b93846bfbdabc12fc83307392b3fa896aaf323c3` |
 
 ## Approved Plan C configuration
 
@@ -112,9 +112,12 @@ PLAN-C-FISH-8H     10:00-18:00  480  VERIFIED
 applicable Boat: Plan C
 compatibility: []
 configuration: READY
-provisioning: PENDING
-Operator secret: NOT_CONFIGURED
-Cao login smoke: PENDING
+provisioning: COMPLETE (first execution UNCHANGED; exact rerun UNCHANGED)
+Operator secret: DEFERRED / NOT_REQUIRED_FOR_CURRENT_PASSWORDLESS_VERIFICATION
+Cao login smoke: DEFERRED_NO_PASSWORD
+Plan C read projection: PASS
+inventory zero-write: PASS
+allocations / holds / bookings / blocks: UNCHANGED
 ```
 
 ## First real order policy
@@ -124,7 +127,7 @@ HISTORICAL_PLAN_C_MIGRATION = NO
 FIRST_REAL_VERTICAL_SLICE = NEXT_REAL_PLAN_C_ORDER
 ```
 
-After provisioning and Cao login/calendar smoke, the next genuine Plan C order follows:
+After authenticated Operator smoke, the next genuine Plan C order follows:
 
 ```text
 Inquiry -> HOLD -> Confirm -> Prepare -> Depart -> Return -> Complete -> Audit
@@ -161,7 +164,8 @@ CAL_UX_001_CODE_REVIEW = ACCEPTED
 CAL_UX_001_OWNER_MERGE_AUTHORIZATION = GRANTED_AND_CONSUMED
 CAL_UX_001_PR_19 = MERGED_CLOSED
 CAL_UX_001_INTEGRATION = COMPLETE
-CAL_UX_001_DEPLOYMENT = NOT_AUTHORIZED_NOT_DEPLOYED
+CAL_UX_001_TEST_DEPLOYMENT = VERIFIED
+CAL_UX_001_PRODUCTION_DEPLOYMENT = false
 CAL_UX_001_TAG = NOT_AUTHORIZED
 CAL_UX_001_RELEASE = NOT_AUTHORIZED
 

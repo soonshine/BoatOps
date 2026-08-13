@@ -1,6 +1,6 @@
 schema_version: 14
 project: BoatOps
-updated_at: "2026-08-13T12:29:00+07:00"
+updated_at: "2026-08-13T17:05:42+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
@@ -121,7 +121,20 @@ test_runtime:
     restore: PASS
     rollback: PASS
     scheduler_holds_expire: PASS
-  exact_real_pilot_candidate_deployed: false
+  deployed_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
+  deployed_source_class: MAIN_WITH_REAL_PILOT_AND_CAL_UX_001_ANCESTRY
+  real_pilot_candidate_included_in_deployed_ancestry: true
+  deployed_source_is_bare_real_pilot_candidate: false
+  cal_ux_001_deployed: true
+  fleet_inventory_source_present: true
+  unauthenticated_calendar_boundary: PASS
+  plan_c_read_model_smoke: PASS
+  inventory_zero_write: PASS
+  inventory_read_proof:
+    allocations: UNCHANGED
+    holds: UNCHANGED
+    bookings: UNCHANGED
+    blocks: UNCHANGED
   existing_docker_services_modified: false
   public_port_80_modified: false
 
@@ -180,9 +193,19 @@ real_pilot:
   environment: TEST_ONLY
   boat: Plan C
   configuration: READY
-  provisioning: PENDING
-  operator_secret: NOT_CONFIGURED
-  cao_login_smoke: PENDING
+  provisioning: COMPLETE
+  operator_secret: "DEFERRED / NOT_REQUIRED_FOR_CURRENT_PASSWORDLESS_VERIFICATION"
+  cao_login_smoke: DEFERRED_NO_PASSWORD
+  test_deployed_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
+  test_deployed_real_pilot_candidate_included_in_ancestry: true
+  unauthenticated_calendar_boundary: PASS
+  plan_c_read_model_smoke: PASS
+  inventory_zero_write: PASS
+  inventory_read_proof:
+    allocations: UNCHANGED
+    holds: UNCHANGED
+    bookings: UNCHANGED
+    blocks: UNCHANGED
   organization:
     name: Ayany Boat Operations
     timezone: Asia/Bangkok
@@ -234,7 +257,7 @@ real_pilot:
       can_block: true
   historical_plan_c_migration: false
   first_real_vertical_slice:
-    trigger: NEXT_REAL_PLAN_C_ORDER_AFTER_PROVISIONING_AND_LOGIN_SMOKE
+    trigger: NEXT_REAL_PLAN_C_ORDER_AFTER_AUTHENTICATED_OPERATOR_SMOKE
     synthetic_or_invented_real_order_forbidden: true
     sequence:
       - INQUIRY
@@ -251,7 +274,9 @@ real_pilot_candidate:
   branch: "codex/test-runtime-vertical-slice"
   code_configuration_status: INCLUDED_IN_MAIN_ANCESTRY
   merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
-  test_deployment_status: NOT_YET
+  test_deployment_status: DEPLOYED_AS_MAIN_ANCESTRY
+  deployed_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
+  included_in_deployed_ancestry: true
   github_ci: SUCCESS
 
 cal_ux_001:
@@ -272,9 +297,12 @@ cal_ux_001:
   schema_changed: false
   slot_calendar_read_model_changed: false
   application_inventory_actions_changed: false
-  deployment: NOT_AUTHORIZED_NOT_DEPLOYED
-  deployment_authorized: false
-  deployed: false
+  deployment: TEST_ONLY_DEPLOYED
+  deployment_authorized: true
+  deployed: true
+  test_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
+  fleet_inventory_source_present: true
+  unauthenticated_calendar_boundary: PASS
   tag: NOT_AUTHORIZED
   tag_authorized: false
   release: NOT_AUTHORIZED
@@ -336,7 +364,7 @@ gates:
     environment: TEST_ONLY
     authorized: true
   real_pilot_use:
-    status: AUTHORIZED_AFTER_PROVISIONING_AND_LOGIN_SMOKE
+    status: AUTHORIZED_AFTER_AUTHENTICATED_OPERATOR_SMOKE
     real_operator_use_authorized: true
     next_real_plan_c_order_authorized: true
     historical_migration_authorized: false
@@ -358,17 +386,29 @@ production:
   tag_authorized: false
   release_authorized: false
 
-current_blockers:
-  - REAL_OPERATOR_SECRET_NOT_CONFIGURED
-  - TEST_SSH_SECRET_NOT_CONFIGURED_FOR_EXACT_CANDIDATE_DEPLOYMENT
+current_blockers: []
+
+remaining_gate_prerequisites:
+  authenticated_operator_smoke: DEFERRED_NO_PASSWORD
+  first_real_plan_c_order: WAITING_FOR_AUTHENTICATED_OPERATOR_ACCESS_AND_NEXT_GENUINE_ORDER
+  engineering_required_now: false
+  note: "Authenticated Operator smoke may be completed later through an Owner-approved existing credential path; no further engineering is required now."
 
 next_action:
-  id: REAL_PILOT_EXECUTION
+  id: REAL_PILOT_OPERATIONAL_PATH
+  engineering_required: false
+  note: "Wait for authenticated Operator access and the next genuine Plan C order; do not create a synthetic order."
   sequence:
-    - DEPLOY_EXACT_REAL_PILOT_CANDIDATE_TO_TEST
-    - PROVISION_PLAN_C
-    - CAO_LOGIN_AND_CALENDAR_SMOKE
-    - RUN_NEXT_REAL_PLAN_C_ORDER_VERTICAL_SLICE
+    - AUTHENTICATED_OPERATOR_SMOKE
+    - WAIT_FOR_NEXT_GENUINE_PLAN_C_ORDER
+    - INQUIRY
+    - HOLD
+    - CONFIRM
+    - PREPARE
+    - DEPART
+    - RETURN
+    - COMPLETE
+    - AUDIT
     - RECORD_OBSERVED_OPERATIONAL_PAIN
 
 stop_conditions:

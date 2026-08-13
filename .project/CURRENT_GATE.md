@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-13 12:29 Asia/Bangkok
+Updated: 2026-08-13 17:05 Asia/Bangkok
 
 ## Current decision
 
@@ -11,6 +11,9 @@ TEST_RUNTIME_READY
 SYNTHETIC_VERTICAL_SLICE_COMPLETE
 REAL_PILOT_AUTHORIZED
 PLAN_C_CONFIGURATION_READY
+TEST_REAL_PILOT_DEPLOYED
+PLAN_C_PROVISIONING_COMPLETE
+AUTHENTICATED_OPERATOR_SMOKE_DEFERRED
 PR_18_MERGED
 CAL_UX_001_INTEGRATION_COMPLETE
 NO_NEW_FEATURE_DEVELOPMENT
@@ -68,8 +71,14 @@ Verified state:
 - Nginx, PHP-FPM, PostgreSQL, and Scheduler: active;
 - PostgreSQL backup, restore proof, rollback proof, and `holds:expire` scheduler proof: PASS;
 - existing Docker services and public `:80`: untouched.
+- deployed source: `b93846bfbdabc12fc83307392b3fa896aaf323c3`;
+- the immutable Real Pilot candidate `987eba04a1dc9073be6c02631792808debc35635` is included in deployed ancestry, not deployed as a bare SHA;
+- CAL-UX-001 Fleet Inventory source is present on TEST;
+- unauthenticated Calendar boundary: PASS;
+- Plan C Calendar read-model smoke: PASS;
+- inventory zero-write proof: PASS (`allocations`, `holds`, `bookings`, and `blocks` unchanged).
 
-This makes the TEST runtime `READY`. It does not mean the exact Real Pilot candidate is already deployed.
+This makes the TEST runtime `READY` with the verified Real Pilot and CAL-UX-001 ancestry deployed. It does not claim that TEST is running the bare immutable candidate SHA.
 
 ## Completed synthetic proof
 
@@ -112,6 +121,18 @@ REAL_OPERATOR_USE = AUTHORIZED
 REAL_PILOT_CONFIGURATION = AUTHORIZED
 ```
 
+Verified TEST execution state:
+
+```text
+TEST source = b93846bfbdabc12fc83307392b3fa896aaf323c3
+Real Pilot candidate included in deployed ancestry = true
+Plan C provisioning first execution = UNCHANGED
+Plan C provisioning exact rerun = UNCHANGED
+Operator identity = Cao exists uniquely with approved membership
+AUTHENTICATED_OPERATOR_SMOKE = DEFERRED_NO_PASSWORD
+allocations / holds / bookings / blocks = UNCHANGED
+```
+
 Plan C configuration is `READY`:
 
 - Organization: `Ayany Boat Operations`, `Asia/Bangkok`;
@@ -142,41 +163,46 @@ inventory authority changed = false
 SlotCalendarReadModel changed = false
 schema / migrations changed = false
 application inventory actions changed = false
-deployment = NOT_AUTHORIZED / NOT_DEPLOYED
+deployment = TEST_ONLY_DEPLOYED
+test source = b93846bfbdabc12fc83307392b3fa896aaf323c3
+Fleet Inventory source present = true
+unauthenticated Calendar boundary = PASS
 tag = NOT_AUTHORIZED
 release = NOT_AUTHORIZED
 ```
 
 CAL-UX-001 was an authorized narrow exception under `OBSERVED_OPERATIONAL_PAIN`; its integration is complete and it does not reopen feature development globally. Merge authorization has been consumed and does not authorize Deployment, Tag, Release, Cutover, or an authority switch.
 
-## Current blocker
+## Remaining gate prerequisite
 
 ```text
 PLAN_C_REAL_CONFIG = READY
-TEST_DEPLOYED_REAL_PILOT_HEAD = NOT_YET
-PLAN_C_PROVISIONING = PENDING
-REAL_OPERATOR_SECRET = NOT_CONFIGURED
-CAO_LOGIN_SMOKE = PENDING
+TEST_DEPLOYED_SOURCE = b93846bfbdabc12fc83307392b3fa896aaf323c3
+REAL_PILOT_CANDIDATE_IN_DEPLOYED_ANCESTRY = true
+PLAN_C_PROVISIONING = COMPLETE
+AUTHENTICATED_OPERATOR_SMOKE = DEFERRED_NO_PASSWORD
+FIRST_REAL_PLAN_C_ORDER = WAITING_FOR_AUTHENTICATED_OPERATOR_ACCESS_AND_NEXT_GENUINE_ORDER
+NO_ACTIVE_ENGINEERING_BLOCKER = true
 ```
 
-This is an execution-secret blocker, not a code blocker. Do not add code to bypass secret injection.
+The deferred authentication step is a gate prerequisite, not an active engineering blocker. The Owner may complete it later through an existing approved credential path; do not create, reset, rotate, or bypass credentials.
 
-## Allowed now
+## Next operational path
 
-Only the following Real Pilot execution path is active:
+No further engineering is required now. The next operational path is:
 
 ```text
-deploy exact Real Pilot candidate to TEST
--> provision Plan C
--> Cao login/calendar smoke
--> next real Plan C order
+AUTHENTICATED_OPERATOR_SMOKE
+-> WAIT_FOR_NEXT_GENUINE_PLAN_C_ORDER
+-> Inquiry
+-> HOLD
+-> Confirm
+-> Prepare
+-> Depart
+-> Return
+-> Complete
+-> Audit
 -> record observed operational pain
-```
-
-The next real order will use:
-
-```text
-Inquiry -> HOLD -> Confirm -> Prepare -> Depart -> Return -> Complete -> Audit
 ```
 
 Historical Plan C orders will not be migrated. Do not create a synthetic or invented “real” order.
@@ -187,7 +213,10 @@ CAL-UX-001 integration is complete and does not replace or alter the Real Pilot 
 PR #19 = MERGED / CLOSED
 implementation fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa = INCLUDED IN MAIN ANCESTRY
 merge commit = 77db16f16617ddcbb09ebf66d83a65a0c97695e5
-deployment = NOT_AUTHORIZED / NOT_DEPLOYED
+deployment = TEST_ONLY_DEPLOYED
+test source = b93846bfbdabc12fc83307392b3fa896aaf323c3
+Fleet Inventory source present = true
+unauthenticated Calendar boundary = PASS
 ```
 
 ## Development rule
@@ -225,12 +254,13 @@ PRODUCTION_DEPLOYMENT = false
 CUTOVER = false
 AUTHORITY_SWITCH = false
 PR_19 = MERGED_CLOSED
-CAL_UX_001_DEPLOYMENT = false
+CAL_UX_001_TEST_DEPLOYMENT = VERIFIED
+CAL_UX_001_PRODUCTION_DEPLOYMENT = false
 TAG = false
 RELEASE = false
 ```
 
-This governance-only synchronization changes no runtime behavior. Production, Docker, public `:80`, Plan C provisioning, real data, and the CAL-UX-001 implementation branch remain untouched.
+This governance-only synchronization changes no runtime behavior. It records already verified TEST deployment and passwordless Plan C state; it does not execute deployment, provisioning, production changes, real-data migration, cutover, tag, release, or modification of the CAL-UX-001 implementation branch.
 
 ## Closed history
 
