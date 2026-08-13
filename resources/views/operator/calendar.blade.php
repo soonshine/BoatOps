@@ -1,6 +1,6 @@
 @extends('operator.layout')
 
-@section('title', 'Fleet Inventory')
+@section('title', '船期库存')
 @section('bodyClass', 'fleet-calendar-body')
 
 @section('head')
@@ -66,8 +66,7 @@
     color: #52667a;
     font-size: .78rem;
     font-weight: 800;
-    letter-spacing: .08em;
-    text-transform: uppercase;
+    letter-spacing: .03em;
 }
 .fleet-page-header h1 {
     margin: 0;
@@ -130,6 +129,10 @@
     line-height: 1.1;
 }
 .summary-card small { color: #6b7f93; }
+.summary-card.status-available {
+    background: #f8fafc;
+    box-shadow: none;
+}
 .status-available { --status-color: #15803d; --status-soft: #ecfdf3; --status-ink: #166534; }
 .status-held { --status-color: #d97706; --status-soft: #fffbeb; --status-ink: #92400e; }
 .status-confirmed { --status-color: #2563eb; --status-soft: #eff6ff; --status-ink: #1e40af; }
@@ -225,7 +228,7 @@
     color: var(--status-ink);
     font-size: .68rem;
     font-weight: 900;
-    letter-spacing: .045em;
+    letter-spacing: .02em;
     line-height: 1.3;
 }
 .status-badge::before {
@@ -326,6 +329,7 @@
     min-width: 14rem;
     background: #fbfdff;
 }
+.date-cell[data-availability-mode="quiet"] { background: #fdfefe; }
 .cell-date { display: none; }
 .slot-card {
     position: relative;
@@ -336,6 +340,7 @@
     border-radius: .7rem;
     background: var(--status-soft);
     color: #25374a;
+    box-shadow: 0 3px 10px rgb(15 23 42 / 7%);
 }
 .slot-card:last-of-type { margin-bottom: 0; }
 .slot-card.status-unavailable {
@@ -390,6 +395,96 @@
     text-underline-offset: .18rem;
 }
 .slot-detail-state { color: #627d98; font-style: italic; }
+.available-slots {
+    margin: 0;
+    border: 1px dashed #a9bdcf;
+    border-radius: .7rem;
+    background: #fff;
+    color: #52667a;
+}
+.available-slots[open] {
+    border-style: solid;
+    border-color: #86b79a;
+    box-shadow: 0 5px 16px rgb(15 23 42 / 8%);
+}
+.available-slots summary {
+    display: flex;
+    min-height: 5.4rem;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .8rem;
+    color: #527060;
+    font-size: .78rem;
+    font-weight: 800;
+    text-align: center;
+    cursor: pointer;
+    list-style: none;
+}
+.available-slots summary::-webkit-details-marker { display: none; }
+.available-slots summary::before {
+    width: .48rem;
+    height: .48rem;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #5b9270;
+    content: '';
+}
+.available-slots summary::after {
+    color: #6b7f93;
+    content: '＋';
+    font-size: 1rem;
+}
+.available-slots[open] summary {
+    min-height: 0;
+    justify-content: space-between;
+    border-bottom: 1px solid #dce7df;
+    color: #285a3d;
+    text-align: left;
+}
+.available-slots[open] summary::after { content: '−'; }
+.available-slots.is-partial { margin-top: .65rem; }
+.available-slots.is-partial summary { min-height: 3.6rem; }
+.available-slot-list {
+    display: grid;
+    gap: .45rem;
+    margin: 0;
+    padding: .55rem;
+    list-style: none;
+}
+.available-slot-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .35rem .6rem;
+    align-items: center;
+    padding: .55rem;
+    border-radius: .5rem;
+    background: #f4faf6;
+}
+.available-slot-option strong {
+    display: block;
+    color: #183b29;
+    font-size: .8rem;
+    line-height: 1.3;
+}
+.available-slot-option time,
+.available-slot-option small {
+    color: #60786a;
+    font-size: .7rem;
+    font-variant-numeric: tabular-nums;
+}
+.available-slot-option .slot-action {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    margin: 0;
+    white-space: nowrap;
+}
+.available-read-only {
+    margin: 0;
+    padding: 0 .65rem .65rem;
+    color: #6b7f93;
+    font-size: .72rem;
+}
 .empty-slots {
     margin: 0;
     color: #7b8fa3;
@@ -469,6 +564,19 @@
         font-weight: 850;
     }
     .slot-card { padding: .62rem; }
+    .available-slots summary { min-height: 4.8rem; }
+    .available-slot-option { grid-template-columns: 1fr; }
+    .available-slot-option .slot-action {
+        grid-row: auto;
+        grid-column: auto;
+        min-height: 2.35rem;
+        justify-content: center;
+        padding: .45rem .6rem;
+        border: 1px solid #b6cfbf;
+        border-radius: .45rem;
+        background: #fff;
+        text-decoration: none;
+    }
 }
 </style>
 @endsection
@@ -477,79 +585,126 @@
 @php
     $operatorMembership = request()->attributes->get('operator_membership');
     $statusLabels = [
-        'AVAILABLE' => 'Available',
-        'HELD' => 'Held',
-        'CONFIRMED' => 'Confirmed',
-        'BLOCKED' => 'Blocked',
-        'UNAVAILABLE' => 'Unavailable',
+        'AVAILABLE' => '可用',
+        'HELD' => '已预留',
+        'CONFIRMED' => '已确认',
+        'BLOCKED' => '已停用',
+        'UNAVAILABLE' => '不可用',
+    ];
+    $allocationTypeLabels = [
+        'HOLD' => '预留',
+        'BOOKING' => '订单',
+        'BLOCK' => '停用',
     ];
     $calendarQuery = static fn (array $overrides = []): array => array_filter(
         array_merge(['from' => $from, 'range' => $range, 'boat_id' => $selectedBoatId], $overrides),
         static fn (mixed $value): bool => $value !== null,
     );
+    $displaySlotName = static function (string $slotName, string $boatName, string $slotCode = ''): string {
+        $displayName = trim($slotName);
+        $trimmedBoatName = trim($boatName);
+
+        if ($trimmedBoatName !== '') {
+            $withoutBoat = preg_replace('/^'.preg_quote($trimmedBoatName, '/').'\s*/iu', '', $displayName);
+            if (is_string($withoutBoat) && $withoutBoat !== '') {
+                $displayName = $withoutBoat;
+            }
+        }
+
+        $displayName = preg_replace('/(\d+)\s*小时/u', '$1 小时', $displayName) ?? $displayName;
+        $displayName = preg_replace('/^(\d+\s*小时)\s*(上午|下午)/u', '$2 $1', $displayName) ?? $displayName;
+
+        if (preg_match('/(?:^|[-_])AM$/i', $slotCode) === 1 && ! str_contains($displayName, '上午')) {
+            $displayName = '上午 '.$displayName;
+        } elseif (preg_match('/(?:^|[-_])PM$/i', $slotCode) === 1 && ! str_contains($displayName, '下午')) {
+            $displayName = '下午 '.$displayName;
+        }
+
+        return trim($displayName);
+    };
+    $durationLabel = static fn (int $minutes): string => $minutes % 60 === 0
+        ? (int) ($minutes / 60).' 小时'
+        : $minutes.' 分钟';
+    $conflictReason = static function (array $slot): ?string {
+        if (! $slot['conflict_message']) {
+            return null;
+        }
+
+        return match ($slot['conflict_code'] ?? null) {
+            'SLOT_COMPATIBILITY_CONFLICT' => '同一船只、同一服务日期下，这些时段不能组合。',
+            'SIMULATED_SELECTION' => (string) $slot['conflict_message'],
+            'SLOT_UNAVAILABLE' => match ($slot['status']) {
+                'HELD' => '该时段已被预留。',
+                'CONFIRMED' => '该时段已有已确认订单。',
+                'BLOCKED' => '该时段已停用。',
+                default => '该服务时段当前不可用于后续选择。',
+            },
+            default => (string) $slot['conflict_message'],
+        };
+    };
 @endphp
 <main class="fleet-calendar-page" data-fleet-calendar data-view-days="{{ $range }}">
 <header class="fleet-page-header">
 <div>
-<p class="fleet-eyebrow">{{ $organization->name }} · {{ $calendar['business_timezone'] }}</p>
-<h1>Fleet Inventory</h1>
-<p class="fleet-subtitle">See which whole vessels can actually be sold or used for each upcoming service interval. Final HOLD and booking actions are always rechecked by the server.</p>
+<p class="fleet-eyebrow">{{ $organization->name }}</p>
+<h1>船期库存</h1>
+<p class="fleet-subtitle">按船只、日期和服务时段查看可销售或可使用的船期。预留和确认时仍由服务器重新校验实际占用。</p>
 </div>
-<p class="fleet-range-label"><time datetime="{{ $calendar['from'] }}">{{ $calendar['from'] }}</time> → <time datetime="{{ $calendar['to'] }}">{{ $calendar['to'] }}</time></p>
+<p class="fleet-range-label"><time datetime="{{ $calendar['from'] }}">{{ $rangeStartLabel }}</time> → <time datetime="{{ $calendar['to'] }}">{{ $rangeEndLabel }}</time></p>
 </header>
 
-<section class="fleet-summary" aria-label="Projected service slot summary">
+<section class="fleet-summary" aria-label="当前视图服务时段汇总">
 @foreach(['AVAILABLE', 'HELD', 'CONFIRMED', 'BLOCKED'] as $status)
 <article class="summary-card status-{{ strtolower($status) }}" data-summary-status="{{ $status }}">
-<span>{{ $status }}</span>
+<span>{{ $statusLabels[$status] }}</span>
 <strong>{{ $summary[$status] }}</strong>
-<small>service slots in view</small>
+<small>当前视图服务时段</small>
 </article>
 @endforeach
 </section>
 
 <form class="fleet-toolbar" method="get" action="{{ route('operator.calendar') }}">
 <input type="hidden" name="range" value="{{ $range }}">
-<label>Start date
+<label>开始日期
 <input type="date" name="from" value="{{ $from }}" required>
 </label>
-<label>Boat
+<label>船只
 <select name="boat_id">
-<option value="">All active boats</option>
+<option value="">全部在用船只</option>
 @foreach($boats as $boat)
 <option value="{{ $boat->id }}" @selected($selectedBoatId === (int) $boat->id)>{{ $boat->name }}</option>
 @endforeach
 </select>
 </label>
-<button type="submit">Apply view</button>
+<button type="submit">应用</button>
 </form>
 
 <div class="fleet-controls">
-<nav class="range-switcher" aria-label="Calendar range">
+<nav class="range-switcher" aria-label="日历范围">
 @foreach([7, 14, 30] as $viewRange)
-<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['range' => $viewRange])) }}" @if($range === $viewRange) aria-current="page" @endif>{{ $viewRange }} days</a>
+<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['range' => $viewRange])) }}" @if($range === $viewRange) aria-current="page" @endif>{{ $viewRange }} 天</a>
 @endforeach
 </nav>
-<nav class="date-pager" aria-label="Calendar dates">
-<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['from' => $previousFrom])) }}">← Previous</a>
-<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['from' => $todayFrom])) }}">Today</a>
-<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['from' => $nextFrom])) }}">Next →</a>
+<nav class="date-pager" aria-label="日历翻页">
+<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['from' => $previousFrom])) }}">← 上一页</a>
+<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['from' => $todayFrom])) }}">今天</a>
+<a class="button secondary" href="{{ route('operator.calendar', $calendarQuery(['from' => $nextFrom])) }}">下一页 →</a>
 </nav>
 </div>
 
-<div class="status-legend" aria-label="Inventory status legend">
-<strong>Status:</strong>
+<div class="status-legend" aria-label="库存状态说明">
+<strong>状态：</strong>
 @foreach(array_keys($statusLabels) as $status)
-<span class="status-badge status-{{ strtolower($status) }}">{{ $status }}</span>
+<span class="status-badge status-{{ strtolower($status) }}">{{ $statusLabels[$status] }}</span>
 @endforeach
 </div>
 
-<div class="calendar-scroll" tabindex="0" aria-label="Fleet inventory calendar. Scroll horizontally to view more dates.">
+<div class="calendar-scroll" tabindex="0" aria-label="船期库存日历，可横向滚动查看更多日期。">
 <table class="fleet-table">
-<caption class="sr-only">Fleet inventory by boat, date, and service interval</caption>
+<caption class="sr-only">按船只、日期和服务时段显示船期库存</caption>
 <thead>
 <tr>
-<th class="boat-column" scope="col">Boat</th>
+<th class="boat-column" scope="col">船只</th>
 @foreach($dateHeaders as $dateHeader)
 <th scope="col">
 <time datetime="{{ $dateHeader['date'] }}"><span class="weekday">{{ $dateHeader['weekday'] }}</span>{{ $dateHeader['label'] }}</time>
@@ -562,15 +717,31 @@
 <tr data-boat-id="{{ $boat['boat_id'] }}">
 <th class="boat-column" scope="row">
 <strong class="boat-name">{{ $boat['name'] }}</strong>
-<span class="boat-meta">Whole vessel</span>
+<span class="boat-meta">整船</span>
 @if($boat['buffer_before_minutes'] > 0 || $boat['buffer_after_minutes'] > 0)
-<span class="boat-meta">Buffer −{{ $boat['buffer_before_minutes'] }} / +{{ $boat['buffer_after_minutes'] }} min</span>
+@if($boat['buffer_before_minutes'] === $boat['buffer_after_minutes'])
+<span class="boat-meta">前后缓冲 {{ $boat['buffer_before_minutes'] }} 分钟</span>
+@else
+<span class="boat-meta">前缓冲 {{ $boat['buffer_before_minutes'] }} 分钟 · 后缓冲 {{ $boat['buffer_after_minutes'] }} 分钟</span>
+@endif
 @endif
 </th>
-@foreach($boat['dates'] as $day)
-<td class="date-cell" data-business-date="{{ $day['date'] }}">
-<time class="cell-date" datetime="{{ $day['date'] }}">{{ $day['date'] }}</time>
-@forelse($day['slots'] as $slot)
+@foreach($boat['dates'] as $dateIndex => $day)
+@php
+    $availableSlots = collect($day['slots'])->filter(
+        static fn (array $slot): bool => $slot['status'] === 'AVAILABLE',
+    )->values();
+    $exceptionSlots = collect($day['slots'])->reject(
+        static fn (array $slot): bool => $slot['status'] === 'AVAILABLE',
+    )->values();
+    $availabilityMode = $availableSlots->isNotEmpty() && $exceptionSlots->isEmpty()
+        ? 'quiet'
+        : ($availableSlots->isNotEmpty() ? 'partial' : 'exceptions');
+    $dayHeader = $dateHeaders[$dateIndex];
+@endphp
+<td class="date-cell" data-business-date="{{ $day['date'] }}" data-availability-mode="{{ $availabilityMode }}">
+<time class="cell-date" datetime="{{ $day['date'] }}">{{ $dayHeader['weekday'] }} · {{ $dayHeader['label'] }}</time>
+@foreach($exceptionSlots as $slot)
 @php
     $status = array_key_exists($slot['status'], $statusLabels) ? $slot['status'] : 'UNAVAILABLE';
     $serviceStart = \Carbon\CarbonImmutable::parse($slot['service_start_local'])->format('H:i');
@@ -579,54 +750,77 @@
     $occupiedEnd = \Carbon\CarbonImmutable::parse($slot['occupied_end_local'])->format('H:i');
     $allocationId = (int) ($slot['authority']['allocation_id'] ?? 0);
     $actionLink = $allocationActionLinks[$allocationId] ?? null;
+    $slotDisplayName = $displaySlotName($slot['name'], $boat['name'], $slot['code']);
+    $slotConflictReason = $conflictReason($slot);
 @endphp
-<article class="slot-card status-{{ strtolower($status) }}" data-calendar-status="{{ $status }}" data-slot-code="{{ $slot['code'] }}">
+<article class="slot-card exception-card status-{{ strtolower($status) }}" data-calendar-status="{{ $status }}" data-exception-status="{{ $status }}" data-conflict-code="{{ $slot['conflict_code'] }}" data-slot-code="{{ $slot['code'] }}">
 <header>
-<h3>{{ $slot['name'] }}</h3>
-<span class="status-badge status-{{ strtolower($status) }}">{{ $status }}</span>
+<h3>{{ $slotDisplayName }}</h3>
+<span class="status-badge status-{{ strtolower($status) }}">{{ $statusLabels[$status] }}</span>
 </header>
-<p class="slot-time"><time datetime="{{ $slot['service_start_local'] }}">{{ $serviceStart }}</time>–<time datetime="{{ $slot['service_end_local'] }}">{{ $serviceEnd }}</time><span class="slot-duration">{{ $slot['duration_minutes'] }} min</span></p>
+<p class="slot-time"><time datetime="{{ $slot['service_start_local'] }}">{{ $serviceStart }}</time>–<time datetime="{{ $slot['service_end_local'] }}">{{ $serviceEnd }}</time><span class="slot-duration">{{ $durationLabel((int) $slot['duration_minutes']) }}</span></p>
 @if($slot['buffer_conflict'])
-<p class="buffer-indicator">Buffer conflict · occupied {{ $occupiedStart }}–{{ $occupiedEnd }}</p>
+<p class="buffer-indicator">缓冲时间冲突 · 占用 {{ $occupiedStart }}–{{ $occupiedEnd }}</p>
 @endif
-@if($slot['conflict_message'])
-<p class="slot-reason">{{ $slot['conflict_message'] }}</p>
+@if($slotConflictReason)
+<p class="slot-reason">{{ $slotConflictReason }}</p>
 @endif
 
-@if($status === 'AVAILABLE' && $operatorMembership?->can_booking_workflow)
+@if(in_array($status, ['HELD', 'CONFIRMED'], true) && $operatorMembership?->can_booking_workflow && $actionLink)
+<a class="slot-action" href="{{ $actionLink['url'] }}">{{ $actionLink['label'] }} →</a>
+@elseif($status === 'BLOCKED' && $operatorMembership?->can_block && $actionLink)
+<a class="slot-action" href="{{ $actionLink['url'] }}">{{ $actionLink['label'] }} →</a>
+@elseif(in_array($status, ['HELD', 'CONFIRMED', 'BLOCKED'], true))
+<p class="slot-detail-state">当前账号无可执行操作，库存详情仍可查看。</p>
+@endif
+</article>
+@endforeach
+
+@if($availableSlots->isNotEmpty())
+<details class="available-slots {{ $exceptionSlots->isNotEmpty() ? 'is-partial' : '' }}" data-available-trigger data-derived-available-count="{{ $availableSlots->count() }}">
+<summary>{{ $exceptionSlots->isNotEmpty() ? '还有 ' : '' }}{{ $availableSlots->count() }} 个可用时段 · 点击查看</summary>
+<ul class="available-slot-list">
+@foreach($availableSlots as $slot)
 @php
+    $serviceStart = \Carbon\CarbonImmutable::parse($slot['service_start_local'])->format('H:i');
+    $serviceEnd = \Carbon\CarbonImmutable::parse($slot['service_end_local'])->format('H:i');
+    $slotDisplayName = $displaySlotName($slot['name'], $boat['name'], $slot['code']);
     $inquiryQuery = array_filter([
         'boat_id' => $boat['boat_id'],
         'service_date' => $day['date'],
         'slot_offering_id' => $slot['slot_offering_id'],
     ], static fn (mixed $value): bool => $value !== null);
 @endphp
-<a class="slot-action" href="{{ route('operator.inquiries.create', $inquiryQuery) }}">Start inquiry →</a>
-@elseif(in_array($status, ['HELD', 'CONFIRMED'], true) && $operatorMembership?->can_booking_workflow && $actionLink)
-<a class="slot-action" href="{{ $actionLink['url'] }}">{{ $actionLink['label'] }} →</a>
-@elseif($status === 'BLOCKED' && $operatorMembership?->can_block && $actionLink)
-<a class="slot-action" href="{{ $actionLink['url'] }}">{{ $actionLink['label'] }} →</a>
-@elseif(in_array($status, ['AVAILABLE', 'HELD', 'CONFIRMED', 'BLOCKED'], true))
-<p class="slot-detail-state">No permitted direct action. Inventory detail remains visible.</p>
+<li class="available-slot-option" data-available-slot-option data-calendar-status="AVAILABLE" data-slot-code="{{ $slot['code'] }}">
+<span><strong>{{ $slotDisplayName }}</strong><time datetime="{{ $slot['service_start_local'] }}">{{ $serviceStart }}</time>–<time datetime="{{ $slot['service_end_local'] }}">{{ $serviceEnd }}</time> <small>· {{ $durationLabel((int) $slot['duration_minutes']) }}</small></span>
+@if($operatorMembership?->can_booking_workflow)
+<a class="slot-action" data-available-action href="{{ route('operator.inquiries.create', $inquiryQuery) }}">创建询价 →</a>
 @endif
-</article>
-@empty
-<p class="empty-slots">No configured service slots.</p>
-@endforelse
+</li>
+@endforeach
+</ul>
+@unless($operatorMembership?->can_booking_workflow)
+<p class="available-read-only">当前账号仅可查看可用时段。</p>
+@endunless
+</details>
+@elseif($day['slots'] === [])
+<p class="empty-slots">暂无已配置服务时段。</p>
+@endif
 
 @if($day['allocations'] !== [])
 <details class="occupied-details">
-<summary>{{ count($day['allocations']) }} active occupied {{ count($day['allocations']) === 1 ? 'interval' : 'intervals' }}</summary>
+<summary>{{ count($day['allocations']) }} 个当前占用区间</summary>
 @foreach($day['allocations'] as $allocation)
 @php
     $allocationStatus = array_key_exists($allocation['status'], $statusLabels) ? $allocation['status'] : 'UNAVAILABLE';
     $allocationStart = \Carbon\CarbonImmutable::parse($allocation['occupied_start_local'])->format('H:i');
     $allocationEnd = \Carbon\CarbonImmutable::parse($allocation['occupied_end_local'])->format('H:i');
+    $allocationName = $allocation['slot_name'] ?? ($allocationTypeLabels[$allocation['allocation_type']] ?? '占用');
 @endphp
 <div class="occupied-row">
-<span class="status-badge status-{{ strtolower($allocationStatus) }}">{{ $allocationStatus }}</span>
-<strong>{{ $allocation['slot_name'] ?? ucfirst(strtolower($allocation['allocation_type'])) }}</strong>
-<time>{{ $allocationStart }}–{{ $allocationEnd }} occupied</time>
+<span class="status-badge status-{{ strtolower($allocationStatus) }}">{{ $statusLabels[$allocationStatus] }}</span>
+<strong>{{ $displaySlotName((string) $allocationName, $boat['name']) }}</strong>
+<time>{{ $allocationStart }}–{{ $allocationEnd }} 占用</time>
 </div>
 @endforeach
 </details>
@@ -635,17 +829,17 @@
 @endforeach
 </tr>
 @empty
-<tr><td class="fleet-empty" colspan="{{ $range + 1 }}">No active boats match this view.</td></tr>
+<tr><td class="fleet-empty" colspan="{{ $range + 1 }}">当前视图没有匹配的在用船只。</td></tr>
 @endforelse
 </tbody>
 </table>
 </div>
 
 <footer class="projection-note">
-<p>Calendar projection only. Final availability, HOLD, and confirmation decisions use the existing occupied-interval authority.</p>
+<p>日历仅为只读投影。最终可用性、预留和确认仍使用既有占用区间权威重新校验。</p>
 <details>
-<summary>Projection details</summary>
-<p>{{ $calendar['read_model_notice'] }} Revision {{ $calendar['inventory_revision'] }} · as of {{ $calendar['as_of'] }}.</p>
+<summary>技术信息</summary>
+<p>库存修订 {{ $calendar['inventory_revision'] }} · 生成时间 {{ $calendar['as_of'] }}</p>
 </details>
 </footer>
 </main>
