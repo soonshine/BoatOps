@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>@yield('title', 'Operator')</title>
+<title>@yield('title', '船务操作台')</title>
 <style>
 body { font-family: system-ui, sans-serif; margin: 2rem; }
 nav { display: flex; gap: 1rem; }
@@ -20,22 +20,22 @@ fieldset { margin: 1rem 0; padding: 1rem; }
 <body class="@yield('bodyClass')">
 @auth
 @php($operatorMembership = request()->attributes->get('operator_membership'))
-<nav class="operator-nav" aria-label="Operator navigation">
+<nav class="operator-nav" aria-label="操作导航">
 @if($operatorMembership?->can_calendar_read)
-<a href="{{ route('operator.calendar') }}">Calendar</a>
-<a href="{{ route('operator.audit') }}">Audit trail</a>
+<a href="{{ route('operator.calendar') }}">船期</a>
+<a href="{{ route('operator.audit') }}">操作记录</a>
 @endif
 @if($operatorMembership?->can_booking_workflow)
-<a href="{{ route('operator.inquiries.index') }}">Inquiries</a>
-<a href="{{ route('operator.bookings.index') }}">Bookings</a>
-<a href="{{ route('operator.trips.index') }}">Trips</a>
+<a href="{{ route('operator.inquiries.index') }}">询价</a>
+<a href="{{ route('operator.bookings.index') }}">订单</a>
+<a href="{{ route('operator.trips.index') }}">出航</a>
 @endif
 @if($operatorMembership?->can_block)
-<a href="{{ route('operator.blocks.index') }}">BLOCKs</a>
+<a href="{{ route('operator.blocks.index') }}">停用</a>
 @endif
 <form method="post" action="{{ route('operator.logout') }}">
 @csrf
-<button>Logout</button>
+<button>退出</button>
 </form>
 </nav>
 @endauth

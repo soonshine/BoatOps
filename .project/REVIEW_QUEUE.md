@@ -1,6 +1,6 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-13 17:05 Asia/Bangkok
+Last updated: 2026-08-13 18:54 Asia/Bangkok
 
 The primary active queue now contains only the remaining authenticated Operator gate and the next genuine Plan C order. CAL-UX-001 integration and the passwordless TEST reconciliation are recorded as completed evidence. Completed Deployment Readiness, DR04, DR17 input, synthetic runtime, backup, restore, rollback, and scheduler items are closed evidence below, not active blockers.
 
@@ -10,6 +10,7 @@ The primary active queue now contains only the remaining authenticated Operator 
 | --- | --- | --- |
 | `AUTHENTICATED-OPERATOR-SMOKE` | `DEFERRED / NO_PASSWORD` | Complete later through an Owner-approved existing credential path; do not create, reset, rotate, or bypass credentials |
 | `FIRST-REAL-PLAN-C-VERTICAL-SLICE` | `WAITING / NEXT_GENUINE_ORDER` | After authenticated Operator smoke, run the next genuine Plan C order from Inquiry through Audit; do not invent an order |
+| `CAL-UX-002` | `IMPLEMENTED / REVIEW_PENDING` | Review the exact Issue #23 implementation diff and exact-head CI; Owner decides whether to authorize merge |
 | `DR16` | `PARALLEL_BEFORE_CUTOVER / NOT_CURRENT_REAL_PILOT_BLOCKER` | Keep `main.protected=false` visible; require separate authorization before any GitHub settings mutation |
 
 ## Operational order
@@ -22,6 +23,25 @@ AUTHENTICATED-OPERATOR-SMOKE
 ```
 
 No feature-development item belongs in this queue unless it is a proven Real Pilot blocker or observed operational pain.
+
+## Bounded parallel implementation
+
+CAL-UX-002 records pain observed by the Owner while reviewing the TEST Operator Calendar. It does not replace the Real Pilot operational order above.
+
+```text
+classification = OBSERVED_OPERATIONAL_PAIN
+source = OWNER_TEST_CALENDAR_REVIEW
+Issue #23 = OPEN
+base = c176b91530019f47145947e63fe5929880d2ff37
+branch = codex/cal-ux-002
+status = IMPLEMENTED / REVIEW_PENDING
+scope = CHINESE-FIRST + QUIET AVAILABLE / EXCEPTION-FIRST PRESENTATION
+inventory authority / SlotCalendarReadModel / schema / migrations / application inventory actions = UNCHANGED
+local PHP, format, contract, frontend, and visual checks = PASS
+GitHub exact-head CI = REQUIRED_AT_REVIEW_GATE
+merge authorization = false
+deployment authorization = false
+```
 
 ## Completed bounded integration
 
@@ -44,7 +64,7 @@ unauthenticated Calendar boundary = PASS
 
 ```text
 canonical main:
-  authoring baseline: 77db16f16617ddcbb09ebf66d83a65a0c97695e5
+  authoring baseline: c176b91530019f47145947e63fe5929880d2ff37
   live head source: GitHub refs/heads/main
   PR #18 included: YES
   PR #19 included: YES
@@ -70,7 +90,7 @@ PR #19:
   merge commit: 77db16f16617ddcbb09ebf66d83a65a0c97695e5
 ```
 
-`77db16f16617ddcbb09ebf66d83a65a0c97695e5` is the verified authoring baseline. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE`; no future governance-receipt merge SHA is predicted here.
+`c176b91530019f47145947e63fe5929880d2ff37` is the verified CAL-UX-002 authoring baseline. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE`; later gates must still resolve the live GitHub ref.
 
 ## Closed execution evidence
 

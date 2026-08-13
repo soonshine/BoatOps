@@ -1,6 +1,6 @@
 schema_version: 14
 project: BoatOps
-updated_at: "2026-08-13T17:05:42+07:00"
+updated_at: "2026-08-13T18:54:06+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
@@ -21,7 +21,7 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
+    sha: "c176b91530019f47145947e63fe5929880d2ff37"
     sha_role: VERIFIED_AUTHORING_BASELINE
     live_head_source: GITHUB_REF
     pr_18_included: true
@@ -308,6 +308,37 @@ cal_ux_001:
   release: NOT_AUTHORIZED
   release_authorized: false
 
+cal_ux_002:
+  classification: OBSERVED_OPERATIONAL_PAIN
+  source: OWNER_TEST_CALENDAR_REVIEW
+  owner_authorization: GRANTED
+  issue: 23
+  implementation_base_sha: "c176b91530019f47145947e63fe5929880d2ff37"
+  branch: "codex/cal-ux-002"
+  state: IMPLEMENTED_REVIEW_PENDING
+  scope: CHINESE_FIRST_AND_QUIET_AVAILABLE_OPERATOR_CALENDAR
+  inventory_authority_changed: false
+  schema_changed: false
+  migrations_changed: false
+  slot_calendar_read_model_changed: false
+  application_inventory_actions_changed: false
+  organization_isolation_preserved: true
+  permission_degradation_preserved: true
+  local_validation: PASS
+  visual_validation:
+    desktop_1440: PASS
+    mobile_390_viewport: PASS
+    full_page_horizontal_overflow: false
+    browser_console_errors: 0
+  merge_authorized: false
+  deployment_authorized: false
+  deployed: false
+  production_touched: false
+  cutover_authorized: false
+  authority_switch_authorized: false
+  tag_authorized: false
+  release_authorized: false
+
 dr16:
   status: PARALLEL_BEFORE_CUTOVER
   current_real_pilot_blocker: false
@@ -324,6 +355,10 @@ development_rule:
   authorized_narrow_exceptions:
     - id: CAL-UX-001
       basis: OBSERVED_OPERATIONAL_PAIN
+      global_feature_development_reopened: false
+    - id: CAL-UX-002
+      basis: OBSERVED_OPERATIONAL_PAIN
+      source: OWNER_TEST_CALENDAR_REVIEW
       global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
   state_updates: SAME_RELEVANT_PR_BY_DEFAULT
@@ -353,12 +388,14 @@ development_rule:
 
 gates:
   code:
-    status: PR_18_MERGED_CAL_UX_001_INTEGRATION_COMPLETE
+    status: CAL_UX_002_IMPLEMENTED_REVIEW_PENDING
     new_feature_development_authorized: false
     pr_18: MERGED_CLOSED
     pr_19: MERGED_CLOSED
     cal_ux_001_owner_merge_authorization: GRANTED_AND_CONSUMED
     cal_ux_001_integration: COMPLETE
+    cal_ux_002: IMPLEMENTED_REVIEW_PENDING
+    cal_ux_002_merge_authorized: false
   test_deployment:
     status: REAL_PILOT_EXECUTION_AUTHORIZED
     environment: TEST_ONLY

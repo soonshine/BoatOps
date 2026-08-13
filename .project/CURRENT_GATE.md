@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-13 17:05 Asia/Bangkok
+Updated: 2026-08-13 18:54 Asia/Bangkok
 
 ## Current decision
 
@@ -16,10 +16,11 @@ PLAN_C_PROVISIONING_COMPLETE
 AUTHENTICATED_OPERATOR_SMOKE_DEFERRED
 PR_18_MERGED
 CAL_UX_001_INTEGRATION_COMPLETE
+CAL_UX_002_IMPLEMENTED_REVIEW_PENDING
 NO_NEW_FEATURE_DEVELOPMENT
 ```
 
-BoatOps has left the active Deployment Readiness / governance-planning phase. The primary job remains the shortest TEST-only path to real Plan C use. No global new-feature package is open; CAL-UX-001 is a narrow already-authorized exception for observed operational pain.
+BoatOps has left the active Deployment Readiness / governance-planning phase. The primary job remains the shortest TEST-only path to real Plan C use. No global new-feature package is open; CAL-UX-002 is a narrow Owner-authorized response to pain observed during TEST Calendar review.
 
 The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operational queue is in `REVIEW_QUEUE.md`.
 
@@ -29,7 +30,7 @@ The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operation
 
 ```text
 canonical main:
-  verified authoring baseline: 77db16f16617ddcbb09ebf66d83a65a0c97695e5
+  verified authoring baseline: c176b91530019f47145947e63fe5929880d2ff37
   live head: resolve refs/heads/main from GitHub at each later gate
   PR #18 included: YES
   PR #19 included: YES
@@ -56,7 +57,7 @@ PR #19:
   merge commit: 77db16f16617ddcbb09ebf66d83a65a0c97695e5
 ```
 
-`77db16f16617ddcbb09ebf66d83a65a0c97695e5` is the verified canonical-main baseline at authoring time, not the unknown future SHA produced by merging this governance receipt. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force. The immutable Real Pilot and CAL-UX-001 implementation commits are both included in `main` ancestry.
+`c176b91530019f47145947e63fe5929880d2ff37` is the verified canonical-main baseline at CAL-UX-002 authoring time. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force. The immutable Real Pilot and CAL-UX-001 implementation commits are both included in `main` ancestry.
 
 ## TEST runtime
 
@@ -173,6 +174,29 @@ release = NOT_AUTHORIZED
 
 CAL-UX-001 was an authorized narrow exception under `OBSERVED_OPERATIONAL_PAIN`; its integration is complete and it does not reopen feature development globally. Merge authorization has been consumed and does not authorize Deployment, Tag, Release, Cutover, or an authority switch.
 
+## CAL-UX-002 implementation gate
+
+```text
+classification = OBSERVED_OPERATIONAL_PAIN
+source = OWNER_TEST_CALENDAR_REVIEW
+Issue #23 = OPEN
+base = c176b91530019f47145947e63fe5929880d2ff37
+branch = codex/cal-ux-002
+state = IMPLEMENTED / REVIEW_PENDING
+scope = CHINESE-FIRST + QUIET AVAILABLE / EXCEPTION-FIRST PRESENTATION
+inventory authority changed = false
+SlotCalendarReadModel changed = false
+schema / migrations changed = false
+application inventory actions changed = false
+local validation = PASS
+desktop 1440 visual proof = PASS
+mobile 390 viewport proof = PASS
+merge authorization = false
+deployment authorization = false
+```
+
+CAL-UX-002 keeps internal inventory states and the existing read/command paths unchanged. GitHub exact-head CI must be resolved from the implementation PR at the review gate; this state does not pre-authorize merge or deployment.
+
 ## Remaining gate prerequisite
 
 ```text
@@ -231,7 +255,7 @@ UNLESS:
 
 Admin UI, setup wizard, capacity/seat inventory, Product engine, CRM, Finance expansion, reporting, maintenance, historical migration, ChannelHub, OTA, second-company onboarding, and SaaS administration remain deferred.
 
-Routine progress does not require a governance-only PR. State/document updates normally travel with the relevant implementation PR.
+Routine progress does not require a governance-only PR. CAL-UX-002 state updates travel with its implementation PR.
 
 ## Parallel items
 
@@ -246,6 +270,8 @@ DR16 mutation authorized = false
 This task does not change GitHub settings.
 
 CAL-UX-001 is `CODE_REVIEW_ACCEPTED / OWNER_MERGE_AUTHORIZATION_GRANTED_AND_CONSUMED / PR19_MERGED_CLOSED / INTEGRATION_COMPLETE`. The branch `codex/cal-ux-001` is historical and no longer active implementation authority.
+
+CAL-UX-002 is `IMPLEMENTED / REVIEW_PENDING` on `codex/cal-ux-002`; Issue #23 is its durable task record. It is not Merge, Deployment, Cutover, Tag, or Release authority.
 
 ## Explicit boundaries
 

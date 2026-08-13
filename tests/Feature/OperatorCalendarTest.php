@@ -13,33 +13,77 @@ class OperatorCalendarTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_fleet_inventory_calendar_renders_status_matrix_navigation_and_existing_workflow_links(): void
+    public function test_chinese_first_quiet_calendar_renders_status_matrix_navigation_and_existing_workflow_links(): void
     {
         $context = $this->context();
+        $this->unrelatedInventory();
         $this->actingAs($context['user']);
         $inventoryCounts = $this->inventoryCounts();
 
         $response = $this->get('/operator/calendar?from=2026-09-01&range=7')
             ->assertOk()
             ->assertViewIs('operator.calendar')
-            ->assertSee('Fleet Inventory')
+            ->assertSee('船期库存')
+            ->assertSee('船只')
+            ->assertSee('整船')
+            ->assertSee('前后缓冲 30 分钟')
+            ->assertSee('7 天')
+            ->assertSee('14 天')
+            ->assertSee('30 天')
+            ->assertSee('上一页')
+            ->assertSee('今天')
+            ->assertSee('下一页')
+            ->assertSee('状态：')
+            ->assertSee('可用')
+            ->assertSee('已预留')
+            ->assertSee('已确认')
+            ->assertSee('已停用')
+            ->assertSee('不可用')
+            ->assertSee('创建询价')
+            ->assertSee('周二')
+            ->assertSee('9月1日')
             ->assertSee('data-fleet-calendar', false)
             ->assertSee('data-view-days="7"', false)
+            ->assertSee('data-availability-mode="quiet"', false)
+            ->assertSee('data-available-trigger', false)
+            ->assertSee('data-available-slot-option', false)
+            ->assertSee('data-available-action', false)
             ->assertSee('data-calendar-status="AVAILABLE"', false)
             ->assertSee('data-calendar-status="HELD"', false)
             ->assertSee('data-calendar-status="CONFIRMED"', false)
             ->assertSee('data-calendar-status="BLOCKED"', false)
             ->assertSee('data-calendar-status="UNAVAILABLE"', false)
-            ->assertSee('Buffer −15 / +20 min', false)
+            ->assertSee('data-exception-status="HELD"', false)
+            ->assertSee('data-exception-status="CONFIRMED"', false)
+            ->assertSee('data-exception-status="BLOCKED"', false)
+            ->assertSee('data-exception-status="UNAVAILABLE"', false)
+            ->assertSee('上午 4 小时钓鱼')
+            ->assertSee('下午 4 小时钓鱼')
+            ->assertSee('该服务时段当前不可用于后续选择。')
+            ->assertDontSee('slot-card status-available', false)
+            ->assertDontSee('Fleet Inventory')
+            ->assertDontSee('Start inquiry')
+            ->assertDontSee('Tue')
+            ->assertDontSee('Sep 1')
+            ->assertDontSee('Plan C 4小时上午钓鱼')
+            ->assertDontSee('Foreign Fleet Secret')
             ->assertDontSee('definition #', false)
             ->assertDontSee('as_of', false);
 
         $this->assertSame([
-            'AVAILABLE' => 25,
+            'AVAILABLE' => 46,
             'HELD' => 1,
             'CONFIRMED' => 1,
             'BLOCKED' => 1,
         ], $response->viewData('summary'));
+        $calendarBoats = collect($response->viewData('calendar')['boats'])->keyBy('name');
+        $this->assertSame('AVAILABLE', $calendarBoats['Plan C']['dates'][0]['slots'][0]['status']);
+        $this->assertSame('HELD', $calendarBoats['Borealis']['dates'][0]['slots'][0]['status']);
+        $this->assertSame('CONFIRMED', $calendarBoats['Calypso']['dates'][0]['slots'][0]['status']);
+        $this->assertSame('BLOCKED', $calendarBoats['Dorado']['dates'][0]['slots'][0]['status']);
+        $this->assertSame('UNAVAILABLE', $calendarBoats['Endeavour']['dates'][0]['slots'][0]['status']);
+        $this->assertSame(46, substr_count($response->getContent(), 'data-available-slot-option'));
+        $this->assertSame(0, substr_count($response->getContent(), 'slot-card status-available'));
         $this->assertCount(7, $response->viewData('dateHeaders'));
         $response->assertSee(route('operator.inquiries.create', [
             'boat_id' => $context['boat_ids']['available'],
@@ -81,15 +125,14 @@ class OperatorCalendarTest extends TestCase
             ->assertSee('data-calendar-status="HELD"', false)
             ->assertSee('data-calendar-status="CONFIRMED"', false)
             ->assertSee('data-calendar-status="BLOCKED"', false)
-            ->assertSee('No permitted direct action. Inventory detail remains visible.')
-            ->assertDontSee('Start inquiry')
+            ->assertSee('data-available-trigger', false)
+            ->assertSee('data-available-slot-option', false)
+            ->assertSee('当前账号仅可查看可用时段。')
+            ->assertSee('当前账号无可执行操作，库存详情仍可查看。')
+            ->assertDontSee('data-available-action', false)
+            ->assertDontSee('创建询价')
             ->assertDontSee(route('operator.inquiries.show', $context['inquiry_id']), false)
             ->assertDontSee(route('operator.trips.show', $context['trip_id']), false);
-
-        $this->assertSame(
-            array_sum($response->viewData('summary')),
-            substr_count($response->getContent(), 'No permitted direct action. Inventory detail remains visible.'),
-        );
     }
 
     public function test_calendar_shows_buffer_only_occupied_interval_conflict(): void
@@ -136,7 +179,67 @@ class OperatorCalendarTest extends TestCase
             ->assertOk()
             ->assertSee('data-slot-code="FLEET_BUFFER_ONLY"', false)
             ->assertSee('data-calendar-status="HELD"', false)
-            ->assertSee('Buffer conflict · occupied 12:15–14:50');
+            ->assertSee('缓冲时间冲突 · 占用 12:15–14:50');
+    }
+
+    public function test_partial_day_keeps_later_available_slot_access_beside_the_exception(): void
+    {
+        $context = $this->context();
+        $now = now();
+        $lateSlotId = DB::table('slot_offerings')->insertGetId([
+            'organization_id' => $context['organization_id'],
+            'template_slot_offering_id' => null,
+            'kind' => 'PRESET',
+            'code' => 'FLEET_LATE_AVAILABLE',
+            'name' => 'Borealis 4小时下午钓鱼',
+            'status' => 'ACTIVE',
+            'operating_time_status' => 'FICTIONAL_VALIDATION_SCENARIO',
+            'service_date' => null,
+            'service_start_time' => '14:00:00',
+            'service_end_time' => '18:00:00',
+            'duration_minutes' => 240,
+            'additional_buffer_before_minutes' => 0,
+            'additional_buffer_after_minutes' => 0,
+            'valid_from' => null,
+            'valid_until' => null,
+            'applies_to_all_boats' => false,
+            'created_by_api_client_id' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('slot_offering_boats')->insert([
+            'organization_id' => $context['organization_id'],
+            'slot_offering_id' => $lateSlotId,
+            'boat_id' => $context['boat_ids']['held'],
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        app(SlotCompatibilityService::class)->setRule(
+            $context['organization_id'],
+            $context['slot_ids']['held'],
+            $lateSlotId,
+            'ALLOW',
+        );
+        $inventoryCounts = $this->inventoryCounts();
+
+        $response = $this->actingAs($context['user'])
+            ->get('/operator/calendar?from=2026-09-01&range=7&boat_id='.$context['boat_ids']['held'])
+            ->assertOk()
+            ->assertSee('data-business-date="2026-09-01" data-availability-mode="partial"', false)
+            ->assertSee('data-exception-status="HELD"', false)
+            ->assertSee('data-slot-code="FLEET_LATE_AVAILABLE"', false)
+            ->assertSee('还有 1 个可用时段 · 点击查看')
+            ->assertSee('下午 4 小时钓鱼')
+            ->assertSee(route('operator.inquiries.create', [
+                'boat_id' => $context['boat_ids']['held'],
+                'service_date' => '2026-09-01',
+                'slot_offering_id' => $lateSlotId,
+            ]));
+        $slots = collect($response->viewData('calendar')['boats'][0]['dates'][0]['slots'])->keyBy('code');
+
+        $this->assertSame('HELD', $slots->firstWhere('status', 'HELD')['status']);
+        $this->assertSame('AVAILABLE', $slots['FLEET_LATE_AVAILABLE']['status']);
+        $this->assertSame($inventoryCounts, $this->inventoryCounts());
     }
 
     /**
@@ -179,7 +282,7 @@ class OperatorCalendarTest extends TestCase
         $slotIds = [];
 
         foreach ([
-            'available' => ['Aster', 'ACTIVE'],
+            'available' => ['Plan C', 'ACTIVE'],
             'held' => ['Borealis', 'ACTIVE'],
             'confirmed' => ['Calypso', 'ACTIVE'],
             'blocked' => ['Dorado', 'ACTIVE'],
@@ -189,22 +292,24 @@ class OperatorCalendarTest extends TestCase
                 'organization_id' => $organizationId,
                 'name' => $boatName,
                 'status' => 'ACTIVE',
-                'buffer_before_minutes' => 15,
-                'buffer_after_minutes' => 20,
+                'buffer_before_minutes' => $key === 'available' ? 30 : 15,
+                'buffer_after_minutes' => $key === 'available' ? 30 : 20,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            $slotCode = $key === 'available' ? 'PLAN-C-FISH-4H-AM' : 'FLEET_'.strtoupper($key);
+            $slotName = $key === 'available' ? 'Plan C 4小时上午钓鱼' : ucfirst($key).' Service';
             $slotIds[$key] = DB::table('slot_offerings')->insertGetId([
                 'organization_id' => $organizationId,
                 'template_slot_offering_id' => null,
                 'kind' => 'PRESET',
-                'code' => 'FLEET_'.strtoupper($key),
-                'name' => ucfirst($key).' Service',
+                'code' => $slotCode,
+                'name' => $slotName,
                 'status' => $slotStatus,
                 'operating_time_status' => 'FICTIONAL_VALIDATION_SCENARIO',
                 'service_date' => null,
-                'service_start_time' => '08:00:00',
-                'service_end_time' => '12:00:00',
+                'service_start_time' => $key === 'available' ? '09:00:00' : '08:00:00',
+                'service_end_time' => $key === 'available' ? '13:00:00' : '12:00:00',
                 'duration_minutes' => 240,
                 'additional_buffer_before_minutes' => 0,
                 'additional_buffer_after_minutes' => 0,
@@ -219,6 +324,41 @@ class OperatorCalendarTest extends TestCase
                 'organization_id' => $organizationId,
                 'slot_offering_id' => $slotIds[$key],
                 'boat_id' => $boatIds[$key],
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        foreach ([
+            ['PLAN-C-FISH-8H', 'Plan C 8小时钓鱼', '10:00:00', '18:00:00', 480],
+            ['PLAN-C-FISH-6H', 'Plan C 6小时钓鱼', '12:00:00', '18:00:00', 360],
+            ['PLAN-C-FISH-4H-PM', 'Plan C 4小时下午钓鱼', '14:00:00', '18:00:00', 240],
+        ] as [$code, $name, $start, $end, $duration]) {
+            $slotId = DB::table('slot_offerings')->insertGetId([
+                'organization_id' => $organizationId,
+                'template_slot_offering_id' => null,
+                'kind' => 'PRESET',
+                'code' => $code,
+                'name' => $name,
+                'status' => 'ACTIVE',
+                'operating_time_status' => 'FICTIONAL_VALIDATION_SCENARIO',
+                'service_date' => null,
+                'service_start_time' => $start,
+                'service_end_time' => $end,
+                'duration_minutes' => $duration,
+                'additional_buffer_before_minutes' => 0,
+                'additional_buffer_after_minutes' => 0,
+                'valid_from' => null,
+                'valid_until' => null,
+                'applies_to_all_boats' => false,
+                'created_by_api_client_id' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            DB::table('slot_offering_boats')->insert([
+                'organization_id' => $organizationId,
+                'slot_offering_id' => $slotId,
+                'boat_id' => $boatIds['available'],
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
@@ -379,6 +519,47 @@ class OperatorCalendarTest extends TestCase
             'hold_id' => $holdId,
             'booking_id' => null,
             'block_id' => $blockId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function unrelatedInventory(): void
+    {
+        $organizationId = DB::table('organizations')->insertGetId([
+            'name' => 'Foreign Fleet Secret',
+            'timezone' => 'Asia/Bangkok',
+            'inventory_revision' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('boats')->insert([
+            'organization_id' => $organizationId,
+            'name' => 'Foreign Boat Secret',
+            'status' => 'ACTIVE',
+            'buffer_before_minutes' => 0,
+            'buffer_after_minutes' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('slot_offerings')->insert([
+            'organization_id' => $organizationId,
+            'template_slot_offering_id' => null,
+            'kind' => 'PRESET',
+            'code' => 'FOREIGN_SECRET_SLOT',
+            'name' => 'Foreign Secret Slot',
+            'status' => 'ACTIVE',
+            'operating_time_status' => 'FICTIONAL_VALIDATION_SCENARIO',
+            'service_date' => null,
+            'service_start_time' => '09:00:00',
+            'service_end_time' => '13:00:00',
+            'duration_minutes' => 240,
+            'additional_buffer_before_minutes' => 0,
+            'additional_buffer_after_minutes' => 0,
+            'valid_from' => null,
+            'valid_until' => null,
+            'applies_to_all_boats' => true,
+            'created_by_api_client_id' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

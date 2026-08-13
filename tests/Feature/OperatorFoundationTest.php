@@ -31,9 +31,9 @@ class OperatorFoundationTest extends TestCase
     public function test_login_landing_and_navigation_follow_first_granted_permission_and_fail_closed(): void
     {
         $matrix = [
-            'read-only' => [true, false, false, '/operator/calendar', ['Calendar', 'Audit trail'], ['Inquiries', 'Bookings', 'Trips', 'BLOCKs']],
-            'booking-only' => [false, true, false, '/operator/inquiries', ['Inquiries', 'Bookings', 'Trips'], ['Calendar', 'Audit trail', 'BLOCKs']],
-            'block-only' => [false, false, true, '/operator/blocks', ['BLOCKs'], ['Calendar', 'Audit trail', 'Inquiries', 'Bookings', 'Trips']],
+            'read-only' => [true, false, false, '/operator/calendar', ['/operator/calendar', '/operator/audit'], ['/operator/inquiries', '/operator/bookings', '/operator/trips', '/operator/blocks']],
+            'booking-only' => [false, true, false, '/operator/inquiries', ['/operator/inquiries', '/operator/bookings', '/operator/trips'], ['/operator/calendar', '/operator/audit', '/operator/blocks']],
+            'block-only' => [false, false, true, '/operator/blocks', ['/operator/blocks'], ['/operator/calendar', '/operator/audit', '/operator/inquiries', '/operator/bookings', '/operator/trips']],
         ];
 
         foreach ($matrix as $label => [$read, $booking, $block, $landing, $visible, $hidden]) {
@@ -45,11 +45,11 @@ class OperatorFoundationTest extends TestCase
             ])->assertRedirect($landing);
             $this->get('/operator/login')->assertRedirect($landing);
             $response = $this->get($landing)->assertOk();
-            foreach ($visible as $text) {
-                $response->assertSee($text, false, $label);
+            foreach ($visible as $path) {
+                $response->assertSee('href="'.url($path).'"', false, $label);
             }
-            foreach ($hidden as $text) {
-                $response->assertDontSee($text, false, $label);
+            foreach ($hidden as $path) {
+                $response->assertDontSee('href="'.url($path).'"', false, $label);
             }
         }
 

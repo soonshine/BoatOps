@@ -52,13 +52,14 @@ final class OperatorCalendarController extends Controller
             ->orderBy('id')
             ->get(['id', 'name']);
         $dateHeaders = [];
+        $weekdayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
         for ($offset = 0; $offset < $range; $offset++) {
             $date = $d->addDays($offset);
             $dateHeaders[] = [
                 'date' => $date->format('Y-m-d'),
-                'weekday' => $date->format('D'),
-                'label' => $date->format('M j'),
+                'weekday' => $weekdayLabels[$date->dayOfWeek],
+                'label' => $date->format('n月j日'),
             ];
         }
 
@@ -72,6 +73,8 @@ final class OperatorCalendarController extends Controller
             'from' => $from,
             'selectedBoatId' => $selectedBoatId,
             'dateHeaders' => $dateHeaders,
+            'rangeStartLabel' => $d->format('Y年n月j日'),
+            'rangeEndLabel' => $d->addDays($range - 1)->format('Y年n月j日'),
             'previousFrom' => $d->subDays($range)->format('Y-m-d'),
             'nextFrom' => $d->addDays($range)->format('Y-m-d'),
             'todayFrom' => CarbonImmutable::now((string) $o->timezone)->format('Y-m-d'),
@@ -166,16 +169,16 @@ final class OperatorCalendarController extends Controller
             if ($bookingId > 0) {
                 $tripId = (int) ($allocation->trip_id ?? 0);
                 $links[(int) $allocation->id] = $tripId === 0
-                    ? ['label' => 'Open booking', 'url' => route('operator.bookings.show', $bookingId)]
-                    : ['label' => 'Open trip', 'url' => route('operator.trips.show', $tripId)];
+                    ? ['label' => '查看订单', 'url' => route('operator.bookings.show', $bookingId)]
+                    : ['label' => '查看出航', 'url' => route('operator.trips.show', $tripId)];
             } elseif ($inquiryId > 0) {
                 $links[(int) $allocation->id] = [
-                    'label' => 'Open inquiry',
+                    'label' => '查看询价',
                     'url' => route('operator.inquiries.show', $inquiryId),
                 ];
             } elseif ($blockId > 0) {
                 $links[(int) $allocation->id] = [
-                    'label' => 'Open blocks',
+                    'label' => '查看停用记录',
                     'url' => route('operator.blocks.index'),
                 ];
             }
