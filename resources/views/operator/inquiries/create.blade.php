@@ -14,13 +14,13 @@
 <input name="reference" value="{{ old('reference') }}" maxlength="100" placeholder="SAMPLE-INQUIRY-001" required>
 </label>
 <label>Date
-<input type="date" name="service_date" value="{{ old('service_date') }}">
+<input type="date" name="service_date" value="{{ old('service_date', request()->query('service_date')) }}">
 </label>
 <label>Resource
 <select name="boat_id">
 <option value="">None</option>
 @foreach($boats as $x)
-<option value="{{ $x->id }}" @selected((string) old('boat_id') === (string) $x->id)>{{ $x->name }}</option>
+<option value="{{ $x->id }}" @selected((string) old('boat_id', request()->query('boat_id')) === (string) $x->id)>{{ $x->name }}</option>
 @endforeach
 </select>
 </label>
@@ -36,7 +36,7 @@
 <select name="slot_offering_id">
 <option value="">None</option>
 @foreach($slots as $x)
-<option value="{{ $x->id }}" @selected((string) old('slot_offering_id') === (string) $x->id)>{{ $x->name }}</option>
+<option value="{{ $x->id }}" @selected((string) old('slot_offering_id', request()->query('slot_offering_id')) === (string) $x->id)>{{ $x->name }}</option>
 @endforeach
 </select>
 </label>
