@@ -1,6 +1,6 @@
 schema_version: 13
 project: BoatOps
-updated_at: "2026-08-12T12:00:00+07:00"
+updated_at: "2026-08-13T11:27:00+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
@@ -21,10 +21,18 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
-    real_pilot_candidate_included: false
+    sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
+    sha_role: VERIFIED_AUTHORING_BASELINE
+    live_head_source: GITHUB_REF
+    pr_18_included: true
+    real_pilot_candidate_included: true
   real_pilot_branch:
     name: "codex/test-runtime-vertical-slice"
+    status: MERGED_HISTORICAL
+    pr: 18
+    merged_head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
+    merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
+    included_in_main_ancestry: true
     implementation_head_sha: "987eba04a1dc9073be6c02631792808debc35635"
     implementation_base_main_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
     implementation_delta:
@@ -32,18 +40,28 @@ repository:
       behind_by: 0
     live_head_source: GITHUB_REF
     state_sync_commit_is_docs_only_descendant: true
-  current_pr:
+  pr_18:
     number: 18
     title: "feat: add transactional pilot provisioning"
-    state: OPEN
-    draft: true
-    mergeable: true
-    mergeable_state: CLEAN
-    merged: false
+    state: MERGED_CLOSED
+    draft: false
+    merged: true
     base_branch: main
     head_branch: "codex/test-runtime-vertical-slice"
+    head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
+    merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
     implementation_candidate_sha: "987eba04a1dc9073be6c02631792808debc35635"
-  candidate_scope:
+  current_pr:
+    number: 19
+    title: "CAL-UX-001: Fleet Inventory Calendar (stacked on PR #18)"
+    state: OPEN
+    integration_state: OPEN_DRAFT_NOT_MERGED
+    draft: true
+    merged: false
+    base_branch: "codex/test-runtime-vertical-slice"
+    head_branch: "codex/cal-ux-001"
+    head_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
+  pr_18_scope:
     included:
       - BOUNDED_PILOT_PROVISIONING
       - PILOT_PROVISIONING_TESTS
@@ -227,9 +245,28 @@ real_pilot:
 real_pilot_candidate:
   sha: "987eba04a1dc9073be6c02631792808debc35635"
   branch: "codex/test-runtime-vertical-slice"
-  code_configuration_status: READY
+  code_configuration_status: INCLUDED_IN_MAIN_ANCESTRY
+  merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
   test_deployment_status: NOT_YET
   github_ci: SUCCESS
+
+cal_ux_001:
+  classification: OBSERVED_OPERATOR_CALENDAR_USABILITY_PAIN
+  owner_authorization: GRANTED
+  code_review: ACCEPTED
+  implementation_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
+  branch: "codex/cal-ux-001"
+  pr: 19
+  state: OPEN_DRAFT_NOT_MERGED
+  scope: UI_AND_EXISTING_READ_PATH_ONLY
+  inventory_authority_changed: false
+  schema_changed: false
+  slot_calendar_read_model_changed: false
+  application_inventory_actions_changed: false
+  merge_authorized: false
+  deployment_authorized: false
+  tag_authorized: false
+  release_authorized: false
 
 dr16:
   status: PARALLEL_BEFORE_CUTOVER
@@ -244,6 +281,10 @@ development_rule:
     - REAL_PILOT_BLOCKER
     - OBSERVED_OPERATIONAL_PAIN
     - UNIVERSAL_CORE_SAFETY_DEFECT
+  authorized_narrow_exceptions:
+    - id: CAL-UX-001
+      basis: OBSERVED_OPERATIONAL_PAIN
+      global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
   state_updates: SAME_RELEVANT_PR_BY_DEFAULT
   routine_lifecycle:
@@ -272,9 +313,10 @@ development_rule:
 
 gates:
   code:
-    status: REAL_PILOT_CANDIDATE_READY
+    status: PR_18_MERGED_CAL_UX_001_CODE_REVIEW_ACCEPTED
     new_feature_development_authorized: false
-    pr_18_merge_authorized: false
+    pr_18: MERGED_CLOSED
+    cal_ux_001_merge_authorized: false
   test_deployment:
     status: REAL_PILOT_EXECUTION_AUTHORIZED
     environment: TEST_ONLY
@@ -323,6 +365,7 @@ stop_conditions:
   - NO_SYNTHETIC_OR_INVENTED_REAL_ORDER
   - NO_CUTOVER
   - NO_AUTHORITY_SWITCH
+  - NO_CAL_UX_001_MERGE_WITHOUT_SEPARATE_AUTHORIZATION
   - NO_TAG
   - NO_RELEASE
 
@@ -332,6 +375,10 @@ closed_history:
   deployment_readiness_closure_plan_pr_16:
     status: MERGED_CLOSED
     merge_commit_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
+  real_pilot_pr_18:
+    status: MERGED_CLOSED
+    head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
+    merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
 
 authorities:
   charter: ".project/PROJECT_CHARTER.md"

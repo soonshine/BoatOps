@@ -1,8 +1,8 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-12 11:20 Asia/Bangkok
+Last updated: 2026-08-13 11:27 Asia/Bangkok
 
-The active queue is limited to unresolved Real Pilot execution work. Completed Deployment Readiness, DR04, DR17 input, synthetic runtime, backup, restore, rollback, and scheduler items are closed evidence below, not active blockers.
+The primary active queue remains unresolved Real Pilot execution work. CAL-UX-001 is tracked only as a bounded parallel integration item for accepted observed operational pain. Completed Deployment Readiness, DR04, DR17 input, synthetic runtime, backup, restore, rollback, and scheduler items are closed evidence below, not active blockers.
 
 ## Active queue
 
@@ -13,6 +13,7 @@ The active queue is limited to unresolved Real Pilot execution work. Completed D
 | `CAO-LOGIN-SMOKE` | `PENDING / AFTER_PROVISIONING` | Login as Cao on TEST, reach `/operator/calendar`, and confirm the four Plan C Slots are visible |
 | `FIRST-REAL-PLAN-C-VERTICAL-SLICE` | `PENDING / NEXT_REAL_ORDER` | After provisioning and login smoke, run the next genuine Plan C order from Inquiry through Audit; do not invent an order |
 | `DR16` | `PARALLEL_BEFORE_CUTOVER / NOT_CURRENT_REAL_PILOT_BLOCKER` | Keep `main.protected=false` visible; require separate authorization before any GitHub settings mutation |
+| `CAL-UX-001` | `CODE_REVIEW_ACCEPTED / PR19_OPEN_DRAFT / MERGE_PENDING` | Merge governance sync; retarget PR #19 to `main`; verify only the CAL-UX-001 delta and exact-head CI; obtain a separate final merge decision |
 
 ## Operational order
 
@@ -26,29 +27,47 @@ REAL-PILOT-DEPLOY
 
 No feature-development item belongs in this queue unless it is a proven Real Pilot blocker or observed operational pain.
 
+## Bounded parallel integration
+
+CAL-UX-001 is classified `OBSERVED_OPERATOR_CALENDAR_USABILITY_PAIN` and does not replace the Real Pilot operational order above.
+
+```text
+governance sync merged
+-> retarget PR #19 from codex/test-runtime-vertical-slice to main
+-> verify resulting PR contains only CAL-UX-001 implementation delta
+-> verify exact-head CI
+-> final merge decision
+```
+
 ## Current GitHub snapshot
 
 ```text
 canonical main:
-  36fe230a12e3d24a7bcb8c0333f3ec15012c029e
+  authoring baseline: 00a029c9a3dcd2122a958514e845334d0a295ac9
+  live head source: GitHub refs/heads/main
+  PR #18 included: YES
 
-Real Pilot branch:
+former Real Pilot branch:
   codex/test-runtime-vertical-slice
+  status: MERGED / HISTORICAL
 
-implementation candidate:
+immutable Real Pilot implementation candidate:
   987eba04a1dc9073be6c02631792808debc35635
-  ahead of main: 2
-  behind main: 0
+  included in main ancestry: YES
 
 PR #18:
   title: feat: add transactional pilot provisioning
-  state: OPEN
-  draft: true
-  mergeable_state: CLEAN
-  merged: false
+  state: MERGED / CLOSED
+  head: 71d2da4cfaa28c9fe8ecc31d7925d004c89e9236
+  merge commit: 00a029c9a3dcd2122a958514e845334d0a295ac9
+
+PR #19:
+  title: CAL-UX-001: Fleet Inventory Calendar (stacked on PR #18)
+  state: OPEN / DRAFT / NOT_MERGED
+  head: codex/cal-ux-001 @ fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa
 ```
 
-The documentation-only state-sync commit will become the live PR head after push. The implementation candidate identity remains `987eba04a1dc9073be6c02631792808debc35635`.
+`00a029c9a3dcd2122a958514e845334d0a295ac9` is the verified authoring baseline. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE`; no future governance-merge SHA is predicted here.
 
 ## Closed execution evidence
 
@@ -68,6 +87,7 @@ The documentation-only state-sync commit will become the live PR head after push
 | Plan C input / former DR17 | `COMPLETE` | Owner-approved Organization, Boat, Slots, TTL, Operator, and permission configuration supplied |
 | `VERIFIED` observed-pain fix | `COMPLETE` | Commit `987eba04a1dc9073be6c02631792808debc35635`; only `PilotManifest.php` and `PilotProvisioningTest.php` changed |
 | Candidate tests | `PASS` | Pint PASS; PilotProvisioning 7 tests / 39 assertions; full PHP suite 283 tests / 3293 assertions; GitHub CI SUCCESS |
+| PR #18 integration | `MERGED / CLOSED` | Head `71d2da4cfaa28c9fe8ecc31d7925d004c89e9236` merged into `main` as `00a029c9a3dcd2122a958514e845334d0a295ac9` |
 
 ## Approved Plan C configuration
 
@@ -131,6 +151,12 @@ REAL_PILOT = AUTHORIZED
 TEST_ONLY = true
 REAL_OPERATOR_USE = AUTHORIZED
 REAL_PILOT_CONFIGURATION = AUTHORIZED
+
+CAL_UX_001_OWNER_AUTHORIZATION = GRANTED
+CAL_UX_001_CODE_REVIEW = ACCEPTED
+CAL_UX_001_PR_19 = OPEN_DRAFT_NOT_MERGED
+CAL_UX_001_MERGE_AUTHORIZED = false
+CAL_UX_001_DEPLOYMENT_AUTHORIZED = false
 
 PRODUCTION_DEPLOYMENT = false
 CUTOVER = false
