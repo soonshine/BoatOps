@@ -1,6 +1,6 @@
-schema_version: 13
+schema_version: 14
 project: BoatOps
-updated_at: "2026-08-13T11:27:00+07:00"
+updated_at: "2026-08-13T12:29:00+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
@@ -21,10 +21,12 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
+    sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
     sha_role: VERIFIED_AUTHORING_BASELINE
     live_head_source: GITHUB_REF
     pr_18_included: true
+    pr_19_included: true
+    cal_ux_001_included: true
     real_pilot_candidate_included: true
   real_pilot_branch:
     name: "codex/test-runtime-vertical-slice"
@@ -51,16 +53,18 @@ repository:
     head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
     merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
     implementation_candidate_sha: "987eba04a1dc9073be6c02631792808debc35635"
-  current_pr:
+  pr_19:
     number: 19
-    title: "CAL-UX-001: Fleet Inventory Calendar (stacked on PR #18)"
-    state: OPEN
-    integration_state: OPEN_DRAFT_NOT_MERGED
-    draft: true
-    merged: false
-    base_branch: "codex/test-runtime-vertical-slice"
+    title: "CAL-UX-001: Fleet Inventory Calendar"
+    state: MERGED_CLOSED
+    integration_state: COMPLETE
+    draft: false
+    merged: true
+    base_branch: main
+    base_sha: "82494d85bc2d918359d610932ae01869a29839e8"
     head_branch: "codex/cal-ux-001"
     head_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
+    merge_commit_sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
   pr_18_scope:
     included:
       - BOUNDED_PILOT_PROVISIONING
@@ -254,18 +258,26 @@ cal_ux_001:
   classification: OBSERVED_OPERATOR_CALENDAR_USABILITY_PAIN
   owner_authorization: GRANTED
   code_review: ACCEPTED
+  owner_merge_authorization: GRANTED_AND_CONSUMED
   implementation_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
+  merge_commit_sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
   branch: "codex/cal-ux-001"
+  branch_status: MERGED_HISTORICAL
   pr: 19
-  state: OPEN_DRAFT_NOT_MERGED
+  state: MERGED_CLOSED
+  integration: COMPLETE
+  included_in_main_ancestry: true
   scope: UI_AND_EXISTING_READ_PATH_ONLY
   inventory_authority_changed: false
   schema_changed: false
   slot_calendar_read_model_changed: false
   application_inventory_actions_changed: false
-  merge_authorized: false
+  deployment: NOT_AUTHORIZED_NOT_DEPLOYED
   deployment_authorized: false
+  deployed: false
+  tag: NOT_AUTHORIZED
   tag_authorized: false
+  release: NOT_AUTHORIZED
   release_authorized: false
 
 dr16:
@@ -313,10 +325,12 @@ development_rule:
 
 gates:
   code:
-    status: PR_18_MERGED_CAL_UX_001_CODE_REVIEW_ACCEPTED
+    status: PR_18_MERGED_CAL_UX_001_INTEGRATION_COMPLETE
     new_feature_development_authorized: false
     pr_18: MERGED_CLOSED
-    cal_ux_001_merge_authorized: false
+    pr_19: MERGED_CLOSED
+    cal_ux_001_owner_merge_authorization: GRANTED_AND_CONSUMED
+    cal_ux_001_integration: COMPLETE
   test_deployment:
     status: REAL_PILOT_EXECUTION_AUTHORIZED
     environment: TEST_ONLY
@@ -365,7 +379,7 @@ stop_conditions:
   - NO_SYNTHETIC_OR_INVENTED_REAL_ORDER
   - NO_CUTOVER
   - NO_AUTHORITY_SWITCH
-  - NO_CAL_UX_001_MERGE_WITHOUT_SEPARATE_AUTHORIZATION
+  - NO_CAL_UX_001_DEPLOYMENT_WITHOUT_SEPARATE_AUTHORIZATION
   - NO_TAG
   - NO_RELEASE
 
@@ -379,6 +393,10 @@ closed_history:
     status: MERGED_CLOSED
     head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
     merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
+  cal_ux_001_pr_19:
+    status: MERGED_CLOSED
+    head_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
+    merge_commit_sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
 
 authorities:
   charter: ".project/PROJECT_CHARTER.md"

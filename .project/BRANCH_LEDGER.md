@@ -1,6 +1,6 @@
 # BoatOps Branch Ledger
 
-Updated: 2026-08-13 11:27 Asia/Bangkok
+Updated: 2026-08-13 12:29 Asia/Bangkok
 
 This file classifies known remote branches so an agent cannot infer authority from branch age, naming, or a commit that happens to be ahead of `main`.
 
@@ -26,9 +26,9 @@ Owner granted repository-governance cleanup authorization on 2026-08-09 after th
 
 ## Current canonical integration identity
 
-Project Reset PR #13 and Core Safety reconciliation PR #14 were followed by the separately reviewed and authorized merge of PR #12. Deployment Readiness governance PRs #15 and #16 were then reviewed and merged. PR #18 has now merged the bounded Real Pilot provisioning line into `main`.
+Project Reset PR #13 and Core Safety reconciliation PR #14 were followed by the separately reviewed and authorized merge of PR #12. Deployment Readiness governance PRs #15 and #16 were then reviewed and merged. PR #18 merged the bounded Real Pilot provisioning line into `main`; PR #19 has now merged CAL-UX-001.
 
-PR #19 remains the active Draft CAL-UX-001 candidate.
+CAL-UX-001 integration is complete. Its former candidate branch is historical and is not deployment authority.
 
 - Project Reset resulting main: `32f817c4618d522b6d73253b3f1dcdc12018a78f`;
 - Core Safety reconciliation resulting main: `1f300c071f9066ff83e102798999e0852cedf7fa`;
@@ -49,7 +49,10 @@ PR #19 remains the active Draft CAL-UX-001 candidate.
 - PR #18 merge commit and phase-II authoring baseline: `00a029c9a3dcd2122a958514e845334d0a295ac9`;
 - PR #18 status: `MERGED / CLOSED`; its immutable candidate is included in `main` ancestry;
 - PR #19 branch: `codex/cal-ux-001` at `fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa`;
-- PR #19 status: `OPEN / DRAFT / NOT_MERGED / NOT_DEPLOYED`;
+- PR #19 merge base: `82494d85bc2d918359d610932ae01869a29839e8`;
+- PR #19 merge commit and verified authoring baseline: `77db16f16617ddcbb09ebf66d83a65a0c97695e5`;
+- PR #19 status: `MERGED / CLOSED / INTEGRATION COMPLETE / NOT_DEPLOYED`;
+- PR #19 Owner merge authorization: `GRANTED_AND_CONSUMED`;
 - live `main` and active PR branch heads are resolved from GitHub refs at Gate time;
 - D1 deployed product source remains separately fixed at `f9503b598b174b7a6891fcde0d984514a3cd0fcd` and remains fictional Demo history only.
 
@@ -63,9 +66,9 @@ A governance document may retain historical commit identities, reviewed candidat
 
 | Branch | Identity rule / recorded history | Classification | Cleanup disposition |
 | --- | --- | --- | --- |
-| `main` | Authoring baseline `00a029c9a3dcd2122a958514e845334d0a295ac9`; live head resolved from GitHub `refs/heads/main`; PR #18 and Real Pilot candidate ancestry included; D1 deployed source remains separate history | CANONICAL / PR #18 INCLUDED / REAL PILOT CANDIDATE ANCESTRY INCLUDED | Preserve |
+| `main` | Authoring baseline `77db16f16617ddcbb09ebf66d83a65a0c97695e5`; live head resolved from GitHub `refs/heads/main`; PR #18, Real Pilot candidate, PR #19, and CAL-UX-001 implementation ancestry included; D1 deployed source remains separate history | CANONICAL / PR #18 AND PR #19 INCLUDED / REAL PILOT AND CAL-UX-001 ANCESTRY INCLUDED | Preserve |
 | `codex/test-runtime-vertical-slice` | PR #18 reviewed head `71d2da4cfaa28c9fe8ecc31d7925d004c89e9236`; immutable candidate `987eba04a1dc9073be6c02631792808debc35635`; merged as `00a029c9...` | MERGED / HISTORICAL REAL PILOT BRANCH / NO LONGER ACTIVE IMPLEMENTATION AUTHORITY | Preserve for evidence; do not use as active authority |
-| `codex/cal-ux-001` | PR #19; head `fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa`; UI and existing read path only; inventory authority unchanged | ACTIVE CAL-UX-001 CANDIDATE / NOT_MERGED / NOT_DEPLOYED / NOT DEPLOYMENT AUTHORITY | Keep for PR #19 review; merge requires separate decision |
+| `codex/cal-ux-001` | PR #19 reviewed head `fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa`; merged as `77db16f16617ddcbb09ebf66d83a65a0c97695e5`; UI and existing read path only; inventory authority unchanged | MERGED / HISTORICAL CAL-UX-001 BRANCH / NO LONGER ACTIVE IMPLEMENTATION AUTHORITY / NOT DEPLOYMENT AUTHORITY | Preserve for evidence; do not use as active authority |
 | `governance/deployment-readiness-closure-plan` | Reviewed head `b3c30ae2329fd99e511d6a6fb24717f908f5d82a`; merged by PR #16 into `36fe230a12e3d24a7bcb8c0333f3ec15012c029e` | MERGED / HISTORICAL GOVERNANCE | Preserve for evidence; do not reuse as active authority |
 | `governance/post-pr12-deployment-readiness` | `65bbb8b03d370332b8afd35f71dcc64b6cdab02d`; merged by PR #15 into `1864469b...` | MERGED / HISTORICAL GOVERNANCE | Preserve for evidence; do not reuse as active authority |
 | `hermes/pilot-mvp-wp3-trip-desk` | `f3f3a2adee5a76e62f70cc41cef111aa9feb0178`; merged by PR #12 into `5f1424f...` | MERGED / HISTORICAL CORE SAFETY CANDIDATE | Preserve for evidence; do not reuse as active implementation authority |

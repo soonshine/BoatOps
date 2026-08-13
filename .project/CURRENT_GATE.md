@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-13 11:27 Asia/Bangkok
+Updated: 2026-08-13 12:29 Asia/Bangkok
 
 ## Current decision
 
@@ -12,7 +12,7 @@ SYNTHETIC_VERTICAL_SLICE_COMPLETE
 REAL_PILOT_AUTHORIZED
 PLAN_C_CONFIGURATION_READY
 PR_18_MERGED
-CAL_UX_001_OWNER_AUTHORIZED_CODE_REVIEW_ACCEPTED
+CAL_UX_001_INTEGRATION_COMPLETE
 NO_NEW_FEATURE_DEVELOPMENT
 ```
 
@@ -26,10 +26,12 @@ The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operation
 
 ```text
 canonical main:
-  phase-II authoring baseline: 00a029c9a3dcd2122a958514e845334d0a295ac9
+  verified authoring baseline: 77db16f16617ddcbb09ebf66d83a65a0c97695e5
   live head: resolve refs/heads/main from GitHub at each later gate
   PR #18 included: YES
+  PR #19 included: YES
   Real Pilot candidate ancestry included: YES
+  CAL-UX-001 implementation ancestry included: YES
 
 former Real Pilot branch:
   codex/test-runtime-vertical-slice
@@ -45,12 +47,13 @@ PR #18:
   merge commit: 00a029c9a3dcd2122a958514e845334d0a295ac9
 
 PR #19:
-  OPEN / DRAFT / NOT_MERGED
-  base: codex/test-runtime-vertical-slice
+  MERGED / CLOSED
+  base: main @ 82494d85bc2d918359d610932ae01869a29839e8
   head: codex/cal-ux-001 @ fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa
+  merge commit: 77db16f16617ddcbb09ebf66d83a65a0c97695e5
 ```
 
-`00a029c9a3dcd2122a958514e845334d0a295ac9` is the verified canonical-main baseline at authoring time, not the unknown future SHA produced by merging this governance change. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force. The immutable Real Pilot implementation candidate remains meaningful historical evidence and is now included in `main` ancestry.
+`77db16f16617ddcbb09ebf66d83a65a0c97695e5` is the verified canonical-main baseline at authoring time, not the unknown future SHA produced by merging this governance receipt. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force. The immutable Real Pilot and CAL-UX-001 implementation commits are both included in `main` ancestry.
 
 ## TEST runtime
 
@@ -129,16 +132,22 @@ Owner authorization is recorded as:
 classification = OBSERVED_OPERATOR_CALENDAR_USABILITY_PAIN
 owner authorization = GRANTED
 code review = ACCEPTED
+owner merge authorization = GRANTED_AND_CONSUMED
 implementation = fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa
-PR #19 = OPEN / DRAFT / NOT_MERGED
+PR #19 = MERGED / CLOSED
+merge commit = 77db16f16617ddcbb09ebf66d83a65a0c97695e5
+integration = COMPLETE
 scope = UI + EXISTING READ PATH ONLY
 inventory authority changed = false
 SlotCalendarReadModel changed = false
 schema / migrations changed = false
 application inventory actions changed = false
+deployment = NOT_AUTHORIZED / NOT_DEPLOYED
+tag = NOT_AUTHORIZED
+release = NOT_AUTHORIZED
 ```
 
-CAL-UX-001 is an already-authorized narrow exception under `OBSERVED_OPERATIONAL_PAIN`; it does not reopen feature development globally. Its implementation remains review-only and carries no Deployment, Tag, Release, Cutover, or authority-switch authorization.
+CAL-UX-001 was an authorized narrow exception under `OBSERVED_OPERATIONAL_PAIN`; its integration is complete and it does not reopen feature development globally. Merge authorization has been consumed and does not authorize Deployment, Tag, Release, Cutover, or an authority switch.
 
 ## Current blocker
 
@@ -172,14 +181,13 @@ Inquiry -> HOLD -> Confirm -> Prepare -> Depart -> Return -> Complete -> Audit
 
 Historical Plan C orders will not be migrated. Do not create a synthetic or invented “real” order.
 
-CAL-UX-001 remains a bounded parallel integration item and does not replace the Real Pilot operational path:
+CAL-UX-001 integration is complete and does not replace or alter the Real Pilot operational path:
 
 ```text
-merge governance sync after review
--> retarget PR #19 from codex/test-runtime-vertical-slice to main
--> verify PR #19 contains only the CAL-UX-001 implementation delta
--> verify exact-head CI
--> separate final merge decision
+PR #19 = MERGED / CLOSED
+implementation fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa = INCLUDED IN MAIN ANCESTRY
+merge commit = 77db16f16617ddcbb09ebf66d83a65a0c97695e5
+deployment = NOT_AUTHORIZED / NOT_DEPLOYED
 ```
 
 ## Development rule
@@ -208,7 +216,7 @@ DR16 mutation authorized = false
 
 This task does not change GitHub settings.
 
-CAL-UX-001 remains `CODE_REVIEW_ACCEPTED / PR19_OPEN_DRAFT / MERGE_PENDING`. This governance synchronization does not authorize modification of `codex/cal-ux-001` or merge of PR #19.
+CAL-UX-001 is `CODE_REVIEW_ACCEPTED / OWNER_MERGE_AUTHORIZATION_GRANTED_AND_CONSUMED / PR19_MERGED_CLOSED / INTEGRATION_COMPLETE`. The branch `codex/cal-ux-001` is historical and no longer active implementation authority.
 
 ## Explicit boundaries
 
@@ -216,7 +224,7 @@ CAL-UX-001 remains `CODE_REVIEW_ACCEPTED / PR19_OPEN_DRAFT / MERGE_PENDING`. Thi
 PRODUCTION_DEPLOYMENT = false
 CUTOVER = false
 AUTHORITY_SWITCH = false
-PR_19_MERGE = false
+PR_19 = MERGED_CLOSED
 CAL_UX_001_DEPLOYMENT = false
 TAG = false
 RELEASE = false
@@ -226,4 +234,4 @@ This governance-only synchronization changes no runtime behavior. Production, Do
 
 ## Closed history
 
-Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, PR #16, and PR #18 are merged/closed; PR #18 merged as `00a029c9a3dcd2122a958514e845334d0a295ac9`. Their evidence remains in Git history and the branch ledger.
+Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, PR #16, PR #18, and PR #19 are merged/closed. PR #19 merged the accepted CAL-UX-001 implementation as `77db16f16617ddcbb09ebf66d83a65a0c97695e5`. Their evidence remains in Git history and the branch ledger.
