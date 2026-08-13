@@ -678,6 +678,55 @@ class SlotCatalogCompatibilityTest extends TestCase
             ->assertJson(['code' => 'SLOT_UNAVAILABLE']);
     }
 
+    public function test_reusable_slot_creation_accepts_canonical_operating_time_statuses_and_rejects_unknown_status(): void
+    {
+        $organizationId = $this->createOrganization('Operating Time Status Validation');
+        $catalog = app(SlotCatalogService::class);
+        $statuses = [
+            'UNVERIFIED',
+            'DEMO_DEFAULT_UNVERIFIED',
+            'FICTIONAL_VALIDATION_SCENARIO',
+            'VERIFIED',
+        ];
+
+        foreach ($statuses as $index => $status) {
+            $code = "OPERATING_STATUS_{$index}";
+            $catalog->createReusableOffering($organizationId, [
+                'code' => $code,
+                'name' => "Operating Time Status {$status}",
+                'service_start_time' => '08:00',
+                'service_end_time' => '12:00',
+                'duration_minutes' => 240,
+                'operating_time_status' => $status,
+            ]);
+
+            $this->assertDatabaseHas('slot_offerings', [
+                'organization_id' => $organizationId,
+                'code' => $code,
+                'operating_time_status' => $status,
+            ]);
+        }
+
+        try {
+            $catalog->createReusableOffering($organizationId, [
+                'code' => 'OPERATING_STATUS_INVALID',
+                'name' => 'Invalid Operating Time Status',
+                'service_start_time' => '08:00',
+                'service_end_time' => '12:00',
+                'duration_minutes' => 240,
+                'operating_time_status' => 'NOT_A_REAL_STATUS',
+            ]);
+            $this->fail('Expected unknown operating time status to fail closed.');
+        } catch (SlotCatalogException $exception) {
+            $this->assertSame('VALIDATION_FAILED', $exception->errorCode);
+            $this->assertSame(422, $exception->httpStatus);
+            $this->assertSame('The operating time status is invalid.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('slot_offerings', count($statuses));
+        $this->assertDatabaseMissing('slot_offerings', ['code' => 'OPERATING_STATUS_INVALID']);
+    }
+
     public function test_amend_rechecks_compatibility_and_persists_the_new_slot_identity_atomically(): void
     {
         $context = $this->context();

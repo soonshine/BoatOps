@@ -8,30 +8,46 @@ Every agent that plans, implements, reviews, deploys, or reports on BoatOps must
 
 Before doing work, read in this order:
 
-1. `.project/PROJECT_CHARTER.md`
-2. `.project/CURRENT_STATE.yaml`
-3. `.project/CURRENT_GATE.md`
-4. `.project/REVIEW_QUEUE.md`
-5. the relevant gate/closure receipt under `.project/**`
-6. the exact Git diff and tests in the assigned scope
+1. `.project/CURRENT_STATE.yaml`
+2. `.project/CURRENT_GATE.md`
+3. the exact task code, diff, and tests in the assigned scope
 
-Then report the current gate, working commit, authorization flags, task ID, and excluded scope. If files disagree with chat history, the project files and reviewed Git evidence win unless the Owner explicitly supersedes them.
+Read `.project/PROJECT_CHARTER.md` only when a product boundary or invariant is relevant. Read `.project/REVIEW_QUEUE.md` only when triaging blockers or observed pain. Read historical receipts only when validating a concrete historical claim.
 
-## 2. Current hard stops after D1
+The current state, current gate, exact Git evidence, and newer explicit Owner authorization outrank stale historical receipts. Do not manufacture a governance preamble for routine progress.
 
-D1 is a completed fictional Demo deployment/validation gate. Until the Owner defines and authorizes the next product gate:
+## 2. Current execution model and hard stops
 
-- do not change BoatOps business code;
-- do not deploy a new product/runtime revision;
-- do not create a Tag or GitHub Release;
-- do not enable production inventory;
-- do not migrate/import real data;
-- do not connect Google Sheet, ChannelHub, OTA, payments, WordPress, or real credentials;
-- do not reinterpret fictional Demo values as real operating rules;
-- do not treat the current two-vessel scenario as Ayany-owned assets;
-- do not start a gate named `G2A`, `G2B`, or any other product gate until its objective and acceptance criteria are explicitly recorded and Owner-authorized.
+Routine progress follows:
 
-Governance-only work may update `.project/**`, README, and non-secret release/evidence documentation when explicitly authorized, but it must not mutate runtime, database, source behavior, or production configuration.
+```text
+real problem
+-> smallest task
+-> implementation PR
+-> test
+-> merge
+-> TEST / real use
+-> observed pain
+-> next minimum change
+```
+
+`NO_GOVERNANCE_PR_FOR_ROUTINE_PROGRESS`
+
+Do not create a governance-only PR, new Gate, readiness matrix, or work package merely to advance routine implementation. State/document updates should normally travel in the same relevant PR.
+
+No new feature development is allowed unless it addresses:
+
+- a `REAL_PILOT_BLOCKER`;
+- `OBSERVED_OPERATIONAL_PAIN`;
+- a `UNIVERSAL_CORE_SAFETY_DEFECT`.
+
+Keep these hard stops:
+
+- no Production deployment without explicit authorization;
+- no Cutover or authority switch without explicit authorization;
+- no Tag or Release without explicit authorization;
+- no real-data import or historical migration outside an explicitly authorized scope;
+- no invented business facts, real credentials, or secrets in Git or reports.
 
 ## 3. Product portability rule
 
@@ -45,12 +61,11 @@ BoatOps is a reusable organization-scoped product.
 ## 4. Role contract
 
 - Owner supplies product direction and real business rules, and grants merge/deployment/data authority.
-- ChatGPT reviewer defines scope, reviews code/evidence, records blockers, and decides the gate.
-- Hermes implements or executes the bounded task and supplies evidence.
-- Claude Code is optional. Hermes may delegate implementation to it when available, but Claude failure must not alter scope or block Hermes from completing an otherwise executable task.
-- Codex is an optional independent milestone reviewer when explicitly requested; it is not the default executor and does not replace Owner authority.
+- Reviewer checks the bounded diff and exact evidence when review is requested.
+- Executor implements or runs only the authorized bounded task and supplies exact evidence.
+- Delegation or tool choice never changes scope or authority.
 
-An implementation/execution agent must not mark its own gate `APPROVED` or `COMPLETE`.
+An implementation/execution agent may report verified completion of its task but cannot grant Merge, Deployment, Cutover, or Release authority that the Owner did not provide.
 
 ## 5. Evidence contract
 
@@ -117,4 +132,4 @@ Static inspection is not runtime proof. A successful local test is not public de
 
 ## 10. Scope drift rule
 
-If an agent discovers adjacent work, add it to `REVIEW_QUEUE.md` with evidence and stop at the current task boundary. Do not silently expand implementation.
+Do not silently expand implementation. Record adjacent work only when it is a proven Real Pilot blocker, observed operational pain, or universal core-safety defect. Routine state updates belong in the same relevant PR; unproven future ideas are not automatically queued and do not justify a governance PR.

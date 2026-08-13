@@ -87,18 +87,31 @@ A green test or earlier review does not override a newly proven invariant violat
 ## 5. Development model
 
 ```text
-CORE SAFETY
--> DEPLOYMENT READINESS
--> PILOT CUTOVER
--> REAL USE
--> OBSERVED PAIN
--> NEXT MINIMUM CHANGE
--> CORE SAFETY
+FIRST PRINCIPLES
+-> MINIMUM IMPLEMENTATION PATH
+-> VERTICAL SLICE
+-> TIME TO REAL USE
+-> FEEDBACK LOOP
+-> SSOT
+-> OBSERVABILITY
+-> PROGRESSIVE COMPLEXITY
 ```
 
 There is no preplanned WP4/WP5/WP6.
 
 Every change must be the smallest observable, reversible vertical slice that protects a universal invariant or resolves demonstrated real-use pain.
+
+Permanent rule:
+
+```text
+NO NEW FEATURE DEVELOPMENT
+unless:
+  - REAL_PILOT_BLOCKER
+  - OBSERVED_OPERATIONAL_PAIN
+  - UNIVERSAL_CORE_SAFETY_DEFECT
+```
+
+Routine progress uses the real-use feedback loop. It does not require a separate governance PR or traversal through historical Gates.
 
 Issue classes:
 
@@ -111,7 +124,7 @@ Issue classes:
 
 | Fact | Authority |
 | --- | --- |
-| Mission, scope, invariants, permanent Gates | this Charter |
+| Mission, scope, invariants, safety checkpoints | this Charter |
 | Current machine state | `.project/CURRENT_STATE.yaml` |
 | Allowed/forbidden/next action | `.project/CURRENT_GATE.md` |
 | Review blockers and evidence ledger | `.project/REVIEW_QUEUE.md` |
@@ -160,7 +173,9 @@ Future controlled provisioning should first use an idempotent reviewed manifest/
 
 ChannelHub remains separate, never writes BoatOps tables, and cannot confirm from cache while BoatOps is unavailable. WordPress is not inventory authority. A spreadsheet may be an authorized migration/reconciliation source but cannot overrule BoatOps after cutover.
 
-## 9. Permanent Gates
+## 9. Safety checkpoints
+
+These checkpoints are triggered only when the corresponding action occurs. They are not mandatory project phases before every implementation iteration.
 
 1. **CODE / MERGE** — exact diff, invariants, tests, CI, independent review; never deploys.
 2. **DEPLOYMENT** — exact source/config, PostgreSQL, secrets, scheduler, monitoring, backup/restore, rollback; never admits real data.

@@ -321,6 +321,7 @@ final class SlotCatalogService
             'UNVERIFIED',
             'DEMO_DEFAULT_UNVERIFIED',
             'FICTIONAL_VALIDATION_SCENARIO',
+            'VERIFIED',
         ], true)) {
             throw new SlotCatalogException('VALIDATION_FAILED', 'The operating time status is invalid.', 422);
         }

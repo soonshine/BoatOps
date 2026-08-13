@@ -1,6 +1,6 @@
 # BoatOps Branch Ledger
 
-Updated: 2026-08-11 11:42 Asia/Bangkok
+Updated: 2026-08-12 11:20 Asia/Bangkok
 
 This file classifies known remote branches so an agent cannot infer authority from branch age, naming, or a commit that happens to be ahead of `main`.
 
@@ -26,7 +26,7 @@ Owner granted repository-governance cleanup authorization on 2026-08-09 after th
 
 ## Current canonical integration identity
 
-Project Reset PR #13 and Core Safety reconciliation PR #14 were followed by the separately reviewed and authorized merge of PR #12. Deployment Readiness governance PR #15 was then reviewed and merged.
+Project Reset PR #13 and Core Safety reconciliation PR #14 were followed by the separately reviewed and authorized merge of PR #12. Deployment Readiness governance PRs #15 and #16 were then reviewed and merged. The active GitHub candidate is now Draft PR #18 for bounded Real Pilot provisioning and project-state synchronization.
 
 - Project Reset resulting main: `32f817c4618d522b6d73253b3f1dcdc12018a78f`;
 - Core Safety reconciliation resulting main: `1f300c071f9066ff83e102798999e0852cedf7fa`;
@@ -38,8 +38,12 @@ Project Reset PR #13 and Core Safety reconciliation PR #14 were followed by the 
 - historical PR #15 merge commit: `1864469b1b159442ecc598c919faa75431dca778`;
 - PR #15 merge parents: `5f1424f189865ca412577510c1ada450e838da18` and `65bbb8b03d370332b8afd35f71dcc64b6cdab02d`;
 - PR #15 post-main CI: Run `31454471881`, overall SUCCESS, `Quality and contracts` SUCCESS, and `PostgreSQL concurrency` SUCCESS;
-- PR #16 verified `main` authoring/review baseline: `1864469b1b159442ecc598c919faa75431dca778`;
-- PR #16 pre-repair exact candidate head: `baf19b158b47efb58add06c3561934930e9aed29`;
+- PR #16 reviewed head: `b3c30ae2329fd99e511d6a6fb24717f908f5d82a`;
+- PR #16 merge commit/current canonical main: `36fe230a12e3d24a7bcb8c0333f3ec15012c029e`;
+- PR #16 merge parents: `1864469b1b159442ecc598c919faa75431dca778` and `b3c30ae2329fd99e511d6a6fb24717f908f5d82a`;
+- Draft PR #18 branch: `codex/test-runtime-vertical-slice`;
+- PR #18 bounded implementation candidate: `987eba04a1dc9073be6c02631792808debc35635`, exactly two commits ahead of and zero behind canonical main before this documentation-only state sync;
+- PR #18 state at sync start: `OPEN / DRAFT / CLEAN / NOT_MERGED`;
 - live `main` and active PR branch heads are resolved from GitHub refs at Gate time;
 - D1 deployed product source remains separately fixed at `f9503b598b174b7a6891fcde0d984514a3cd0fcd` and remains fictional Demo history only.
 
@@ -53,8 +57,9 @@ A governance document may retain historical commit identities, reviewed candidat
 
 | Branch | Identity rule / recorded history | Classification | Cleanup disposition |
 | --- | --- | --- | --- |
-| `main` | Live head resolved from GitHub `refs/heads/main`; PR #16 verified baseline `1864469b1b159442ecc598c919faa75431dca778`; D1 deployed product source `f9503b5...` | CANONICAL / REAL OPERATIONS DEPLOYMENT READINESS | Preserve |
-| `governance/deployment-readiness-closure-plan` | Live candidate head resolved from GitHub; pre-repair exact head `baf19b158b47efb58add06c3561934930e9aed29`; verified base `1864469b1b159442ecc598c919faa75431dca778` | ACTIVE GOVERNANCE-ONLY DRAFT / NOT MERGED | Primary re-review; no merge without separate Owner authorization |
+| `main` | `36fe230a12e3d24a7bcb8c0333f3ec15012c029e`; live head resolved from GitHub `refs/heads/main`; D1 deployed product source `f9503b5...` remains separate history | CANONICAL / REAL PILOT EXECUTION BASE / PR #18 NOT INCLUDED | Preserve |
+| `codex/test-runtime-vertical-slice` | Draft PR #18; bounded implementation candidate `987eba04a1dc9073be6c02631792808debc35635`; live docs-only descendant resolved from GitHub | ACTIVE REAL PILOT CANDIDATE / TEST ONLY / NOT MERGED | Keep Draft; no merge without separate authorization |
+| `governance/deployment-readiness-closure-plan` | Reviewed head `b3c30ae2329fd99e511d6a6fb24717f908f5d82a`; merged by PR #16 into `36fe230a12e3d24a7bcb8c0333f3ec15012c029e` | MERGED / HISTORICAL GOVERNANCE | Preserve for evidence; do not reuse as active authority |
 | `governance/post-pr12-deployment-readiness` | `65bbb8b03d370332b8afd35f71dcc64b6cdab02d`; merged by PR #15 into `1864469b...` | MERGED / HISTORICAL GOVERNANCE | Preserve for evidence; do not reuse as active authority |
 | `hermes/pilot-mvp-wp3-trip-desk` | `f3f3a2adee5a76e62f70cc41cef111aa9feb0178`; merged by PR #12 into `5f1424f...` | MERGED / HISTORICAL CORE SAFETY CANDIDATE | Preserve for evidence; do not reuse as active implementation authority |
 | `agent/d1-governance-alignment` | PR #2 source branch | MERGED GOVERNANCE | Delete when repository tooling permits |
@@ -98,4 +103,5 @@ This task does not authorize branch deletion or branch-protection/ruleset mutati
 
 - branch classifications in this ledger remain authoritative;
 - `main` must be treated as unprotected at the GitHub platform level;
+- DR16 remains `PARALLEL_BEFORE_CUTOVER / NOT_CURRENT_REAL_PILOT_BLOCKER`;
 - all agents must continue to obey `.project/AGENT_RULES.md` and require both CI jobs plus reviewer/Owner authorization before merge.

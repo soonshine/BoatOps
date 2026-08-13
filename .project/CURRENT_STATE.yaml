@@ -1,8 +1,8 @@
-schema_version: 12
+schema_version: 13
 project: BoatOps
-updated_at: "2026-08-11T11:42:00+07:00"
+updated_at: "2026-08-12T12:00:00+07:00"
 
-current_phase: REAL_OPERATIONS_DEPLOYMENT_READINESS
+current_phase: REAL_PILOT_EXECUTION
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -20,69 +20,45 @@ north_star:
 repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  canonical_identity:
-    branch: main
-    ref: "refs/heads/main"
-    live_source: GITHUB_REF
-    verification_required_at_gate_time: true
-    verification_gates:
-      - REVIEW
-      - MERGE
-      - DEPLOYMENT
-      - CUTOVER
-      - RELEASE
-  governance_verified_baseline:
-    main_sha: "1864469b1b159442ecc598c919faa75431dca778"
-    purpose: PR16_AUTHORING_AND_PRIMARY_REVIEW_BASELINE
-  identity_invariant:
-    live_branch_ref_is_external_state: true
-    recorded_baseline_is_future_live_head_promise: false
-    embed_future_self_merge_sha: false
-  pr12_closure:
-    pr: 12
-    status: MERGED_CLOSED
-    branch: "hermes/pilot-mvp-wp3-trip-desk"
-    base_sha: "1f300c071f9066ff83e102798999e0852cedf7fa"
-    candidate_head_sha: "f3f3a2adee5a76e62f70cc41cef111aa9feb0178"
-    merge_commit_sha: "5f1424f189865ca412577510c1ada450e838da18"
-    merge_parents:
-      - "1f300c071f9066ff83e102798999e0852cedf7fa"
-      - "f3f3a2adee5a76e62f70cc41cef111aa9feb0178"
-    primary_cross_invariant_review: PASS
-    codex_narrow_counter_audit: PASS
-    candidate_ci:
-      run: 31374570259
-      head_sha: "f3f3a2adee5a76e62f70cc41cef111aa9feb0178"
-      quality_and_contracts: SUCCESS
-      postgresql_concurrency: SUCCESS
-    post_main_ci:
-      run: 31448746777
-      head_sha: "5f1424f189865ca412577510c1ada450e838da18"
-      overall: SUCCESS
-      quality_and_contracts: SUCCESS
-      postgresql_concurrency: SUCCESS
-  pr15_closure:
-    pr: 15
-    status: MERGED_CLOSED
-    branch: "governance/post-pr12-deployment-readiness"
-    base_sha: "5f1424f189865ca412577510c1ada450e838da18"
-    reviewed_head_sha: "65bbb8b03d370332b8afd35f71dcc64b6cdab02d"
-    merge_commit_sha: "1864469b1b159442ecc598c919faa75431dca778"
-    merge_parents:
-      - "5f1424f189865ca412577510c1ada450e838da18"
-      - "65bbb8b03d370332b8afd35f71dcc64b6cdab02d"
-    primary_review: PASS
-    candidate_ci:
-      run: 31453362814
-      head_sha: "65bbb8b03d370332b8afd35f71dcc64b6cdab02d"
-      quality_and_contracts: SUCCESS
-      postgresql_concurrency: SUCCESS
-    post_main_ci:
-      run: 31454471881
-      head_sha: "1864469b1b159442ecc598c919faa75431dca778"
-      overall: SUCCESS
-      quality_and_contracts: SUCCESS
-      postgresql_concurrency: SUCCESS
+  canonical_main:
+    sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
+    real_pilot_candidate_included: false
+  real_pilot_branch:
+    name: "codex/test-runtime-vertical-slice"
+    implementation_head_sha: "987eba04a1dc9073be6c02631792808debc35635"
+    implementation_base_main_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
+    implementation_delta:
+      ahead_by: 2
+      behind_by: 0
+    live_head_source: GITHUB_REF
+    state_sync_commit_is_docs_only_descendant: true
+  current_pr:
+    number: 18
+    title: "feat: add transactional pilot provisioning"
+    state: OPEN
+    draft: true
+    mergeable: true
+    mergeable_state: CLEAN
+    merged: false
+    base_branch: main
+    head_branch: "codex/test-runtime-vertical-slice"
+    implementation_candidate_sha: "987eba04a1dc9073be6c02631792808debc35635"
+  candidate_scope:
+    included:
+      - BOUNDED_PILOT_PROVISIONING
+      - PILOT_PROVISIONING_TESTS
+      - VERIFIED_OPERATING_TIME_OBSERVED_PAIN_FIX
+      - PROJECT_STATE_SYNC
+    excluded:
+      - ADMIN_UI
+      - CRM
+      - FINANCE_EXPANSION
+      - PRODUCT_ENGINE
+      - CAPACITY_ENGINE
+      - OTA
+      - CHANNELHUB
+      - HISTORICAL_MIGRATION
+      - ERP_EXPANSION
 
 core_safety:
   status: COMPLETE
@@ -90,206 +66,272 @@ core_safety:
   invariants:
     - id: INV-P0-001
       status: CLOSED_MERGED
-      classification: UNIVERSAL_CORE_INVARIANT
     - id: INV-P0-002
       status: CLOSED_MERGED
-      classification: UNIVERSAL_CORE_INVARIANT
     - id: INV-P0-003
-      status: DEFERRED
-      classification: DEFENSE_IN_DEPTH_NOT_CURRENT_CORE_BLOCKER
+      status: DEFERRED_DEFENSE_IN_DEPTH_NOT_CURRENT_BLOCKER
     - id: INV-P0-004
       status: MERGED_BOUNDED_HARDENING
-      classification: CANCEL_FAIL_CLOSED_TO_PLANNED_ONLY
-  deferred_real_use_findings:
-    - id: REALUSE-P1-001
-      status: DEFER_OBSERVED_PAIN_REQUIRED
-    - id: REALUSE-P1-002
-      status: DEFER_UNTIL_REAL_COMPLIANCE_OR_AUDIT_NEED
 
-deployment_readiness:
-  status: NOT_YET_PROVEN
-  assessment_mode: SOURCE_AND_CONFIGURATION_LEVEL_ONLY
-  closure_plan_status: DEFINED_NOT_AUTHORIZED
-  production_runtime_changed: false
-  real_data_used: false
-  pilot_hypothesis:
-    organizations: 1
-    fleet: ONE_BOAT_OR_VERY_SMALL_FLEET
-    database: POSTGRESQL
-    inventory: WHOLE_VESSEL_ONLY
-    primary_surface: OPERATOR_WEB
-    booking_entry: MANUAL
-    automated_sales_channels: false
-    payment_and_refund: EXTERNAL
-    weather_and_closure: BLOCK
-    access: PRIVATE_OR_APPROPRIATELY_RESTRICTED
-    historical_migration: NOT_REQUIRED_FOR_PILOT
-    dual_write: FORBIDDEN_AFTER_CUTOVER
-  readiness_items:
-    DR-01_EXACT_SOURCE: PASS
-    DR-02_POSTGRESQL: CONDITIONAL
-    DR-03_PRODUCTION_ENV: NOT_PROVEN
-    DR-04_CONTROLLED_PROVISIONING: BLOCKED
-    DR-05_DEMO_PRODUCTION_ISOLATION: PASS
-    DR-06_OPERATOR_ACCESS: NOT_PROVEN
-    DR-07_TLS_PRIVATE_ACCESS: NOT_PROVEN
-    DR-08_SECRETS: NOT_PROVEN
-    DR-09_SCHEDULER_RUNTIME: NOT_PROVEN
-    DR-10_HEALTH: CONDITIONAL
-    DR-11_LOGS_ERRORS: NOT_PROVEN
-    DR-12_PII_SAFETY: CONDITIONAL
-    DR-13_BACKUP: NOT_PROVEN
-    DR-14_RESTORE: NOT_PROVEN
-    DR-15_OUTBOX_CONSUMER: NOT_REQUIRED_FOR_PILOT
-    DR-16_BRANCH_PROTECTION: BLOCKED
-    DR-17_REAL_BUSINESS_CONFIGURATION: BLOCKED
-    DR-18_PASSENGER_CAPACITY: CONDITIONAL_BUSINESS_INPUT_REQUIRED
-    DR-19_PRODUCT_SLOT: CONDITIONAL_BUSINESS_INPUT_REQUIRED
-    DR-20_CUTOVER_MODEL: CONDITIONAL
-    DR-21_ABORT_ROLLBACK: NOT_PROVEN
-    DR-22_PILOT_SMOKE: NOT_PROVEN
-  current_blockers:
-    - DR-04_NO_REVIEWED_EXECUTABLE_PROVISIONING_METHOD
-    - DR-16_MAIN_UNPROTECTED_ISSUE_4_OPEN
-    - DR-17_REAL_PILOT_CONFIGURATION_NOT_SUPPLIED
-  runtime_proof_missing:
-    - PRODUCTION_POSTGRESQL_INSTANCE_PERMISSIONS_TLS_AND_TIMEZONE
-    - PRODUCTION_ENVIRONMENT_AND_SECRET_INJECTION
-    - REAL_OPERATOR_ACCOUNT_AND_MEMBERSHIP
-    - HTTPS_PRIVATE_OR_RESTRICTED_INGRESS
-    - SCHEDULER_PROCESS_AND_FAILURE_VISIBILITY
-    - RUNTIME_HEALTH_DATABASE_CONNECTIVITY_AND_LOG_VISIBILITY
-    - POSTGRESQL_BACKUP_RETENTION_AND_TESTED_RESTORE
-    - CUTOVER_ABORT_AND_SYNTHETIC_SMOKE_RECEIPTS
-  conditional_business_decisions:
-    capacity: BUSINESS_INPUT_REQUIRED_NO_CAPACITY_ENGINE_AUTHORIZED
-    product_slot: BUSINESS_INPUT_REQUIRED_NO_PRODUCT_ENGINE_AUTHORIZED
-  closure_streams:
-    dr04_provisioning:
-      bucket: BOUNDED_CODE_ARTIFACT
-      design_status: COMPLETE
-      implementation_status: NOT_AUTHORIZED
-      proposed_command: "pilot:provision {manifest} {--validate}"
-      schema_migration_required: false
-    dr16_main_protection:
-      bucket: REPOSITORY_PLATFORM_MUTATION
-      live_main_protected: false
-      live_ruleset_count: 0
-      issue_4: OPEN
-      mutation_status: NOT_AUTHORIZED
-    dr17_pilot_configuration:
-      bucket: OWNER_OPERATOR_INPUT
-      status: OWNER_INPUT_REQUIRED
-      customer_records_required: false
-    target_runtime_proof:
-      bucket: TARGET_RUNTIME_PROOF
-      status: TARGET_REQUIRED_NOT_AUTHORIZED
-      hosting_target_selected: false
-      synthetic_data_only: true
-  closure_bucket_assignments:
-    - id: DR-01
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-02
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-03
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-04
-      bucket: BOUNDED_CODE_ARTIFACT
-    - id: DR-05
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-06
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-07
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-08
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-09
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-10
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-11
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-12
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-13
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-14
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-15
-      bucket: NOT_REQUIRED_FOR_FIRST_PILOT
-    - id: DR-16
-      bucket: REPOSITORY_PLATFORM_MUTATION
-    - id: DR-17
-      bucket: OWNER_OPERATOR_INPUT
-    - id: DR-18
-      bucket: CONDITIONAL_NO_CODE_DEFAULT
-    - id: DR-19
-      bucket: CONDITIONAL_NO_CODE_DEFAULT
-    - id: DR-20
-      bucket: OWNER_OPERATOR_INPUT
-    - id: DR-21
-      bucket: TARGET_RUNTIME_PROOF
-    - id: DR-22
-      bucket: TARGET_RUNTIME_PROOF
+test_runtime:
+  status: READY
+  environment: TEST_ONLY
+  url: "http://43.156.151.62:8080"
+  platform:
+    os: "Ubuntu 24.04"
+    php: "8.4"
+    laravel: "13"
+    postgresql: "16.14"
+    btree_gist: "1.7"
+  migrations:
+    ran: 19
+    pending: 0
+  health:
+    path: /up
+    http_status: 200
+  services:
+    nginx: ACTIVE
+    php_fpm: ACTIVE
+    postgresql: ACTIVE
+    scheduler: ACTIVE
+  proof:
+    postgresql_backup: PASS
+    restore: PASS
+    rollback: PASS
+    scheduler_holds_expire: PASS
+  exact_real_pilot_candidate_deployed: false
+  existing_docker_services_modified: false
+  public_port_80_modified: false
 
-governance_candidate:
-  branch: "governance/deployment-readiness-closure-plan"
-  scope: GOVERNANCE_ONLY_FOUR_FILES
-  status: DRAFT_REVIEW_REQUIRED
-  purpose: MECHANICAL_BOOKKEEPING_AND_MINIMUM_CLOSURE_PLAN
-  effective_only_after_merge_to_canonical_main: true
+synthetic_pilot:
+  status: COMPLETE
+  environment: TEST_ONLY
+  provisioning:
+    first_run: CREATED
+    exact_rerun: UNCHANGED
+    configuration_drift: FAIL_CLOSED_ZERO_WRITE
+    late_failure_rollback: PASS
+  vertical_slice:
+    status: PASS
+    sequence:
+      - LOGIN
+      - CALENDAR
+      - INQUIRY
+      - HOLD
+      - CONFIRM
+      - BOOKING_WORKBENCH
+      - PREPARE
+      - DEPART
+      - RETURN
+      - COMPLETE
+      - BLOCK
+      - AUDIT
+    early_complete_fail_closed: PASS
+    cross_organization_audit_leakage: 0
+
+dr04:
+  implementation: COMPLETE
+  synthetic_proof: PASS
+  command: "pilot:provision {manifest} {--validate}"
+  schema_migration_required: false
+  exact_rerun_semantics: UNCHANGED
+  drift_semantics: FAIL_CLOSED_ZERO_WRITE
+  late_failure_rollback: PASS
+  secrets_in_manifest: FORBIDDEN
+  implementation_candidate_sha: "987eba04a1dc9073be6c02631792808debc35635"
+  observed_pain_fix:
+    status: COMPLETE
+    issue: OWNER_CONFIRMED_OPERATING_TIMES_COULD_NOT_BE_REPRESENTED
+    result: VERIFIED_ACCEPTED
+    commit: "987eba04a1dc9073be6c02631792808debc35635"
+    changed_files:
+      - app/Pilot/PilotManifest.php
+      - tests/Feature/PilotProvisioningTest.php
+  tests:
+    pint: PASS
+    pilot_provisioning: "7 tests / 39 assertions PASS"
+    full_php_suite: "283 tests / 3293 assertions PASS"
+    github_ci: SUCCESS
+
+real_pilot:
+  authorization: GRANTED
+  environment: TEST_ONLY
+  boat: Plan C
+  configuration: READY
+  provisioning: PENDING
+  operator_secret: NOT_CONFIGURED
+  cao_login_smoke: PENDING
+  organization:
+    name: Ayany Boat Operations
+    timezone: Asia/Bangkok
+  boat_configuration:
+    name: Plan C
+    buffer_before_minutes: 30
+    buffer_after_minutes: 30
+  trip_templates:
+    - code: PLAN-C-FISH-4H
+      name: "Plan C 4小时休闲钓鱼"
+    - code: PLAN-C-FISH-6H
+      name: "Plan C 6小时钓鱼"
+    - code: PLAN-C-FISH-8H
+      name: "Plan C 8小时钓鱼"
+  slots:
+    - code: PLAN-C-FISH-4H-AM
+      service_time: "09:00-13:00"
+      duration_minutes: 240
+      operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
+    - code: PLAN-C-FISH-4H-PM
+      service_time: "14:00-18:00"
+      duration_minutes: 240
+      operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
+    - code: PLAN-C-FISH-6H
+      service_time: "12:00-18:00"
+      duration_minutes: 360
+      operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
+    - code: PLAN-C-FISH-8H
+      service_time: "10:00-18:00"
+      duration_minutes: 480
+      operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
+  compatibility: []
+  compatibility_default: DENY_OVERLAPPING_SAME_BOAT_WITHOUT_ALLOW_RULE
+  hold_ttl_minutes: 30
+  operator:
+    name: Cao
+    email: cao@mukuy.com
+    permissions:
+      can_calendar_read: true
+      can_booking_workflow: true
+      can_block: true
+  historical_plan_c_migration: false
+  first_real_vertical_slice:
+    trigger: NEXT_REAL_PLAN_C_ORDER_AFTER_PROVISIONING_AND_LOGIN_SMOKE
+    synthetic_or_invented_real_order_forbidden: true
+    sequence:
+      - INQUIRY
+      - HOLD
+      - CONFIRM
+      - PREPARE
+      - DEPART
+      - RETURN
+      - COMPLETE
+      - AUDIT
+
+real_pilot_candidate:
+  sha: "987eba04a1dc9073be6c02631792808debc35635"
+  branch: "codex/test-runtime-vertical-slice"
+  code_configuration_status: READY
+  test_deployment_status: NOT_YET
+  github_ci: SUCCESS
+
+dr16:
+  status: PARALLEL_BEFORE_CUTOVER
+  current_real_pilot_blocker: false
+  main_protected: false
+  ruleset_count: 0
+  mutation_authorized: false
+
+development_rule:
+  status: NO_NEW_FEATURE_DEVELOPMENT
+  unless:
+    - REAL_PILOT_BLOCKER
+    - OBSERVED_OPERATIONAL_PAIN
+    - UNIVERSAL_CORE_SAFETY_DEFECT
+  routine_governance_pr: FORBIDDEN
+  state_updates: SAME_RELEVANT_PR_BY_DEFAULT
+  routine_lifecycle:
+    - REAL_PROBLEM
+    - SMALLEST_TASK
+    - IMPLEMENTATION_PR
+    - TEST
+    - MERGE
+    - TEST_OR_REAL_USE
+    - OBSERVED_PAIN
+    - NEXT_MINIMUM_CHANGE
+  deferred:
+    - ADMIN_UI
+    - SETUP_WIZARD
+    - CAPACITY_OR_SEAT_INVENTORY
+    - PRODUCT_ENGINE
+    - CRM
+    - FINANCE_EXPANSION
+    - REPORTING
+    - MAINTENANCE_MODULE
+    - HISTORICAL_MIGRATION
+    - CHANNELHUB
+    - OTA
+    - SECOND_COMPANY_ONBOARDING
+    - SAAS_ADMIN
 
 gates:
   code:
-    status: CORE_SAFETY_COMPLETE
-    application_code_change_authorized: false
-    feature_expansion_authorized: false
-    governance_pr_merge_authorized: false
-  deployment:
-    status: READINESS_ASSESSMENT_OPEN
-    authorized: false
-    deployment_authorized: false
-    production_enablement_authorized: false
-  real_data_cutover:
+    status: REAL_PILOT_CANDIDATE_READY
+    new_feature_development_authorized: false
+    pr_18_merge_authorized: false
+  test_deployment:
+    status: REAL_PILOT_EXECUTION_AUTHORIZED
+    environment: TEST_ONLY
+    authorized: true
+  real_pilot_use:
+    status: AUTHORIZED_AFTER_PROVISIONING_AND_LOGIN_SMOKE
+    real_operator_use_authorized: true
+    next_real_plan_c_order_authorized: true
+    historical_migration_authorized: false
+  cutover:
     status: NOT_OPEN
-    real_data_authorized: false
-    migration_authorized: false
-    cutover_authorized: false
+    authorized: false
     authority_switch_authorized: false
   release:
     status: NOT_OPEN
-    release_authorized: false
     tag_authorized: false
+    release_authorized: false
     github_release_authorized: false
 
+production:
+  touched: false
+  deployment_authorized: false
+  cutover_authorized: false
+  authority_switch_authorized: false
+  tag_authorized: false
+  release_authorized: false
+
+current_blockers:
+  - REAL_OPERATOR_SECRET_NOT_CONFIGURED
+  - TEST_SSH_SECRET_NOT_CONFIGURED_FOR_EXACT_CANDIDATE_DEPLOYMENT
+
 next_action:
-  id: PRIMARY_REVIEW_MINIMUM_DEPLOYMENT_READINESS_CLOSURE_PLAN
-  scope: REVIEW_BOOKKEEPING_CORRECTION_AND_MINIMUM_CLOSURE_SEQUENCE
-
-next_owner_decision:
-  id: OWNER_DECIDE_MINIMUM_DEPLOYMENT_READINESS_CLOSURE_ACTIONS
-  status: NOT_AUTHORIZED
-  prerequisite: PRIMARY_REVIEW_ACCEPTS_THIS_GOVERNANCE_CANDIDATE
-
-owner_decisions_required:
-  - PROVIDE_AND_APPROVE_DR17_PILOT_CONFIGURATION
-  - AUTHORIZE_DR16_MINIMUM_MAIN_PROTECTION_MUTATION
-  - AUTHORIZE_BOUNDED_DR04_PROVISIONING_IMPLEMENTATION
-  - SELECT_OR_CONFIRM_HOSTING_RUNTIME_TARGET
-  - LATER_AUTHORIZE_SYNTHETIC_TARGET_RUNTIME_PROOF
+  id: REAL_PILOT_EXECUTION
+  sequence:
+    - DEPLOY_EXACT_REAL_PILOT_CANDIDATE_TO_TEST
+    - PROVISION_PLAN_C
+    - CAO_LOGIN_AND_CALENDAR_SMOKE
+    - RUN_NEXT_REAL_PLAN_C_ORDER_VERTICAL_SLICE
+    - RECORD_OBSERVED_OPERATIONAL_PAIN
 
 stop_conditions:
-  - NO_APPLICATION_CODE_CHANGE
+  - NO_NEW_FEATURE_DEVELOPMENT_UNLESS_REAL_PILOT_BLOCKER_OBSERVED_OPERATIONAL_PAIN_OR_UNIVERSAL_CORE_SAFETY_DEFECT
   - NO_WP4_WP5_WP6
-  - NO_FEATURE_EXPANSION
-  - NO_DEPLOYMENT
-  - NO_PRODUCTION_ENABLEMENT
-  - NO_REAL_DATA
-  - NO_MIGRATION
+  - NO_PRODUCTION_DEPLOYMENT
+  - NO_HISTORICAL_MIGRATION
+  - NO_SYNTHETIC_OR_INVENTED_REAL_ORDER
   - NO_CUTOVER
   - NO_AUTHORITY_SWITCH
   - NO_TAG
   - NO_RELEASE
+
+closed_history:
+  core_safety_pr_12: MERGED_CLOSED
+  deployment_readiness_governance_pr_15: MERGED_CLOSED
+  deployment_readiness_closure_plan_pr_16:
+    status: MERGED_CLOSED
+    merge_commit_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
 
 authorities:
   charter: ".project/PROJECT_CHARTER.md"
