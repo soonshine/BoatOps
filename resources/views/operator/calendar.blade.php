@@ -536,6 +536,16 @@
     font-size: .7rem;
     font-variant-numeric: tabular-nums;
 }
+.available-slot-option .default-departure-note {
+    display: block;
+    width: fit-content;
+    margin-top: .3rem;
+    padding: .2rem .4rem;
+    border-radius: .35rem;
+    background: #fff4d8;
+    color: #805000;
+    font-weight: 850;
+}
 .available-slot-option .slot-action {
     grid-row: 1 / span 2;
     grid-column: 2;
@@ -879,7 +889,13 @@
     ], static fn (mixed $value): bool => $value !== null);
 @endphp
 <li class="available-slot-option" data-available-slot-option data-calendar-status="AVAILABLE" data-duration-minutes="{{ $durationMinutes }}" data-slot-code="{{ $slot['code'] }}">
-<span><strong>{{ $slotDisplayName }}</strong><time datetime="{{ $slot['service_start_local'] }}">{{ $serviceStart }}</time>–<time datetime="{{ $slot['service_end_local'] }}">{{ $serviceEnd }}</time></span>
+<span>
+<strong>{{ $slotDisplayName }}</strong>
+<time datetime="{{ $slot['service_start_local'] }}">{{ $serviceStart }}</time>–<time datetime="{{ $slot['service_end_local'] }}">{{ $serviceEnd }}</time>
+@if((int) $slot['duration_minutes'] === 480)
+<small class="default-departure-note" data-default-departure>默认 {{ $serviceStart }} 出航 · 固定至 {{ $serviceEnd }}</small>
+@endif
+</span>
 @if($operatorMembership?->can_booking_workflow)
 <a class="slot-action" data-available-action href="{{ route('operator.inquiries.create', $inquiryQuery) }}">创建询价 →</a>
 @endif

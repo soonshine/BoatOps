@@ -53,6 +53,8 @@ class OperatorCalendarTest extends TestCase
             ->assertSee('data-duration-choice="240"', false)
             ->assertSee('data-duration-choice="360"', false)
             ->assertSee('data-duration-choice="480"', false)
+            ->assertSee('data-default-departure', false)
+            ->assertSee('默认 10:00 出航 · 固定至 18:00')
             ->assertSee('data-available-slot-option', false)
             ->assertSee('data-available-action', false)
             ->assertSee('data-calendar-status="AVAILABLE"', false)
@@ -159,7 +161,9 @@ class OperatorCalendarTest extends TestCase
             ->assertSee('11:15')
             ->assertSee('17:15')
             ->assertSee('10:00')
-            ->assertSee('18:00');
+            ->assertSee('18:00')
+            ->assertSee('默认 10:00 出航 · 固定至 18:00')
+            ->assertDontSee('默认 11:15 出航');
 
         $response->assertSeeInOrder([
             'data-duration-choice="240"',
@@ -173,6 +177,7 @@ class OperatorCalendarTest extends TestCase
             'data-duration-minutes="480" data-slot-code="PLAN-C-FISH-8H"',
             '10:00',
             '18:00',
+            '默认 10:00 出航 · 固定至 18:00',
         ], false);
         $sixHourInquiryUrl = route('operator.inquiries.create', [
             'boat_id' => $context['boat_ids']['available'],
