@@ -27,8 +27,10 @@ The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operation
 
 ```text
 canonical main:
-  36fe230a12e3d24a7bcb8c0333f3ec15012c029e
-  Real Pilot candidate included: NO
+  live GitHub head observed: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+  original Real Pilot candidate included: YES
+  passwordless candidate included: NO (TEST-only post-merge candidate)
+  authoring base for this branch: 36fe230a12e3d24a7bcb8c0333f3ec15012c029e
 
 Real Pilot branch:
   codex/test-runtime-vertical-slice

@@ -31,10 +31,17 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
-    real_pilot_candidate_included: false
+    sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+    sha_role: LIVE_GITHUB_HEAD_OBSERVED
+    authoring_base_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
+    real_pilot_candidate_included: true
+    passwordless_candidate_included: false
+    live_head_source: GITHUB_REF
   real_pilot_branch:
     name: "codex/test-runtime-vertical-slice"
+    status: POST_MERGE_TEST_ONLY_CANDIDATE
+    merged_head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
+    merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
     implementation_head_sha: "987eba04a1dc9073be6c02631792808debc35635"
     implementation_base_main_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
     implementation_delta:
