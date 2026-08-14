@@ -20,6 +20,10 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
+    // Controlled prelaunch access for the TEST operator surface.
+    'prelaunch_passwordless' => env('PRELAUNCH_PASSWORDLESS', true),
+    'prelaunch_operator_email' => env('PRELAUNCH_OPERATOR_EMAIL'),
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards

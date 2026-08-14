@@ -14,6 +14,33 @@ final class OperatorSessionController extends Controller
 {
     public function create(Request $r): View|RedirectResponse
     {
+        if (! Auth::check() && config('auth.prelaunch_passwordless', true)) {
+            $operatorEmail = config('auth.prelaunch_operator_email');
+            $memberships = DB::table('operator_memberships')
+                ->join('users', 'users.id', '=', 'operator_memberships.user_id')
+                ->where('operator_memberships.status', 'ACTIVE')
+                ->when(
+                    is_string($operatorEmail) && trim($operatorEmail) !== '',
+                    fn ($query) => $query->whereRaw('LOWER(users.email) = ?', [strtolower(trim($operatorEmail))]),
+                )
+                ->select('operator_memberships.*')
+                ->get();
+
+            // Refuse to guess when the prelaunch selector is ambiguous.
+            if ($memberships->count() === 1) {
+                $membership = $memberships->first();
+                Auth::loginUsingId((int) $membership->user_id);
+                $r->session()->regenerate();
+                $route = $this->firstGrantedRoute($membership);
+
+                if ($route !== null) {
+                    return redirect()->route($route);
+                }
+
+                $this->clearSession($r);
+            }
+        }
+
         if (! Auth::check()) {
             return view('operator.login');
         }

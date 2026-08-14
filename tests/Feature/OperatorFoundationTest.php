@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,58 @@ use Tests\TestCase;
 class OperatorFoundationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_prelaunch_passwordless_login_creates_a_normal_session_and_keeps_permissions(): void
+    {
+        $c = $this->context(true, false, false);
+        config([
+            'auth.prelaunch_passwordless' => true,
+            'auth.prelaunch_operator_email' => $c['user']->email,
+        ]);
+        $old = session()->getId();
+
+        $this->get('/operator/login')->assertRedirect('/operator/calendar');
+
+        $this->assertNotSame($old, session()->getId());
+        $this->assertAuthenticatedAs($c['user']);
+        $this->get('/operator/calendar')->assertOk();
+        $this->get('/operator/blocks')->assertForbidden();
+    }
+
+    public function test_prelaunch_passwordless_selector_is_required_when_multiple_operators_are_active(): void
+    {
+        $first = $this->context();
+        $second = $this->context();
+        config([
+            'auth.prelaunch_passwordless' => true,
+            'auth.prelaunch_operator_email' => null,
+        ]);
+
+        $this->get('/operator/login')->assertOk()->assertViewIs('operator.login');
+        $this->assertGuest();
+
+        config(['auth.prelaunch_operator_email' => $second['user']->email]);
+        $this->get('/operator/login')->assertRedirect('/operator/calendar');
+        $this->assertAuthenticatedAs($second['user']);
+        $this->assertNotSame($first['user']->id, Auth::id());
+    }
+
+    public function test_prelaunch_passwordless_can_be_disabled_without_changing_password_login(): void
+    {
+        $c = $this->context();
+        config([
+            'auth.prelaunch_passwordless' => false,
+            'auth.prelaunch_operator_email' => $c['user']->email,
+        ]);
+
+        $this->get('/operator/login')->assertOk()->assertViewIs('operator.login');
+        $this->assertGuest();
+        $this->post('/operator/login', [
+            'email' => $c['user']->email,
+            'password' => 'fictional-password',
+        ])->assertRedirect('/operator/calendar');
+        $this->assertAuthenticatedAs($c['user']);
+    }
 
     public function test_login_invalid_inactive_regeneration_and_logout(): void
     {
