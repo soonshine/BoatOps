@@ -1,8 +1,14 @@
-schema_version: 14
+schema_version: 15
 project: BoatOps
-updated_at: "2026-08-13T18:54:06+07:00"
+updated_at: "2026-08-14T17:16:40+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
+
+engineering:
+  status: STOP
+  active_task: NONE
+  next: OWNER_REAL_USE_FEEDBACK_OR_NEXT_GENUINE_PLAN_C_ORDER
+  cal_ux_004_exists: false
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -21,12 +27,14 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    sha: "c176b91530019f47145947e63fe5929880d2ff37"
-    sha_role: VERIFIED_AUTHORING_BASELINE
+    sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+    sha_role: VERIFIED_OWNER_TASK_BASELINE
     live_head_source: GITHUB_REF
     pr_18_included: true
     pr_19_included: true
     cal_ux_001_included: true
+    cal_ux_002_included: true
+    cal_ux_003_included: true
     real_pilot_candidate_included: true
   real_pilot_branch:
     name: "codex/test-runtime-vertical-slice"
@@ -121,13 +129,17 @@ test_runtime:
     restore: PASS
     rollback: PASS
     scheduler_holds_expire: PASS
-  deployed_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
-  deployed_source_class: MAIN_WITH_REAL_PILOT_AND_CAL_UX_001_ANCESTRY
+  deployed_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  deployed_source_class: MAIN_WITH_REAL_PILOT_AND_CAL_UX_001_002_003_ANCESTRY
   real_pilot_candidate_included_in_deployed_ancestry: true
   deployed_source_is_bare_real_pilot_candidate: false
   cal_ux_001_deployed: true
+  cal_ux_002_deployed: true
+  cal_ux_003_deployed: true
   fleet_inventory_source_present: true
   unauthenticated_calendar_boundary: PASS
+  authenticated_operator_access: PASS_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
+  credential_secret_recorded: false
   plan_c_read_model_smoke: PASS
   inventory_zero_write: PASS
   inventory_read_proof:
@@ -194,9 +206,13 @@ real_pilot:
   boat: Plan C
   configuration: READY
   provisioning: COMPLETE
-  operator_secret: "DEFERRED / NOT_REQUIRED_FOR_CURRENT_PASSWORDLESS_VERIFICATION"
-  cao_login_smoke: DEFERRED_NO_PASSWORD
-  test_deployed_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
+  operator_secret: "APPROVED_EXISTING_CAO_CREDENTIAL_PATH_USED / SECRET_NOT_RECORDED"
+  cao_login_smoke: PASS
+  authenticated_operator_access:
+    status: DEMONSTRATED
+    credential_path: APPROVED_EXISTING_CAO_CREDENTIAL
+    secret_recorded: false
+  test_deployed_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
   test_deployed_real_pilot_candidate_included_in_ancestry: true
   unauthenticated_calendar_boundary: PASS
   plan_c_read_model_smoke: PASS
@@ -257,7 +273,7 @@ real_pilot:
       can_block: true
   historical_plan_c_migration: false
   first_real_vertical_slice:
-    trigger: NEXT_REAL_PLAN_C_ORDER_AFTER_AUTHENTICATED_OPERATOR_SMOKE
+    trigger: NEXT_GENUINE_PLAN_C_ORDER
     synthetic_or_invented_real_order_forbidden: true
     sequence:
       - INQUIRY
@@ -275,7 +291,7 @@ real_pilot_candidate:
   code_configuration_status: INCLUDED_IN_MAIN_ANCESTRY
   merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
   test_deployment_status: DEPLOYED_AS_MAIN_ANCESTRY
-  deployed_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
+  deployed_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
   included_in_deployed_ancestry: true
   github_ci: SUCCESS
 
@@ -300,7 +316,7 @@ cal_ux_001:
   deployment: TEST_ONLY_DEPLOYED
   deployment_authorized: true
   deployed: true
-  test_source_sha: "b93846bfbdabc12fc83307392b3fa896aaf323c3"
+  test_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
   fleet_inventory_source_present: true
   unauthenticated_calendar_boundary: PASS
   tag: NOT_AUTHORIZED
@@ -313,9 +329,13 @@ cal_ux_002:
   source: OWNER_TEST_CALENDAR_REVIEW
   owner_authorization: GRANTED
   issue: 23
+  issue_state: CLOSED
+  pr: 24
   implementation_base_sha: "c176b91530019f47145947e63fe5929880d2ff37"
+  merge_commit_sha: "44cdb261ce9ec981e948decfceda916c8eca2984"
   branch: "codex/cal-ux-002"
-  state: IMPLEMENTED_REVIEW_PENDING
+  branch_status: MERGED_HISTORICAL
+  state: MERGED_TEST_DEPLOYED
   scope: CHINESE_FIRST_AND_QUIET_AVAILABLE_OPERATOR_CALENDAR
   inventory_authority_changed: false
   schema_changed: false
@@ -330,9 +350,46 @@ cal_ux_002:
     mobile_390_viewport: PASS
     full_page_horizontal_overflow: false
     browser_console_errors: 0
+  owner_merge_authorization: GRANTED_AND_CONSUMED
   merge_authorized: false
+  deployment_authorization: GRANTED_AND_CONSUMED
   deployment_authorized: false
-  deployed: false
+  deployed: true
+  deployment: TEST_ONLY_DEPLOYED
+  test_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  included_in_test_source_ancestry: true
+  production_touched: false
+  cutover_authorized: false
+  authority_switch_authorized: false
+  tag_authorized: false
+  release_authorized: false
+
+cal_ux_003:
+  classification: OBSERVED_OPERATIONAL_PAIN
+  source: OWNER_TEST_CALENDAR_REVIEW
+  owner_authorization: GRANTED
+  issue: 26
+  issue_state: CLOSED
+  pr: 25
+  implementation_base_sha: "44cdb261ce9ec981e948decfceda916c8eca2984"
+  merge_commit_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  branch: "codex/cal-ux-003"
+  branch_status: MERGED_HISTORICAL
+  state: MERGED_TEST_DEPLOYED
+  scope: DURATION_FIRST_INQUIRY_ENTRY
+  inventory_authority_changed: false
+  schema_changed: false
+  migrations_changed: false
+  slot_calendar_read_model_changed: false
+  application_inventory_actions_changed: false
+  owner_merge_authorization: GRANTED_AND_CONSUMED
+  merge_authorized: false
+  deployment_authorization: GRANTED_AND_CONSUMED
+  deployment_authorized: false
+  deployed: true
+  deployment: TEST_ONLY_DEPLOYED
+  test_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  included_in_test_source_ancestry: true
   production_touched: false
   cutover_authorized: false
   authority_switch_authorized: false
@@ -359,6 +416,12 @@ development_rule:
     - id: CAL-UX-002
       basis: OBSERVED_OPERATIONAL_PAIN
       source: OWNER_TEST_CALENDAR_REVIEW
+      status: COMPLETED_MERGED_TEST_DEPLOYED
+      global_feature_development_reopened: false
+    - id: CAL-UX-003
+      basis: OBSERVED_OPERATIONAL_PAIN
+      source: OWNER_TEST_CALENDAR_REVIEW
+      status: COMPLETED_MERGED_TEST_DEPLOYED
       global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
   state_updates: SAME_RELEVANT_PR_BY_DEFAULT
@@ -388,20 +451,23 @@ development_rule:
 
 gates:
   code:
-    status: CAL_UX_002_IMPLEMENTED_REVIEW_PENDING
+    status: ENGINEERING_STOP_CAL_UX_002_003_COMPLETE
     new_feature_development_authorized: false
     pr_18: MERGED_CLOSED
     pr_19: MERGED_CLOSED
     cal_ux_001_owner_merge_authorization: GRANTED_AND_CONSUMED
     cal_ux_001_integration: COMPLETE
-    cal_ux_002: IMPLEMENTED_REVIEW_PENDING
-    cal_ux_002_merge_authorized: false
+    cal_ux_002: MERGED_TEST_DEPLOYED
+    cal_ux_003: MERGED_TEST_DEPLOYED
   test_deployment:
-    status: REAL_PILOT_EXECUTION_AUTHORIZED
+    status: CURRENT_MAIN_DEPLOYED
     environment: TEST_ONLY
-    authorized: true
+    authorized: false
+    authorization_consumed: true
+    further_deployment_authorized: false
+    source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
   real_pilot_use:
-    status: AUTHORIZED_AFTER_AUTHENTICATED_OPERATOR_SMOKE
+    status: AUTHENTICATED_OPERATOR_ACCESS_PROVEN_WAITING_NEXT_GENUINE_ORDER
     real_operator_use_authorized: true
     next_real_plan_c_order_authorized: true
     historical_migration_authorized: false
@@ -426,17 +492,17 @@ production:
 current_blockers: []
 
 remaining_gate_prerequisites:
-  authenticated_operator_smoke: DEFERRED_NO_PASSWORD
-  first_real_plan_c_order: WAITING_FOR_AUTHENTICATED_OPERATOR_ACCESS_AND_NEXT_GENUINE_ORDER
+  authenticated_operator_smoke: COMPLETE_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
+  first_real_plan_c_order: WAITING_FOR_NEXT_GENUINE_ORDER
+  owner_real_use_feedback: WAITING
   engineering_required_now: false
-  note: "Authenticated Operator smoke may be completed later through an Owner-approved existing credential path; no further engineering is required now."
+  note: "Authenticated Operator access has been demonstrated through the approved existing Cao credential path; no secret is recorded. No further engineering is required now."
 
 next_action:
-  id: REAL_PILOT_OPERATIONAL_PATH
+  id: OWNER_FEEDBACK_OR_NEXT_GENUINE_PLAN_C_ORDER
   engineering_required: false
-  note: "Wait for authenticated Operator access and the next genuine Plan C order; do not create a synthetic order."
+  note: "Wait for Owner real-use feedback or the next genuine Plan C order; do not create a synthetic order or CAL-UX-004."
   sequence:
-    - AUTHENTICATED_OPERATOR_SMOKE
     - WAIT_FOR_NEXT_GENUINE_PLAN_C_ORDER
     - INQUIRY
     - HOLD
@@ -456,7 +522,7 @@ stop_conditions:
   - NO_SYNTHETIC_OR_INVENTED_REAL_ORDER
   - NO_CUTOVER
   - NO_AUTHORITY_SWITCH
-  - NO_CAL_UX_001_DEPLOYMENT_WITHOUT_SEPARATE_AUTHORIZATION
+  - NO_FURTHER_TEST_DEPLOYMENT_WITHOUT_SEPARATE_AUTHORIZATION
   - NO_TAG
   - NO_RELEASE
 
@@ -474,6 +540,14 @@ closed_history:
     status: MERGED_CLOSED
     head_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
     merge_commit_sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
+  cal_ux_002_pr_24:
+    status: MERGED_CLOSED_TEST_DEPLOYED
+    merge_commit_sha: "44cdb261ce9ec981e948decfceda916c8eca2984"
+    issue_23: CLOSED
+  cal_ux_003_pr_25:
+    status: MERGED_CLOSED_TEST_DEPLOYED
+    merge_commit_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+    issue_26: CLOSED
 
 authorities:
   charter: ".project/PROJECT_CHARTER.md"
