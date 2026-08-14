@@ -17,15 +17,44 @@ class OperatorFoundationTest extends TestCase
     public function test_login_invalid_inactive_regeneration_and_logout(): void
     {
         $c = $this->context();
-        $this->get('/operator/login');
+        $this->get('/operator/login')->assertOk()
+            ->assertSee('操作员登录')
+            ->assertSee('邮箱')
+            ->assertSee('密码')
+            ->assertDontSee('Operator login');
         $old = session()->getId();
-        $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'wrong'])->assertSessionHasErrors('email');
+        $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'wrong'])
+            ->assertSessionHasErrors(['email' => '操作员账号或密码不正确。']);
         $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'fictional-password'])->assertRedirect('/operator/calendar');
         $this->assertNotSame($old, session()->getId());
         $this->post('/operator/logout')->assertRedirect('/operator/login');
         $this->assertGuest();
         DB::table('operator_memberships')->where('user_id', $c['user']->id)->update(['status' => 'INACTIVE']);
         $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'fictional-password'])->assertSessionHasErrors('email');
+    }
+
+    public function test_operator_validation_messages_use_chinese_field_names(): void
+    {
+        $context = $this->context();
+        $this->actingAs($context['user']);
+
+        $this->get('/operator/calendar?range=8')
+            ->assertRedirect()
+            ->assertSessionHasErrors(['range' => '选择的日历范围无效。']);
+
+        $this->post('/operator/inquiries', [])
+            ->assertSessionHasErrors([
+                'idempotency_key' => '操作标识不能为空。',
+                'reference' => '询价参考号不能为空。',
+            ]);
+    }
+
+    public function test_operator_locale_does_not_leak_to_other_web_routes(): void
+    {
+        Route::middleware('web')->get('/locale-probe', fn () => response(app()->getLocale()));
+
+        $this->get('/operator/login')->assertOk()->assertSee('操作员登录');
+        $this->get('/locale-probe')->assertOk()->assertContent((string) config('app.locale'));
     }
 
     public function test_login_landing_and_navigation_follow_first_granted_permission_and_fail_closed(): void
@@ -93,7 +122,8 @@ class OperatorFoundationTest extends TestCase
         }
 
         $this->post('/operator/login', ['email' => $limited['user']->email, 'password' => 'wrong'])
-            ->assertStatus(429);
+            ->assertStatus(429)
+            ->assertSee('请求过于频繁');
 
         $valid = $this->context();
         $this->post('/operator/login', ['email' => $valid['user']->email, 'password' => 'fictional-password'])
@@ -153,7 +183,7 @@ class OperatorFoundationTest extends TestCase
             Route::middleware('web')->get('/permission-'.$p, fn () => response('ok'))->middleware('operator.membership:'.$p);
         }$this->actingAs($c['user']);
         foreach (['calendar_read', 'booking_workflow', 'block'] as $p) {
-            $this->get('/permission-'.$p)->assertForbidden();
+            $this->get('/permission-'.$p)->assertForbidden()->assertSee('无权访问');
         }DB::table('operator_memberships')->where('user_id', $c['user']->id)->update(['status' => 'INACTIVE']);
         $this->get('/operator/calendar')->assertForbidden();
         $c = $this->context();
@@ -176,7 +206,7 @@ class OperatorFoundationTest extends TestCase
         $r = $this->get('/operator/calendar?from=2026-09-01&range=30')->assertOk();
         $this->assertCount(30, $r->viewData('calendar')['boats'][0]['dates']);
         $this->assertSame([$a['product_id']], $r->viewData('products')->pluck('id')->map(fn ($x) => (int) $x)->all());
-        $this->get('/operator/calendar?range=7&boat_id='.$b['boat_id'])->assertNotFound();
+        $this->get('/operator/calendar?range=7&boat_id='.$b['boat_id'])->assertNotFound()->assertSee('页面不存在');
     }
 
     public function test_inquiry_idempotency_audit_and_no_inventory_mutation(): void

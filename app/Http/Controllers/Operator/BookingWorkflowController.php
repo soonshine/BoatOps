@@ -8,6 +8,7 @@ use App\Application\Bookings\CancelBookingAction;
 use App\Application\Bookings\ConfirmBookingAction;
 use App\Application\Holds\HoldActor;
 use App\Http\Controllers\Controller;
+use App\Support\OperatorUi;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,7 +43,7 @@ final class BookingWorkflowController extends Controller
             HoldActor::operatorUser((int) Auth::id()),
         );
 
-        return $this->redirectInquiryResult($result, $inquiry, 201, 'Booking confirmed without pricing.');
+        return $this->redirectInquiryResult($result, $inquiry, 201, '订单已确认；当前未定价。');
     }
 
     public function amend(Request $request, int $inquiry, int $booking): RedirectResponse
@@ -53,7 +54,7 @@ final class BookingWorkflowController extends Controller
         $bookingRecord = $this->scopedInquiryBooking($organizationId, $inquiryRecord, $booking);
         $result = $this->executeAmend($organizationId, $bookingRecord, $input);
 
-        return $this->redirectInquiryResult($result, $inquiry, 200, 'Booking amended.');
+        return $this->redirectInquiryResult($result, $inquiry, 200, '订单已修改。');
     }
 
     public function cancel(Request $request, int $inquiry, int $booking): RedirectResponse
@@ -64,7 +65,7 @@ final class BookingWorkflowController extends Controller
         $bookingRecord = $this->scopedInquiryBooking($organizationId, $inquiryRecord, $booking);
         $result = $this->executeCancel($organizationId, $bookingRecord, $input);
 
-        return $this->redirectInquiryResult($result, $inquiry, 200, 'Booking cancelled.');
+        return $this->redirectInquiryResult($result, $inquiry, 200, '订单已取消。');
     }
 
     public function amendFromBooking(Request $request, int $booking): RedirectResponse
@@ -73,7 +74,7 @@ final class BookingWorkflowController extends Controller
         $bookingRecord = $this->scopedBooking($organizationId, $booking);
         $result = $this->executeAmend($organizationId, $bookingRecord, $this->amendInput($request));
 
-        return $this->redirectBookingResult($result, $booking, 200, 'Booking amended.');
+        return $this->redirectBookingResult($result, $booking, 200, '订单已修改。');
     }
 
     public function cancelFromBooking(Request $request, int $booking): RedirectResponse
@@ -82,7 +83,7 @@ final class BookingWorkflowController extends Controller
         $bookingRecord = $this->scopedBooking($organizationId, $booking);
         $result = $this->executeCancel($organizationId, $bookingRecord, $this->cancelInput($request));
 
-        return $this->redirectBookingResult($result, $booking, 200, 'Booking cancelled.');
+        return $this->redirectBookingResult($result, $booking, 200, '订单已取消。');
     }
 
     /** @return array<string, mixed> */
@@ -201,7 +202,7 @@ final class BookingWorkflowController extends Controller
             return $redirect->with('status', $successMessage);
         }
 
-        return $redirect->withErrors(['booking' => $result->payload['message']]);
+        return $redirect->withErrors(['booking' => OperatorUi::actionError($result->payload)]);
     }
 
     private function redirectBookingResult(BookingActionResult $result, int $booking, int $successStatus, string $successMessage): RedirectResponse
@@ -211,6 +212,6 @@ final class BookingWorkflowController extends Controller
             return $redirect->with('status', $successMessage);
         }
 
-        return $redirect->withErrors(['booking' => $result->payload['message']]);
+        return $redirect->withErrors(['booking' => OperatorUi::actionError($result->payload)]);
     }
 }

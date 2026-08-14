@@ -1,22 +1,22 @@
 @extends('operator.layout')
 
-@section('title', "Today's Trips")
+@section('title', '出航列表')
 
 @section('content')
-<h1>Today's Trips</h1>
-<p>Operational date is interpreted in the organization timezone: {{ $organization->timezone }}.</p>
+<h1>出航列表</h1>
+<p>运营日期按组织时区 <strong>{{ $organization->timezone }}</strong> 计算。</p>
 
 <section class="card">
 <form method="get" action="{{ route('operator.trips.index') }}">
-<label>Organization-local date
+<label>运营日期（组织时区）
 <input type="date" name="date" value="{{ $date }}" required>
 </label>
-<button>View Trips</button>
+<button>查看出航</button>
 </form>
 </section>
 
 <table>
-<thead><tr><th>Planned time</th><th>Booking</th><th>Boat / Product</th><th>Contact / Party</th><th>Trip status</th><th>Readiness</th><th></th></tr></thead>
+<thead><tr><th>计划时间</th><th>订单</th><th>船只 / 产品</th><th>联系人 / 人数</th><th>出航状态</th><th>准备状态</th><th>操作</th></tr></thead>
 <tbody>
 @forelse($trips as $trip)
 @php
@@ -26,16 +26,16 @@ $completedRequiredCount = (int) $trip->completed_required_count;
 $ready = $crewCount > 0 && $requiredCount > 0 && $requiredCount === $completedRequiredCount;
 @endphp
 <tr>
-<td>{{ \Carbon\CarbonImmutable::parse($trip->planned_start, 'UTC')->setTimezone($organization->timezone)->format('Y-m-d H:i') }} – {{ \Carbon\CarbonImmutable::parse($trip->planned_end, 'UTC')->setTimezone($organization->timezone)->format('H:i T') }}</td>
+<td>{{ \App\Support\OperatorUi::dateTimeRange($trip->planned_start, $trip->planned_end, $organization->timezone) }}</td>
 <td>{{ $trip->booking_reference }}</td>
 <td>{{ $trip->boat_name }}<br>{{ $trip->product_name }}</td>
-<td>{{ $trip->contact_name ?: 'Not provided' }}<br>Party: {{ $trip->party_size ?: 'Not provided' }}</td>
-<td>{{ $trip->status }}</td>
-<td>Crew: {{ $crewCount }}<br>Checklist: {{ $completedRequiredCount }}/{{ $requiredCount }} required complete<br>Derived hint: {{ $ready ? 'Ready for departure' : 'Needs preparation' }}</td>
-<td><a href="{{ route('operator.trips.show', $trip->id) }}">Open Trip</a></td>
+<td>{{ $trip->contact_name ?: '未提供' }}<br>人数：{{ $trip->party_size ?: '未提供' }}</td>
+<td>{{ \App\Support\OperatorUi::status($trip->status) }}</td>
+<td>船员：{{ $crewCount }} 人<br>必检项：{{ $completedRequiredCount }}/{{ $requiredCount }} 已完成<br>系统提示：{{ $ready ? '已就绪' : '待准备' }}</td>
+<td><a href="{{ route('operator.trips.show', $trip->id) }}">查看出航</a></td>
 </tr>
 @empty
-<tr><td colspan="7">No Trips are planned for this organization-local date.</td></tr>
+<tr><td colspan="7">该运营日期暂无计划出航。</td></tr>
 @endforelse
 </tbody>
 </table>

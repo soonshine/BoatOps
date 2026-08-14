@@ -41,7 +41,13 @@ class OperatorBookingWorkbenchTest extends TestCase
 
         $this->actingAs($allowed['user']);
         $response = $this->get('/operator/bookings?view=all')->assertOk()
-            ->assertSee('Bookings')
+            ->assertSee('订单列表')
+            ->assertSee('今日订单')
+            ->assertSee('未来订单')
+            ->assertSee('全部订单')
+            ->assertSee('筛选订单')
+            ->assertSee('清除筛选')
+            ->assertDontSee('<h1>Bookings</h1>', false)
             ->assertSee('FICTIONAL-ALLOWED-BOOKING')
             ->assertSee('Fictional Contact ALLOWED')
             ->assertDontSee('FICTIONAL-FOREIGN-BOOKING')
@@ -81,9 +87,11 @@ class OperatorBookingWorkbenchTest extends TestCase
         $this->assertSame('CANCELLED', $nextQuery['status']);
         $this->assertSame('fictional-page', $nextQuery['q']);
         $this->assertSame('2', (string) $nextQuery['page']);
+        $first->assertSee('下一页');
 
         $second = $this->get('/operator/bookings?'.$query.'&page=2')->assertOk();
         $this->assertCount(2, $second->viewData('bookings')->items());
+        $second->assertSee('上一页');
     }
 
     public function test_today_uses_exact_asia_bangkok_local_boundaries_and_keeps_cancelled_visible(): void
@@ -104,7 +112,7 @@ class OperatorBookingWorkbenchTest extends TestCase
         $this->actingAs($context['user']);
         $response = $this->get('/operator/bookings')->assertOk();
         $this->assertSame(['AT-TODAY-START', 'BEFORE-NEXT-DAY'], $this->references($response));
-        $response->assertSee('CANCELLED');
+        $response->assertSee('已取消');
     }
 
     public function test_upcoming_uses_next_local_midnight_and_all_has_no_date_scope_with_stable_ordering(): void
@@ -118,7 +126,7 @@ class OperatorBookingWorkbenchTest extends TestCase
         $this->actingAs($context['user']);
         $upcoming = $this->get('/operator/bookings?view=upcoming')->assertOk();
         $this->assertSame(['UPCOMING-START', 'UPCOMING-LATER'], $this->references($upcoming));
-        $upcoming->assertSee('CANCELLED');
+        $upcoming->assertSee('已取消');
 
         $older = $this->directBooking($context, 'ALL-OLDER', '2026-07-01T01:00:00Z', 'CANCELLED');
         $sameLow = $this->directBooking($context, 'ALL-SAME-LOW', '2026-12-01T01:00:00Z', 'CANCELLED');
@@ -199,21 +207,21 @@ class OperatorBookingWorkbenchTest extends TestCase
             ->assertSee('Fictional Product')
             ->assertSee('Fictional Contact DETAIL')
             ->assertSee('fictional-private-detail@example.test')
-            ->assertSee('Party size: 7')
+            ->assertSee('人数：7')
             ->assertSee('Fictional Meeting Point DETAIL')
             ->assertSee('Fictional Service Location DETAIL')
             ->assertSee('FICTIONAL_DIRECT')
             ->assertSee('FICTIONAL-AGENT-DETAIL')
             ->assertSee('Fictional Service Notes DETAIL')
             ->assertSee('Fictional Internal Notes DETAIL')
-            ->assertSee('THB 250000 minor units')
-            ->assertSee('Trip status: PLANNED')
-            ->assertSee('Actual departed at: Not recorded')
-            ->assertSee('Actual returned at: Not recorded')
-            ->assertSee('Completed at: Not recorded')
-            ->assertSee('Open Trip Desk')
+            ->assertSee('销售金额：THB 250000（最小货币单位）')
+            ->assertSee('出航状态：待出航')
+            ->assertSee('实际出航：未记录')
+            ->assertSee('实际返航：未记录')
+            ->assertSee('完成时间：未记录')
+            ->assertSee('打开出航工作台')
             ->assertSee(route('operator.trips.show', $booking['trip_id']), false)
-            ->assertSee('View Inquiry / Edit Operational Dossier')
+            ->assertSee('查看询价 / 编辑运营资料')
             ->assertSee(route('operator.inquiries.show', $booking['inquiry_id']), false)
             ->assertDontSee('<button>Prepare', false)
             ->assertDontSee('<button>Depart', false)
@@ -227,8 +235,8 @@ class OperatorBookingWorkbenchTest extends TestCase
             'actual_departed_at' => '2026-09-10 01:00:00',
         ]);
         $this->get('/operator/bookings/'.$booking['id'])->assertOk()
-            ->assertSee('Booking changes are unavailable after Trip execution has started.')
-            ->assertSee('Open Trip Desk')
+            ->assertSee('出航执行开始后不能再修改订单。')
+            ->assertSee('打开出航工作台')
             ->assertDontSee(route('operator.bookings.amend', $booking['id']), false)
             ->assertDontSee(route('operator.bookings.cancel', $booking['id']), false);
     }
@@ -244,8 +252,8 @@ class OperatorBookingWorkbenchTest extends TestCase
         $this->get('/operator/bookings?view=all')->assertOk()->assertSee($booking['reference']);
         $this->get('/operator/bookings?view=all&q=api-direct')->assertOk()->assertSee($booking['reference']);
         $this->get('/operator/bookings/'.$booking['id'])->assertOk()
-            ->assertSee('No Operator inquiry dossier linked.')
-            ->assertSee('Trip status: PLANNED');
+            ->assertSee('未关联操作员询价资料。')
+            ->assertSee('出航状态：待出航');
     }
 
     public function test_detail_and_mutations_are_non_disclosing_across_organizations_and_permissions(): void
@@ -313,7 +321,8 @@ class OperatorBookingWorkbenchTest extends TestCase
             'service_date' => '2026-09-11',
         ];
         $path = '/operator/bookings/'.$booking['id'].'/amend';
-        $this->post($path, $amend)->assertStatus(303)->assertRedirect(route('operator.bookings.show', $booking['id']));
+        $this->post($path, $amend)->assertStatus(303)->assertRedirect(route('operator.bookings.show', $booking['id']))
+            ->assertSessionHas('status', '订单已修改。');
         $this->post($path, $amend)->assertStatus(303)->assertRedirect(route('operator.bookings.show', $booking['id']));
 
         $this->assertDatabaseHas('bookings', [
@@ -353,7 +362,8 @@ class OperatorBookingWorkbenchTest extends TestCase
             'reason' => 'Fictional direct booking cancellation',
         ];
         $cancelPath = '/operator/bookings/'.$booking['id'].'/cancel';
-        $this->post($cancelPath, $cancel)->assertStatus(303)->assertRedirect(route('operator.bookings.show', $booking['id']));
+        $this->post($cancelPath, $cancel)->assertStatus(303)->assertRedirect(route('operator.bookings.show', $booking['id']))
+            ->assertSessionHas('status', '订单已取消。');
         $this->post($cancelPath, $cancel)->assertStatus(303)->assertRedirect(route('operator.bookings.show', $booking['id']));
         $this->assertDatabaseHas('bookings', ['id' => $booking['id'], 'status' => 'CANCELLED']);
         $this->assertDatabaseHas('allocations', ['booking_id' => $booking['id'], 'status' => 'CANCELLED']);

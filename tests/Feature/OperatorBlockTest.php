@@ -26,12 +26,15 @@ class OperatorBlockTest extends TestCase
         $released = $this->block($a, 'RELEASED', 'OWNER_USE');
         $this->block($b, 'ACTIVE', 'MANUAL');
         $response = $this->actingAs($a['user'])->get('/operator/blocks')->assertOk();
-        $response->assertSee('America/New_York')->assertSee('WEATHER is a manual reason label only.')
-            ->assertSee('OWNER_DECISION_REQUIRED')->assertSee('This page exposes no automated weather rule.')
+        $response->assertSee('停用管理')->assertSee('创建停用记录')->assertSee('America/New_York')
+            ->assertSee('“天气原因”仅为人工原因标签')
+            ->assertSee('OWNER_DECISION_REQUIRED')->assertSee('本页面不包含自动天气规则')
             ->assertSee('Fictional Resource America/New_York')->assertDontSee('Fictional Resource Pacific/Auckland')
+            ->assertSee('停用状态：生效中')->assertSee('原因类型：天气原因')
+            ->assertSee('停用状态：已释放')->assertSee('原因类型：船东自用')
             ->assertSee(route('operator.blocks.release', $active), false)
             ->assertDontSee(route('operator.blocks.release', $released), false)
-            ->assertSee('2026-09-22 06:00 EDT')->assertSee('2026-09-22 08:00 EDT');
+            ->assertSee('2026年9月22日 06:00')->assertSee('2026年9月22日 08:00');
         $this->assertMatchesRegularExpression('/name="idempotency_key" value="[0-9a-f-]{36}"/', $response->getContent());
         $this->assertStringNotContainsString('Asia/Bangkok', $response->getContent());
         $this->assertStringNotContainsString('<script', strtolower($response->getContent()));
@@ -42,10 +45,14 @@ class OperatorBlockTest extends TestCase
         $c = $this->context('America/New_York');
         $key = (string) Str::uuid();
         $payload = $this->payload($c, $key);
-        $this->actingAs($c['user'])->post('/operator/blocks', $payload)->assertStatus(303);
+        $this->actingAs($c['user'])->post('/operator/blocks', $payload)->assertStatus(303)
+            ->assertSessionHas('status', '停用记录已创建。');
+        $this->get('/operator/blocks')->assertOk()
+            ->assertSee('role="status"', false)
+            ->assertSee('停用记录已创建。');
         $this->post('/operator/blocks', $payload)->assertStatus(303);
         $this->post('/operator/blocks', [...$payload, 'ends_at_local' => '2026-09-22T13:00'])
-            ->assertStatus(303)->assertSessionHasErrors(['block' => 'The idempotency key was used with another payload.']);
+            ->assertStatus(303)->assertSessionHasErrors(['block' => '页面操作标识已被用于其他内容，请刷新页面后重试。']);
         $block = DB::table('blocks')->sole();
         $this->assertSame('2026-09-22 14:00:00', $block->business_start);
         $this->assertSame('2026-09-22 16:00:00', $block->business_end);
@@ -66,7 +73,7 @@ class OperatorBlockTest extends TestCase
         $c = $this->context('UTC');
         DB::table('allocations')->insert(['organization_id' => $c['organization_id'], 'boat_id' => $c['boat_id'], 'allocation_type' => 'BOOKING', 'status' => 'ACTIVE', 'business_start' => '2026-09-22 10:30:00', 'business_end' => '2026-09-22 13:00:00', 'occupied_start' => '2026-09-22 10:30:00', 'occupied_end' => '2026-09-22 13:00:00', 'created_at' => now(), 'updated_at' => now()]);
         $this->actingAs($c['user'])->post('/operator/blocks', $this->payload($c, (string) Str::uuid()))
-            ->assertStatus(303)->assertSessionHasErrors(['block' => 'The requested slot is unavailable.']);
+            ->assertStatus(303)->assertSessionHasErrors(['block' => '所选时段当前不可用，请选择其他时段。']);
         $this->assertDatabaseCount('blocks', 0);
         $this->assertDatabaseCount('allocations', 1);
         foreach (['audit_logs', 'outbox_events', 'idempotency_keys'] as $table) {
@@ -85,7 +92,7 @@ class OperatorBlockTest extends TestCase
         $this->post('/operator/blocks/'.$block->id.'/release', $release)->assertStatus(303);
         $this->post('/operator/blocks/'.$block->id.'/release', $release)->assertStatus(303);
         $this->post('/operator/blocks/'.$block->id.'/release', ['idempotency_key' => (string) Str::uuid()])
-            ->assertStatus(303)->assertSessionHasErrors(['release' => 'Only an active block can be released.']);
+            ->assertStatus(303)->assertSessionHasErrors(['release' => '只有生效中的停用记录可以解除。']);
         $this->assertDatabaseHas('blocks', ['id' => $block->id, 'status' => 'RELEASED']);
         $this->assertDatabaseHas('allocations', ['block_id' => $block->id, 'status' => 'RELEASED']);
         $this->assertDatabaseHas('audit_logs', ['actor_type' => 'operator_user', 'actor_id' => $c['user']->id, 'action' => 'resource.unblocked', 'reason' => 'Fictional maintenance complete']);

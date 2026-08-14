@@ -34,13 +34,13 @@ final class OperatorSessionController extends Controller
         $c = $r->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
         if (! Auth::attempt($c, false)) {
             $this->clearSession($r);
-            throw ValidationException::withMessages(['email' => ['The provided operator credentials are invalid.']]);
+            throw ValidationException::withMessages(['email' => ['操作员账号或密码不正确。']]);
         }
         $membership = DB::table('operator_memberships')->where('user_id', Auth::id())->where('status', 'ACTIVE')->first();
         $route = $this->firstGrantedRoute($membership);
         if ($route === null) {
             $this->clearSession($r);
-            throw ValidationException::withMessages(['email' => ['The provided operator credentials are invalid.']]);
+            throw ValidationException::withMessages(['email' => ['操作员账号或密码不正确。']]);
         }
         $r->session()->regenerate();
 

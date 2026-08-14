@@ -12,11 +12,12 @@ use App\Http\Controllers\Operator\OperatorSessionController;
 use App\Http\Controllers\Operator\TripDeskController;
 use App\Http\Controllers\Operator\TripWorkflowController;
 use App\Http\Middleware\ResolveDemoSiteContext;
+use App\Http\Middleware\UseChineseOperatorUi;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'home');
 
-Route::prefix('operator')->name('operator.')->group(function (): void {
+Route::prefix('operator')->middleware(UseChineseOperatorUi::class)->name('operator.')->group(function (): void {
     Route::get('/login', [OperatorSessionController::class, 'create'])->name('login');
     Route::post('/login', [OperatorSessionController::class, 'store'])->middleware('throttle:operator-login')->name('login.store');
     Route::post('/logout', [OperatorSessionController::class, 'destroy'])->name('logout');

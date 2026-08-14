@@ -1,6 +1,6 @@
 @extends('operator.layout')
 
-@section('title', '船期库存')
+@section('title', '船期日历')
 @section('bodyClass', 'fleet-calendar-body')
 
 @section('head')
@@ -671,13 +671,9 @@
 @section('content')
 @php
     $operatorMembership = request()->attributes->get('operator_membership');
-    $statusLabels = [
-        'AVAILABLE' => '可用',
-        'HELD' => '已预留',
-        'CONFIRMED' => '已确认',
-        'BLOCKED' => '已停用',
-        'UNAVAILABLE' => '不可用',
-    ];
+    $statusLabels = collect(['AVAILABLE', 'HELD', 'CONFIRMED', 'BLOCKED', 'UNAVAILABLE'])
+        ->mapWithKeys(static fn (string $status): array => [$status => \App\Support\OperatorUi::status($status)])
+        ->all();
     $allocationTypeLabels = [
         'HOLD' => '预留',
         'BOOKING' => '订单',
@@ -698,6 +694,7 @@
             }
         }
 
+        $displayName = \App\Support\OperatorUi::slotName($displayName, $slotCode);
         $displayName = preg_replace('/(\d+)\s*小时/u', '$1 小时', $displayName) ?? $displayName;
         $displayName = preg_replace('/^(\d+\s*小时)\s*(上午|下午)/u', '$2 $1', $displayName) ?? $displayName;
 
@@ -726,7 +723,7 @@
                 'BLOCKED' => '该时段已停用。',
                 default => '该服务时段当前不可用于后续选择。',
             },
-            default => (string) $slot['conflict_message'],
+            default => '该服务时段当前不可用，请刷新页面后重试。',
         };
     };
 @endphp
@@ -734,7 +731,7 @@
 <header class="fleet-page-header">
 <div>
 <p class="fleet-eyebrow">{{ $organization->name }}</p>
-<h1>船期库存</h1>
+<h1>船期日历</h1>
 <p class="fleet-subtitle">按船只、日期和服务时段查看可销售或可使用的船期。预留和确认时仍由服务器重新校验实际占用。</p>
 </div>
 <p class="fleet-range-label"><time datetime="{{ $calendar['from'] }}">{{ $rangeStartLabel }}</time> → <time datetime="{{ $calendar['to'] }}">{{ $rangeEndLabel }}</time></p>
@@ -786,9 +783,9 @@
 @endforeach
 </div>
 
-<div class="calendar-scroll" tabindex="0" aria-label="船期库存日历，可横向滚动查看更多日期。">
+<div class="calendar-scroll" tabindex="0" aria-label="船期日历，可横向滚动查看更多日期。">
 <table class="fleet-table">
-<caption class="sr-only">按船只、日期和服务时段显示船期库存</caption>
+<caption class="sr-only">按船只、日期和服务时段显示船期日历</caption>
 <thead>
 <tr>
 <th class="boat-column" scope="col">船只</th>
@@ -922,7 +919,7 @@
     $allocationStatus = array_key_exists($allocation['status'], $statusLabels) ? $allocation['status'] : 'UNAVAILABLE';
     $allocationStart = \Carbon\CarbonImmutable::parse($allocation['occupied_start_local'])->format('H:i');
     $allocationEnd = \Carbon\CarbonImmutable::parse($allocation['occupied_end_local'])->format('H:i');
-    $allocationName = $allocation['slot_name'] ?? ($allocationTypeLabels[$allocation['allocation_type']] ?? '占用');
+    $allocationName = \App\Support\OperatorUi::slotName($allocation['slot_name'] ?? ($allocationTypeLabels[$allocation['allocation_type']] ?? '占用'));
 @endphp
 <div class="occupied-row">
 <span class="status-badge status-{{ strtolower($allocationStatus) }}">{{ $statusLabels[$allocationStatus] }}</span>
@@ -946,7 +943,7 @@
 <p>日历仅为只读投影。最终可用性、预留和确认仍使用既有占用区间权威重新校验。</p>
 <details>
 <summary>技术信息</summary>
-<p>库存修订 {{ $calendar['inventory_revision'] }} · 生成时间 {{ $calendar['as_of'] }}</p>
+<p>库存修订 {{ $calendar['inventory_revision'] }} · 生成时间 {{ \App\Support\OperatorUi::dateTime($calendar['as_of'], $organization->timezone) }}</p>
 </details>
 </footer>
 </main>

@@ -23,7 +23,8 @@ class OperatorCalendarTest extends TestCase
         $response = $this->get('/operator/calendar?from=2026-09-01&range=7')
             ->assertOk()
             ->assertViewIs('operator.calendar')
-            ->assertSee('船期库存')
+            ->assertSee('<title>船期日历</title>', false)
+            ->assertSee('<h1>船期日历</h1>', false)
             ->assertSee('船只')
             ->assertSee('整船')
             ->assertSee('前后缓冲 30 分钟')
@@ -71,6 +72,7 @@ class OperatorCalendarTest extends TestCase
             ->assertSee('该服务时段当前不可用于后续选择。')
             ->assertDontSee('slot-card status-available', false)
             ->assertDontSee('Fleet Inventory')
+            ->assertDontSee('船期库存')
             ->assertDontSee('Start inquiry')
             ->assertDontSee('Tue')
             ->assertDontSee('Sep 1')
@@ -93,6 +95,7 @@ class OperatorCalendarTest extends TestCase
         $this->assertSame('UNAVAILABLE', $calendarBoats['Endeavour']['dates'][0]['slots'][0]['status']);
         $this->assertSame(46, substr_count($response->getContent(), 'data-available-slot-option'));
         $this->assertSame(0, substr_count($response->getContent(), 'slot-card status-available'));
+        $this->assertMatchesRegularExpression('/生成时间 \d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}/u', $response->getContent());
         $this->assertCount(7, $response->viewData('dateHeaders'));
         $response->assertSeeInOrder([
             'data-duration-choice="240"',

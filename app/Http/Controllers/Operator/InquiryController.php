@@ -7,6 +7,7 @@ use App\Application\Holds\HoldActor;
 use App\Application\Holds\OrganizationHoldTtlPolicy;
 use App\Application\Holds\ReleaseHoldAction;
 use App\Http\Controllers\Controller;
+use App\Support\OperatorUi;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,7 +95,7 @@ final class InquiryController extends Controller
             $e = DB::table('idempotency_keys')->where('organization_id', $o->id)->where('operation', self::CREATE_OPERATION)->where('idempotency_key', $key)->first();
             if ($e) {
                 if (! hash_equals($e->request_hash, $hash)) {
-                    abort(409, 'The idempotency key was used with another payload.');
+                    abort(409, '页面操作标识已被用于其他内容，请刷新页面后重试。');
                 }
 
                 return [
@@ -104,7 +105,7 @@ final class InquiryController extends Controller
             }
             if (DB::table('inquiries')->where('organization_id', $o->id)->where('reference', $payload['reference'])->exists()) {
                 throw ValidationException::withMessages([
-                    'reference' => ['This neutral reference is already in use.'],
+                    'reference' => ['该询价参考号已被使用。'],
                 ]);
             }
             $now = now();
@@ -127,7 +128,8 @@ final class InquiryController extends Controller
             return ['status' => 303, 'body' => $body];
         }, 3);
 
-        return redirect()->route('operator.inquiries.show', $result['body']['inquiry_id'], $result['status']);
+        return redirect()->route('operator.inquiries.show', $result['body']['inquiry_id'], $result['status'])
+            ->with('status', '询价已创建。');
     }
 
     public function show(Request $r, int $inquiry): View
@@ -190,7 +192,7 @@ final class InquiryController extends Controller
                 ->first();
             if ($existing) {
                 if (! hash_equals($existing->request_hash, $requestHash)) {
-                    abort(409, 'The idempotency key was used with another payload.');
+                    abort(409, '页面操作标识已被用于其他内容，请刷新页面后重试。');
                 }
 
                 return [
@@ -251,7 +253,7 @@ final class InquiryController extends Controller
         }, 3);
 
         return redirect()->route('operator.inquiries.show', $result['body']['inquiry_id'], $result['status'])
-            ->with('status', 'Operational dossier updated.');
+            ->with('status', '运营资料已更新。');
     }
 
     public function createHold(Request $r, int $inquiry): RedirectResponse
@@ -267,11 +269,12 @@ final class InquiryController extends Controller
         );
 
         if ($result->status === 201) {
-            return redirect()->route('operator.inquiries.show', $inquiry, 303);
+            return redirect()->route('operator.inquiries.show', $inquiry, 303)
+                ->with('status', '预留已创建。');
         }
 
         return redirect()->route('operator.inquiries.show', $inquiry, 303)
-            ->withErrors(['hold' => $result->payload['message']]);
+            ->withErrors(['hold' => OperatorUi::actionError($result->payload)]);
     }
 
     public function releaseHold(Request $r, int $inquiry): RedirectResponse
@@ -282,7 +285,7 @@ final class InquiryController extends Controller
 
         if ($record->hold_id === null) {
             return redirect()->route('operator.inquiries.show', $inquiry, 303)
-                ->withErrors(['hold' => 'This inquiry has no linked HOLD.']);
+                ->withErrors(['hold' => '该询价未关联预留。']);
         }
 
         $hold = DB::table('holds')
@@ -299,11 +302,12 @@ final class InquiryController extends Controller
         );
 
         if ($result->status === 200) {
-            return redirect()->route('operator.inquiries.show', $inquiry, 303);
+            return redirect()->route('operator.inquiries.show', $inquiry, 303)
+                ->with('status', '预留已释放。');
         }
 
         return redirect()->route('operator.inquiries.show', $inquiry, 303)
-            ->withErrors(['hold' => $result->payload['message']]);
+            ->withErrors(['hold' => OperatorUi::actionError($result->payload)]);
     }
 
     private function scopedInquiry(int $organizationId, int $inquiry): object

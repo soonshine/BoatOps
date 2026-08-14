@@ -26,10 +26,11 @@ class OperatorBookingWorkflowTest extends TestCase
         $inquiry = $this->inquiryWithHold($context, 'FICTIONAL-OPERATOR-CONFIRM');
         $hold = DB::table('holds')->first();
         $key = (string) Str::uuid();
-        $page = $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('Pricing and payment are outside G1')->assertSee('explicitly unpriced booking')->assertSee('not production-commercial ready')->assertSee('Confirm unpriced booking')->assertDontSee('name="rate_snapshot"', false)->assertSee('name="selling_currency"', false)->assertSee('name="selling_amount_minor"', false)->assertDontSee('name="tax_amount_minor"', false)->assertDontSee('name="commission_amount_minor"', false)->assertDontSee('name="customer"', false)->assertDontSee('name="order"', false);
+        $page = $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('G1 商业边界')->assertSee('定价和收款不在 G1 范围内')->assertSee('明确创建未定价订单')->assertSee('尚未达到生产商业就绪')->assertSee('确认未定价订单')->assertDontSee('name="rate_snapshot"', false)->assertSee('name="selling_currency"', false)->assertSee('name="selling_amount_minor"', false)->assertDontSee('name="tax_amount_minor"', false)->assertDontSee('name="commission_amount_minor"', false)->assertDontSee('name="customer"', false)->assertDontSee('name="order"', false);
         $this->assertMatchesRegularExpression('/name="idempotency_key" value="[0-9a-f-]{36}"/', $page->getContent());
         $path = "/operator/inquiries/{$inquiry}/holds/{$hold->id}/confirm";
-        $this->post($path, ['idempotency_key' => $key])->assertStatus(303);
+        $this->post($path, ['idempotency_key' => $key])->assertStatus(303)
+            ->assertSessionHas('status', '订单已确认；当前未定价。');
         $this->post($path, ['idempotency_key' => $key])->assertStatus(303);
         $booking = DB::table('bookings')->first();
         $trip = DB::table('trips')->first();
@@ -54,7 +55,7 @@ class OperatorBookingWorkflowTest extends TestCase
         $conflict = app(ConfirmBookingAction::class)->execute($context['organization_id'], ['hold_id' => (int) $hold->id, 'external_reference' => 'FICTIONAL-CHANGED'], $key, HoldActor::operatorUser($context['user']->id));
         $this->assertSame(409, $conflict->status);
         $this->assertSame('IDEMPOTENCY_CONFLICT', $conflict->payload['code']);
-        $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('Associated booking')->assertSee('UNPRICED / NOT PRODUCTION-COMMERCIAL READY')->assertSee('PLANNED');
+        $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('关联订单')->assertSee('未定价 / 尚未达到生产商业就绪')->assertSee('出航状态：待出航');
     }
 
     public function test_existing_provider_api_still_requires_and_stores_full_rate_snapshot(): void

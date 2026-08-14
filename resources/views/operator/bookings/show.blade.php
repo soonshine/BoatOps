@@ -1,112 +1,105 @@
 @extends('operator.layout')
 
-@section('title', 'Booking '.$booking->external_reference)
+@section('title', '订单 '.$booking->external_reference)
 
 @section('content')
-<h1>Booking {{ $booking->external_reference }}</h1>
-
-@if(session('status'))
-<section class="card">
-<p>{{ session('status') }}</p>
-</section>
-@endif
+<h1>订单 {{ $booking->external_reference }}</h1>
 
 <section class="card">
-<h2>Booking</h2>
-<div>External reference: {{ $booking->external_reference }}</div>
-<div>Booking status: {{ $booking->status }}</div>
-<div>Confirmed at: {{ $booking->confirmed_at ?: 'Not recorded' }}</div>
-<div>Cancelled at: {{ $booking->cancelled_at ?: 'Not cancelled' }}</div>
-<div>Service: {{ \Carbon\CarbonImmutable::parse($booking->business_start, 'UTC')->setTimezone($organization->timezone)->format('Y-m-d H:i') }} – {{ \Carbon\CarbonImmutable::parse($booking->business_end, 'UTC')->setTimezone($organization->timezone)->format('Y-m-d H:i T') }}</div>
-<div>Organization timezone: {{ $organization->timezone }}</div>
-<div>Boat: {{ $booking->boat_name }}</div>
-<div>Product / Trip template: {{ $booking->product_name }}</div>
+<h2>订单信息</h2>
+<div>外部参考号：{{ $booking->external_reference }}</div>
+<div>订单状态：{{ \App\Support\OperatorUi::status($booking->status) }}</div>
+<div>确认时间：{{ \App\Support\OperatorUi::dateTime($booking->confirmed_at, $organization->timezone) }}</div>
+<div>取消时间：{{ \App\Support\OperatorUi::dateTime($booking->cancelled_at, $organization->timezone) }}</div>
+<div>服务时间：{{ \App\Support\OperatorUi::dateTimeRange($booking->business_start, $booking->business_end, $organization->timezone) }}</div>
+<div>组织时区：{{ $organization->timezone }}</div>
+<div>船只：{{ $booking->boat_name }}</div>
+<div>产品 / 出航模板：{{ $booking->product_name }}</div>
 </section>
 
 <section class="card">
-<h2>Operational Dossier</h2>
+<h2>运营资料</h2>
 @if($booking->inquiry_id)
-<div>Inquiry reference: {{ $booking->inquiry_reference }}</div>
-<div>Contact: {{ $booking->contact_name ?: 'Not provided' }}</div>
-<div>Contact method / value: {{ $booking->contact_method ?: 'Not provided' }}{{ $booking->contact_value ? ' / '.$booking->contact_value : '' }}</div>
-<div>Party size: {{ $booking->party_size ?: 'Not provided' }}</div>
-<div>Meeting point: {{ $booking->meeting_point ?: 'Not provided' }}</div>
-<div>Service location: {{ $booking->service_location ?: 'Not provided' }}</div>
-<div>Sales source: {{ $booking->sales_source ?: 'Not provided' }}</div>
-<div>Agent / partner reference: {{ $booking->agent_reference ?: 'Not provided' }}</div>
-<div>Customer / service notes: {{ $booking->service_notes ?: 'None' }}</div>
-<div>Internal operations notes: {{ $booking->internal_notes ?: 'None' }}</div>
-<div>Selling amount: {{ $booking->selling_currency && $booking->selling_amount_minor !== null ? $booking->selling_currency.' '.$booking->selling_amount_minor.' minor units' : 'Not provided' }}</div>
-<p><a href="{{ route('operator.inquiries.show', $booking->inquiry_id) }}">View Inquiry / Edit Operational Dossier</a></p>
+<div>询价参考号：{{ $booking->inquiry_reference }}</div>
+<div>联系人：{{ $booking->contact_name ?: '未提供' }}</div>
+<div>联系方式：{{ \App\Support\OperatorUi::contactMethod($booking->contact_method) }}{{ $booking->contact_value ? ' / '.$booking->contact_value : '' }}</div>
+<div>人数：{{ $booking->party_size ?: '未提供' }}</div>
+<div>集合地点：{{ $booking->meeting_point ?: '未提供' }}</div>
+<div>服务地点 / 下客点：{{ $booking->service_location ?: '未提供' }}</div>
+<div>销售来源：{{ $booking->sales_source ?: '未提供' }}</div>
+<div>代理 / 合作方参考号：{{ $booking->agent_reference ?: '未提供' }}</div>
+<div>客户 / 服务备注：{{ $booking->service_notes ?: '无' }}</div>
+<div>内部运营备注：{{ $booking->internal_notes ?: '无' }}</div>
+<div>销售金额：{{ $booking->selling_currency && $booking->selling_amount_minor !== null ? $booking->selling_currency.' '.$booking->selling_amount_minor.'（最小货币单位）' : '未提供' }}</div>
+<p><a href="{{ route('operator.inquiries.show', $booking->inquiry_id) }}">查看询价 / 编辑运营资料</a></p>
 @else
-<p>No Operator inquiry dossier linked.</p>
+<p>未关联操作员询价资料。</p>
 @endif
 </section>
 
 <section class="card">
-<h2>Trip summary</h2>
+<h2>出航摘要</h2>
 @if($booking->trip_id)
-<div>Trip status: {{ $booking->trip_status }}</div>
-<div>Planned start: {{ $booking->planned_start }}</div>
-<div>Planned end: {{ $booking->planned_end }}</div>
-<div>Actual departed at: {{ $booking->actual_departed_at ?: 'Not recorded' }}</div>
-<div>Actual returned at: {{ $booking->actual_returned_at ?: 'Not recorded' }}</div>
-<div>Completed at: {{ $booking->completed_at ?: 'Not recorded' }}</div>
-<p><a href="{{ route('operator.trips.show', $booking->trip_id) }}">Open Trip Desk</a></p>
+<div>出航状态：{{ \App\Support\OperatorUi::status($booking->trip_status) }}</div>
+<div>计划时间：{{ \App\Support\OperatorUi::dateTimeRange($booking->planned_start, $booking->planned_end, $organization->timezone) }}</div>
+<div>实际出航：{{ \App\Support\OperatorUi::dateTime($booking->actual_departed_at, $organization->timezone) }}</div>
+<div>实际返航：{{ \App\Support\OperatorUi::dateTime($booking->actual_returned_at, $organization->timezone) }}</div>
+<div>完成时间：{{ \App\Support\OperatorUi::dateTime($booking->completed_at, $organization->timezone) }}</div>
+<p><a href="{{ route('operator.trips.show', $booking->trip_id) }}">打开出航工作台</a></p>
 @else
-<p>No Trip linked.</p>
+<p>未关联出航记录。</p>
 @endif
 </section>
 
 @if($booking->status === 'CONFIRMED' && $booking->trip_status === 'PLANNED')
 <section class="card">
-<h2>Amend / reschedule</h2>
-<p>The existing authoritative booking action re-adjudicates inventory, compatibility, buffers and overlap.</p>
+<h2>修改 / 改期</h2>
+<p>提交后仍由既有权威订单操作重新校验库存、兼容规则、缓冲时间和重叠占用。</p>
 <form method="post" action="{{ route('operator.bookings.amend', $booking->id) }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $amendIdempotencyKey }}">
-<label>Active boat
+<label>船只
 <select name="boat_id" required>
 @foreach($boats as $boat)
 <option value="{{ $boat->id }}" @selected((int) $boat->id === (int) $booking->boat_id)>{{ $boat->name }}</option>
 @endforeach
 </select>
 </label>
-<label>Active product / Trip template
+<label>产品 / 出航模板
 <select name="trip_template_id" required>
 @foreach($products as $product)
 <option value="{{ $product->id }}" @selected((int) $product->id === (int) $booking->trip_template_id)>{{ $product->name }}</option>
 @endforeach
 </select>
 </label>
-<label>Active slot offering
+<label>服务时段
 <select name="slot_offering_id" required>
 @foreach($slots as $slot)
-<option value="{{ $slot->id }}" @selected((int) $slot->id === (int) $booking->slot_offering_id)>{{ $slot->name }}</option>
+<option value="{{ $slot->id }}" @selected((int) $slot->id === (int) $booking->slot_offering_id)>{{ \App\Support\OperatorUi::slotName($slot->name) }}</option>
 @endforeach
 </select>
 </label>
-<label>Organization-local service date
+<label>服务日期（组织时区）
 <input type="date" name="service_date" value="{{ $booking->service_date }}" required>
 </label>
-<button>Amend booking</button>
+<button>保存订单修改</button>
 </form>
 </section>
 
 <section class="card">
-<h2>Cancel</h2>
+<h2>取消订单</h2>
 <form method="post" action="{{ route('operator.bookings.cancel', $booking->id) }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $cancelIdempotencyKey }}">
-<label>Optional neutral reason
-<textarea name="reason" maxlength="500"></textarea>
+<label>取消原因（可选）
+<textarea name="reason" maxlength="500" placeholder="填写中性、可审计的取消原因"></textarea>
 </label>
-<button>Cancel booking</button>
+<button>取消订单</button>
 </form>
 </section>
 @elseif($booking->status === 'CONFIRMED' && $booking->trip_id && $booking->trip_status !== 'PLANNED')
 <section class="card">
-<p>Booking changes are unavailable after Trip execution has started.</p>
+<p>出航执行开始后不能再修改订单。</p>
 </section>
 @endif
 @endsection

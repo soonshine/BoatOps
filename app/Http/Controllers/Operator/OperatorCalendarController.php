@@ -6,6 +6,7 @@ use App\Exceptions\SlotCatalogException;
 use App\Http\Controllers\Controller;
 use App\Services\SlotCatalog\SlotCalendarReadModel;
 use App\Services\SlotCatalog\SlotCatalogService;
+use App\Support\OperatorUi;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,10 @@ final class OperatorCalendarController extends Controller
             );
             $slots = $this->catalog->listOfferings((int) $o->id);
         } catch (SlotCatalogException $e) {
-            abort($e->errorCode === 'AUTHORIZATION_FAILED' ? 404 : $e->httpStatus, $e->getMessage());
+            abort($e->errorCode === 'AUTHORIZATION_FAILED' ? 404 : $e->httpStatus, OperatorUi::actionError([
+                'code' => $e->errorCode,
+                'message' => $e->getMessage(),
+            ]));
         }
 
         $products = DB::table('trip_templates')

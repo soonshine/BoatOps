@@ -28,7 +28,12 @@ class OperatorInquiryDossierTest extends TestCase
         $this->actingAs($context['user']);
 
         $this->get('/operator/inquiries/create')->assertOk()
-            ->assertSee('Operational Dossier')
+            ->assertSee('新建询价')
+            ->assertSee('询价信息')
+            ->assertSee('运营资料')
+            ->assertSee('联系人姓名')
+            ->assertSee('销售金额（最小货币单位）')
+            ->assertDontSee('Operational Dossier')
             ->assertSee('name="contact_name"', false)
             ->assertSee('name="selling_amount_minor"', false);
 
@@ -37,8 +42,14 @@ class OperatorInquiryDossierTest extends TestCase
             'id' => $completeId,
             ...$dossier,
         ]);
+        $this->get('/operator/inquiries')->assertOk()
+            ->assertSee('询价列表')
+            ->assertSee('新建询价')
+            ->assertSee('询价中')
+            ->assertSee('FICTIONAL-DOSSIER-COMPLETE');
         $this->get("/operator/inquiries/{$completeId}")->assertOk()
-            ->assertSee('Operational Dossier')
+            ->assertSee('运营资料')
+            ->assertSee('询价状态：询价中')
             ->assertSee($dossier['contact_name'])
             ->assertSee($dossier['contact_value'])
             ->assertSee($dossier['meeting_point'])
@@ -319,7 +330,7 @@ class OperatorInquiryDossierTest extends TestCase
         $this->post("/operator/inquiries/{$inquiryId}/dossier", [
             'idempotency_key' => (string) Str::uuid(),
             ...$payload,
-        ])->assertStatus(303);
+        ])->assertStatus(303)->assertSessionHas('status', '运营资料已更新。');
     }
 
     private function configureHoldPolicy(int $organizationId): void

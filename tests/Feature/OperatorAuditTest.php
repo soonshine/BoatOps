@@ -21,7 +21,7 @@ class OperatorAuditTest extends TestCase
         $this->audit($allowed, 'VISIBLE_FICTIONAL_ACTION');
         $this->audit($foreign, 'FOREIGN_SECRET_ACTION');
         $this->audit($denied, 'DENIED_ORGANIZATION_ACTION');
-        $this->actingAs($allowed['user'])->get('/operator/audit')->assertOk()->assertSee('Audit trail')->assertSee('Read-only')->assertSee('VISIBLE_FICTIONAL_ACTION')->assertDontSee('FOREIGN_SECRET_ACTION')->assertDontSee('DENIED_ORGANIZATION_ACTION');
+        $this->actingAs($allowed['user'])->get('/operator/audit')->assertOk()->assertSee('操作记录')->assertSee('只读')->assertSee('2026年9月1日 07:00')->assertSee('VISIBLE_FICTIONAL_ACTION')->assertDontSee('FOREIGN_SECRET_ACTION')->assertDontSee('DENIED_ORGANIZATION_ACTION');
         $this->get('/operator/calendar?from=2026-09-01')->assertOk()->assertSee('/operator/audit', false);
         $this->actingAs($denied['user'])->get('/operator/audit')->assertForbidden();
     }
@@ -38,14 +38,14 @@ class OperatorAuditTest extends TestCase
         $this->assertCount(50, $logs);
         $this->assertSame('FICTIONAL_PAGE_ACTION_55', $logs->first()->action);
         $this->assertSame('FICTIONAL_PAGE_ACTION_06', $logs->last()->action);
-        $first->assertSee('FICTIONAL_PAGE_ACTION_55')->assertSee('FICTIONAL_PAGE_ACTION_06')->assertDontSee('FICTIONAL_PAGE_ACTION_05')->assertDontSee('FICTIONAL_PAGE_ACTION_01');
+        $first->assertSee('下一页')->assertSee('FICTIONAL_PAGE_ACTION_55')->assertSee('FICTIONAL_PAGE_ACTION_06')->assertDontSee('FICTIONAL_PAGE_ACTION_05')->assertDontSee('FICTIONAL_PAGE_ACTION_01');
         $this->assertLessThan(strpos($first->getContent(), 'FICTIONAL_PAGE_ACTION_06'), strpos($first->getContent(), 'FICTIONAL_PAGE_ACTION_55'));
         $second = $this->get('/operator/audit?page=2')->assertOk();
         $logs = $second->viewData('auditLogs');
         $this->assertCount(5, $logs);
         $this->assertSame('FICTIONAL_PAGE_ACTION_05', $logs->first()->action);
         $this->assertSame('FICTIONAL_PAGE_ACTION_01', $logs->last()->action);
-        $second->assertDontSee('FICTIONAL_PAGE_ACTION_06');
+        $second->assertSee('上一页')->assertDontSee('FICTIONAL_PAGE_ACTION_06');
     }
 
     public function test_audit_safely_escapes_content_and_shows_lifecycle_actions_with_actor_attribution(): void
@@ -57,8 +57,8 @@ class OperatorAuditTest extends TestCase
         }
 
         DB::table('audit_logs')->where('organization_id', $context['organization_id'])->where('action', 'INQUIRY_CREATED')->update(['reason' => '<script>fictionalReason()</script>',            'before_values' => json_encode(['html' => '<b>fictional before</b>'], JSON_THROW_ON_ERROR),            'after_values' => json_encode(['html' => '<img src=x onerror=fictionalAfter()>'], JSON_THROW_ON_ERROR)]);
-        $response = $this->actingAs($context['user'])->get('/operator/audit')->assertOk()->assertSee('&lt;script&gt;fictionalReason()&lt;/script&gt;', false)->assertSee('&lt;b&gt;fictional before&lt;\/b&gt;', false)->assertSee('&lt;img src=x onerror=fictionalAfter()&gt;', false)->assertDontSee('<script>fictionalReason()</script>', false)->assertDontSee('<b>fictional before</b>', false)->assertDontSee('<img src=x onerror=fictionalAfter()>', false)->assertSee('operator_user / '.$context['user']->id);
-        foreach ($actions as $action) {
+        $response = $this->actingAs($context['user'])->get('/operator/audit')->assertOk()->assertSee('&lt;script&gt;fictionalReason()&lt;/script&gt;', false)->assertSee('&lt;b&gt;fictional before&lt;\/b&gt;', false)->assertSee('&lt;img src=x onerror=fictionalAfter()&gt;', false)->assertDontSee('<script>fictionalReason()</script>', false)->assertDontSee('<b>fictional before</b>', false)->assertDontSee('<img src=x onerror=fictionalAfter()>', false)->assertSee('操作员 / '.$context['user']->id);
+        foreach (['询价已创建', '预留已创建', '订单已确认', '订单已改期', '订单已取消', '船只已停用', '船只停用已解除'] as $action) {
             $response->assertSee($action);
         }
     }

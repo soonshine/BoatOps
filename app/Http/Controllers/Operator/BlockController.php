@@ -7,6 +7,7 @@ use App\Application\Blocks\CreateBlockAction;
 use App\Application\Blocks\ReleaseBlockAction;
 use App\Application\Holds\HoldActor;
 use App\Http\Controllers\Controller;
+use App\Support\OperatorUi;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -125,7 +126,7 @@ final class BlockController extends Controller
 
     private function formatLocal(string $value, string $timezone): string
     {
-        return CarbonImmutable::parse($value, 'UTC')->setTimezone($timezone)->format('Y-m-d H:i T');
+        return OperatorUi::dateTime($value, $timezone);
     }
 
     private function mutationResponse(BlockActionResult $result, string $field): RedirectResponse
@@ -133,7 +134,9 @@ final class BlockController extends Controller
         $response = redirect()->route('operator.blocks.index', status: 303);
 
         if (! in_array($result->status, [200, 201], true)) {
-            $response->withErrors([$field => $result->payload['message']]);
+            $response->withErrors([$field => OperatorUi::actionError($result->payload)]);
+        } else {
+            $response->with('status', $field === 'block' ? '停用记录已创建。' : '停用记录已解除。');
         }
 
         return $response;

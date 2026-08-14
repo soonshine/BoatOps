@@ -26,6 +26,11 @@ class OperatorTripDeskTest extends TestCase
         $this->actingAs($allowed['user']);
 
         $response = $this->get('/operator/trips')->assertOk()
+            ->assertSee('出航列表')
+            ->assertSee('计划时间')
+            ->assertSee('准备状态')
+            ->assertSee('查看出航')
+            ->assertSee('2026年8月11日 00:00–01:00')
             ->assertSee('FICTIONAL-LOCAL-MIDNIGHT')
             ->assertSee('Fictional Contact')
             ->assertDontSee('FICTIONAL-PREVIOUS-DAY')
@@ -55,8 +60,10 @@ class OperatorTripDeskTest extends TestCase
         }
         $this->actingAs($context['user']);
 
-        $first = $this->get('/operator/trips?date=2026-08-11')->assertOk()->viewData('trips');
-        $second = $this->get('/operator/trips?date=2026-08-11&page=2')->assertOk()->viewData('trips');
+        $firstResponse = $this->get('/operator/trips?date=2026-08-11')->assertOk()->assertSee('下一页');
+        $secondResponse = $this->get('/operator/trips?date=2026-08-11&page=2')->assertOk()->assertSee('上一页');
+        $first = $firstResponse->viewData('trips');
+        $second = $secondResponse->viewData('trips');
         $this->assertSame(51, $first->total());
         $this->assertCount(50, $first->items());
         $this->assertSame(2, $first->lastPage());
@@ -80,29 +87,29 @@ class OperatorTripDeskTest extends TestCase
             ->assertSee('Fictional private service note')
             ->assertSee('FICTIONAL-CREW-DETAIL')
             ->assertSee('SAFETY_DETAIL')
-            ->assertSee('Open Booking')
-            ->assertSee('Save preparation')
-            ->assertSee('Depart Trip')
-            ->assertDontSee('Return Trip')
-            ->assertDontSee('Complete Trip');
+            ->assertSee('打开订单')
+            ->assertSee('保存出航准备')
+            ->assertSee('登记出航')
+            ->assertDontSee('登记返航')
+            ->assertDontSee('完成出航');
 
         DB::table('trips')->where('id', $record['trip_id'])->update([
             'status' => 'DEPARTED',
             'actual_departed_at' => '2026-08-10 20:00:00',
         ]);
         $this->get('/operator/trips/'.$record['trip_id'])->assertOk()
-            ->assertSee('Return Trip')
-            ->assertDontSee('Save preparation')
-            ->assertDontSee('Depart Trip')
-            ->assertDontSee('Complete Trip');
+            ->assertSee('登记返航')
+            ->assertDontSee('保存出航准备')
+            ->assertDontSee('登记出航')
+            ->assertDontSee('完成出航');
 
         DB::table('trips')->where('id', $record['trip_id'])->update([
             'status' => 'RETURNED',
             'actual_returned_at' => '2026-08-10 21:00:00',
         ]);
         $this->get('/operator/trips/'.$record['trip_id'])->assertOk()
-            ->assertSee('Complete Trip')
-            ->assertDontSee('Return Trip');
+            ->assertSee('完成出航')
+            ->assertDontSee('登记返航');
         $this->get('/operator/trips/'.$foreignRecord['trip_id'])->assertNotFound();
 
         foreach ([
@@ -220,7 +227,8 @@ class OperatorTripDeskTest extends TestCase
 
         $prepareKey = (string) Str::uuid();
         $prepare = $this->preparePayload($prepareKey);
-        $this->post($tripPath.'/prepare', $prepare)->assertStatus(303)->assertSessionHasNoErrors();
+        $this->post($tripPath.'/prepare', $prepare)->assertStatus(303)->assertSessionHasNoErrors()
+            ->assertSessionHas('status', '出航准备已保存。');
         $this->post($tripPath.'/prepare', $prepare)->assertStatus(303)->assertSessionHasNoErrors();
         $this->assertDatabaseCount('crew_assignments', 1);
         $this->assertDatabaseCount('trip_checklists', 1);
@@ -243,7 +251,7 @@ class OperatorTripDeskTest extends TestCase
         $this->post($tripPath.'/depart', [
             'idempotency_key' => (string) Str::uuid(),
             'departed_at' => '2026-08-10T17:00',
-        ])->assertStatus(303)->assertSessionHasNoErrors();
+        ])->assertStatus(303)->assertSessionHasNoErrors()->assertSessionHas('status', '已登记出航。');
         $this->assertDatabaseHas('trips', [
             'id' => $record['trip_id'],
             'status' => 'DEPARTED',
@@ -261,7 +269,7 @@ class OperatorTripDeskTest extends TestCase
         $this->post($tripPath.'/return', [
             'idempotency_key' => (string) Str::uuid(),
             'returned_at' => '2026-08-10T17:00',
-        ])->assertStatus(303)->assertSessionHasNoErrors();
+        ])->assertStatus(303)->assertSessionHasNoErrors()->assertSessionHas('status', '已登记返航。');
         $this->assertDatabaseHas('trips', [
             'id' => $record['trip_id'],
             'status' => 'RETURNED',
@@ -280,7 +288,8 @@ class OperatorTripDeskTest extends TestCase
             ->count());
 
         $this->travelTo(CarbonImmutable::parse('2026-08-10T11:00:00Z'));
-        $this->post($tripPath.'/complete', $complete)->assertStatus(303)->assertSessionHasNoErrors();
+        $this->post($tripPath.'/complete', $complete)->assertStatus(303)->assertSessionHasNoErrors()
+            ->assertSessionHas('status', '出航已完成。');
         $this->post($tripPath.'/complete', $complete)->assertStatus(303)->assertSessionHasNoErrors();
         $this->assertDatabaseHas('trips', ['id' => $record['trip_id'], 'status' => 'COMPLETED']);
         $this->assertDatabaseHas('bookings', ['id' => $record['booking_id'], 'status' => 'COMPLETED']);

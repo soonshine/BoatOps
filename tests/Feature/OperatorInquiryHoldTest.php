@@ -49,7 +49,8 @@ class OperatorInquiryHoldTest extends TestCase
         $other = $this->inquiry($c, 'FICTIONAL-HOLD-OTHER', '2026-09-02');
         $key = (string) Str::uuid();
         $this->actingAs($c['user']);
-        $this->post("/operator/inquiries/{$id}/hold", ['idempotency_key' => $key])->assertStatus(303);
+        $this->post("/operator/inquiries/{$id}/hold", ['idempotency_key' => $key])->assertStatus(303)
+            ->assertSessionHas('status', '预留已创建。');
         $hold = DB::table('holds')->first();
 
         $this->assertSame('2026-08-10 00:37:00', $hold->expires_at);
@@ -72,7 +73,10 @@ class OperatorInquiryHoldTest extends TestCase
         $conflict = app(CreateInquiryHoldAction::class)->execute($c['organization_id'], $other, $key, HoldActor::operatorUser($c['user']->id));
         $this->assertSame(409, $conflict->status);
         $this->assertSame('IDEMPOTENCY_CONFLICT', $conflict->payload['code']);
-        $this->get("/operator/inquiries/{$id}")->assertOk()->assertSee('Linked HOLD')->assertSee('ACTIVE')->assertSee('2026-08-10 00:37:00');
+        $this->get("/operator/inquiries/{$id}")->assertOk()
+            ->assertSee('关联预留')
+            ->assertSee('预留状态：生效中')
+            ->assertSee('2026年8月10日 07:37');
     }
 
     public function test_overlap_and_incomplete_are_atomic(): void
@@ -129,7 +133,8 @@ class OperatorInquiryHoldTest extends TestCase
         $this->post("/operator/inquiries/{$id}/hold", ['idempotency_key' => (string) Str::uuid()])->assertStatus(303);
         $holdId = (int) DB::table('inquiries')->where('id', $id)->value('hold_id');
         $key = (string) Str::uuid();
-        $this->post("/operator/inquiries/{$id}/hold/release", ['idempotency_key' => $key])->assertStatus(303);
+        $this->post("/operator/inquiries/{$id}/hold/release", ['idempotency_key' => $key])->assertStatus(303)
+            ->assertSessionHas('status', '预留已释放。');
         $this->post("/operator/inquiries/{$id}/hold/release", ['idempotency_key' => $key])->assertStatus(303);
         $this->assertDatabaseHas('holds', ['id' => $holdId, 'status' => 'RELEASED']);
         $this->assertDatabaseHas('allocations', ['hold_id' => $holdId, 'status' => 'RELEASED']);
@@ -140,7 +145,7 @@ class OperatorInquiryHoldTest extends TestCase
         $this->post("/operator/inquiries/{$id}/hold/release", ['idempotency_key' => (string) Str::uuid()])->assertStatus(303)->assertSessionHasErrors('hold');
         $this->assertDatabaseCount('idempotency_keys', 3);
         $this->assertSame(1, DB::table('audit_logs')->where('action', 'hold.released')->count());
-        $this->get("/operator/inquiries/{$id}")->assertOk()->assertSee('RELEASED');
+        $this->get("/operator/inquiries/{$id}")->assertOk()->assertSee('预留状态：已释放');
     }
 
     private function context(bool $booking = true): array

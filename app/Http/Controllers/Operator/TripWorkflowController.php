@@ -9,6 +9,7 @@ use App\Application\Trips\PrepareTripAction;
 use App\Application\Trips\ReturnTripAction;
 use App\Application\Trips\TripActionResult;
 use App\Http\Controllers\Controller;
+use App\Support\OperatorUi;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,7 +49,7 @@ final class TripWorkflowController extends Controller
             $this->actor(),
         );
 
-        return $this->redirectResult($result, $trip, 'Trip preparation saved.');
+        return $this->redirectResult($result, $trip, '出航准备已保存。');
     }
 
     public function depart(Request $request, int $trip): RedirectResponse
@@ -66,7 +67,7 @@ final class TripWorkflowController extends Controller
             $this->actor(),
         );
 
-        return $this->redirectResult($result, $trip, 'Trip departed.');
+        return $this->redirectResult($result, $trip, '已登记出航。');
     }
 
     public function return(Request $request, int $trip): RedirectResponse
@@ -84,7 +85,7 @@ final class TripWorkflowController extends Controller
             $this->actor(),
         );
 
-        return $this->redirectResult($result, $trip, 'Trip returned.');
+        return $this->redirectResult($result, $trip, '已登记返航。');
     }
 
     public function complete(Request $request, int $trip): RedirectResponse
@@ -98,7 +99,7 @@ final class TripWorkflowController extends Controller
             $this->actor(),
         );
 
-        return $this->redirectResult($result, $trip, 'Trip completed.');
+        return $this->redirectResult($result, $trip, '出航已完成。');
     }
 
     private function scopedTripOrganizationId(Request $request, int $trip): int
@@ -131,6 +132,6 @@ final class TripWorkflowController extends Controller
             return $redirect->with('status', $successMessage);
         }
 
-        return $redirect->withErrors(['trip' => $result->payload['message']]);
+        return $redirect->withErrors(['trip' => OperatorUi::actionError($result->payload)]);
     }
 }
