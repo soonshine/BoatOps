@@ -26,6 +26,7 @@ fieldset { margin: 1rem 0; padding: 1rem; }
 <a href="{{ route('operator.audit') }}">操作记录</a>
 @endif
 @if($operatorMembership?->can_booking_workflow)
+<a href="{{ route('operator.today') }}" @if(request()->routeIs('operator.today')) aria-current="page" @endif>今日运营</a>
 <a href="{{ route('operator.inquiries.index') }}">询价</a>
 <a href="{{ route('operator.bookings.index') }}">订单</a>
 <a href="{{ route('operator.trips.index') }}">出航工作台</a>
