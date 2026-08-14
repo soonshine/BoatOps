@@ -1,8 +1,18 @@
-schema_version: 13
+schema_version: 14
 project: BoatOps
-updated_at: "2026-08-12T12:00:00+07:00"
+updated_at: "2026-08-14T12:30:00+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
+
+status_sync:
+  PLANC-20260812-TES-CAO:
+    status: CONFIRMED
+    plan: PLANNED
+    execution: UNKNOWN
+  PLANC-20260823-TEST: CONFIRMED_WAITING_PREPARATION
+  REAL-PILOT-TIMEZONE-VERIFY: PASS_TIMEZONE_NORMALIZATION_CORRECT
+  PRELAUNCH_PASSWORDLESS: "ENABLED (TEST)"
+  decision: ACCEPT_EXECUTION_UNKNOWN_NO_HISTORICAL_FILL
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -32,22 +42,28 @@ repository:
       behind_by: 0
     live_head_source: GITHUB_REF
     state_sync_commit_is_docs_only_descendant: true
+    passwordless_candidate_sha: "c9c5493468757643269178f7fac3353b14b90ad5"
   current_pr:
     number: 18
     title: "feat: add transactional pilot provisioning"
-    state: OPEN
-    draft: true
+    state: MERGED_CLOSED
+    draft: false
     mergeable: true
-    mergeable_state: CLEAN
-    merged: false
+    mergeable_state: MERGED
+    merged: true
     base_branch: main
     head_branch: "codex/test-runtime-vertical-slice"
+    head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
+    merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
     implementation_candidate_sha: "987eba04a1dc9073be6c02631792808debc35635"
+    passwordless_candidate_sha: "c9c5493468757643269178f7fac3353b14b90ad5"
   candidate_scope:
     included:
       - BOUNDED_PILOT_PROVISIONING
       - PILOT_PROVISIONING_TESTS
       - VERIFIED_OPERATING_TIME_OBSERVED_PAIN_FIX
+      - PRELAUNCH_PASSWORDLESS_ACCESS
+      - REAL_PILOT_STATUS_SYNC
       - PROJECT_STATE_SYNC
     excluded:
       - ADMIN_UI
@@ -99,7 +115,11 @@ test_runtime:
     restore: PASS
     rollback: PASS
     scheduler_holds_expire: PASS
-  exact_real_pilot_candidate_deployed: false
+  exact_real_pilot_candidate_deployed: true
+  deployed_source_sha: "c9c5493468757643269178f7fac3353b14b90ad5"
+  deployed_source_class: EXACT_PASSWORDLESS_TEST_CANDIDATE
+  passwordless_config: ENABLED_TEST
+  passwordless_login_smoke: PASS
   existing_docker_services_modified: false
   public_port_80_modified: false
 
@@ -158,9 +178,12 @@ real_pilot:
   environment: TEST_ONLY
   boat: Plan C
   configuration: READY
-  provisioning: PENDING
-  operator_secret: NOT_CONFIGURED
-  cao_login_smoke: PENDING
+  provisioning: COMPLETE
+  operator_secret: NOT_REQUIRED_FOR_PASSWORDLESS_TEST
+  cao_login_smoke: PASS_PASSWORDLESS
+  test_deployed_source_sha: "c9c5493468757643269178f7fac3353b14b90ad5"
+  passwordless_config: "ENABLED (TEST)"
+  business_data_changed: false
   organization:
     name: Ayany Boat Operations
     timezone: Asia/Bangkok
@@ -225,10 +248,12 @@ real_pilot:
       - AUDIT
 
 real_pilot_candidate:
-  sha: "987eba04a1dc9073be6c02631792808debc35635"
+  sha: "c9c5493468757643269178f7fac3353b14b90ad5"
   branch: "codex/test-runtime-vertical-slice"
+  prior_implementation_sha: "987eba04a1dc9073be6c02631792808debc35635"
   code_configuration_status: READY
-  test_deployment_status: NOT_YET
+  test_deployment_status: DEPLOYED_EXACT_SHA
+  deployed_sha: "c9c5493468757643269178f7fac3353b14b90ad5"
   github_ci: SUCCESS
 
 dr16:
@@ -274,7 +299,7 @@ gates:
   code:
     status: REAL_PILOT_CANDIDATE_READY
     new_feature_development_authorized: false
-    pr_18_merge_authorized: false
+    pr_18: MERGED_CLOSED
   test_deployment:
     status: REAL_PILOT_EXECUTION_AUTHORIZED
     environment: TEST_ONLY
@@ -302,16 +327,12 @@ production:
   tag_authorized: false
   release_authorized: false
 
-current_blockers:
-  - REAL_OPERATOR_SECRET_NOT_CONFIGURED
-  - TEST_SSH_SECRET_NOT_CONFIGURED_FOR_EXACT_CANDIDATE_DEPLOYMENT
+current_blockers: []
 
 next_action:
-  id: REAL_PILOT_EXECUTION
+  id: REAL_PILOT_OPERATIONAL_PATH
+  engineering_required: false
   sequence:
-    - DEPLOY_EXACT_REAL_PILOT_CANDIDATE_TO_TEST
-    - PROVISION_PLAN_C
-    - CAO_LOGIN_AND_CALENDAR_SMOKE
     - RUN_NEXT_REAL_PLAN_C_ORDER_VERTICAL_SLICE
     - RECORD_OBSERVED_OPERATIONAL_PAIN
 
@@ -332,6 +353,9 @@ closed_history:
   deployment_readiness_closure_plan_pr_16:
     status: MERGED_CLOSED
     merge_commit_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
+  real_pilot_passwordless_candidate:
+    status: TEST_ONLY_DEPLOYED
+    sha: "c9c5493468757643269178f7fac3353b14b90ad5"
 
 authorities:
   charter: ".project/PROJECT_CHARTER.md"

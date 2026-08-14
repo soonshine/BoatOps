@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-12 12:00 Asia/Bangkok
+Updated: 2026-08-14 12:30 Asia/Bangkok
 
 ## Current decision
 
@@ -11,6 +11,9 @@ TEST_RUNTIME_READY
 SYNTHETIC_VERTICAL_SLICE_COMPLETE
 REAL_PILOT_AUTHORIZED
 PLAN_C_CONFIGURATION_READY
+TEST_REAL_PILOT_CANDIDATE_DEPLOYED
+PRELAUNCH_PASSWORDLESS_ENABLED_TEST
+CAO_PASSWORDLESS_LOGIN_SMOKE_PASS
 NO_NEW_FEATURE_DEVELOPMENT
 ```
 
@@ -34,11 +37,17 @@ bounded implementation candidate:
   987eba04a1dc9073be6c02631792808debc35635
   relative to main: ahead 2 / behind 0
 
+passwordless TEST candidate:
+  c9c5493468757643269178f7fac3353b14b90ad5
+  exact source deployed to TEST
+
 PR #18:
-  OPEN / DRAFT / CLEAN / NOT_MERGED
+  MERGED / CLOSED
+  historical merge commit: 00a029c9a3dcd2122a958514e845334d0a295ac9
+  post-merge TEST candidate: c9c5493468757643269178f7fac3353b14b90ad5
 ```
 
-The state-sync commit is a documentation-only descendant on PR #18. The immutable Real Pilot implementation candidate remains `987eba04a1dc9073be6c02631792808debc35635`; the live PR branch head must be resolved from GitHub at review time.
+PR #18 is already merged; the immutable prior Real Pilot implementation candidate remains `987eba04a1dc9073be6c02631792808debc35635`, and the passwordless TEST candidate is its post-merge descendant `c9c5493468757643269178f7fac3353b14b90ad5`.
 
 ## TEST runtime
 
@@ -53,8 +62,12 @@ Verified state:
 - Nginx, PHP-FPM, PostgreSQL, and Scheduler: active;
 - PostgreSQL backup, restore proof, rollback proof, and `holds:expire` scheduler proof: PASS;
 - existing Docker services and public `:80`: untouched.
+- exact passwordless TEST candidate: `c9c5493468757643269178f7fac3353b14b90ad5`;
+- `PRELAUNCH_PASSWORDLESS=true` and the configured Cao selector are active on TEST;
+- `/operator/login` redirects without a password and `/operator/calendar` returns HTTP 200;
+- organization and four Plan C Slots are visible; unauthenticated `/operator/calendar` remains guarded.
 
-This makes the TEST runtime `READY`. It does not mean the exact Real Pilot candidate is already deployed.
+This makes the TEST runtime `READY` with the exact passwordless candidate deployed. It remains TEST-only and is not a Production or Release claim.
 
 ## Completed synthetic proof
 
@@ -109,27 +122,38 @@ Plan C configuration is `READY`:
 
 The observed-pain fix at `987eba04a1dc9073be6c02631792808debc35635` only added `VERIFIED` manifest support and its focused test. Pint, 7 PilotProvisioning tests / 39 assertions, the full 283-test / 3293-assertion PHP suite, and GitHub CI passed. Do not reopen this issue.
 
-## Current blocker
+## Verified passwordless TEST execution
 
 ```text
 PLAN_C_REAL_CONFIG = READY
-TEST_DEPLOYED_REAL_PILOT_HEAD = NOT_YET
-PLAN_C_PROVISIONING = PENDING
-REAL_OPERATOR_SECRET = NOT_CONFIGURED
-CAO_LOGIN_SMOKE = PENDING
+TEST_DEPLOYED_SHA = c9c5493468757643269178f7fac3353b14b90ad5
+PRELAUNCH_PASSWORDLESS = ENABLED (TEST)
+APPLICATION_PASSWORD_REQUIRED = NO
+EFFECTIVE_OPERATOR = Cao
+ORGANIZATION = Ayany Boat Operations
+REAL_PILOT_TIMEZONE_VERIFY = PASS_TIMEZONE_NORMALIZATION_CORRECT
+CAO_LOGIN_SMOKE = PASS_PASSWORDLESS
+BUSINESS_DATA_CHANGED = NO
+EXISTING_REAL_ORDERS_CHANGED = NO
+INFRASTRUCTURE_AUTH_CHANGED = NO
 ```
 
-This is an execution-secret blocker, not a code blocker. Do not add code to bypass secret injection.
+The GET entry point creates a normal Laravel Auth session and then uses the existing membership middleware and permission priority. No Operator route was opened and no password or infrastructure-auth change was made.
 
-## Allowed now
+## Current operational path
 
-Only the following Real Pilot execution path is active:
+The passwordless login/calendar smoke is complete. Only the following Real Pilot execution path remains active:
 
 ```text
-deploy exact Real Pilot candidate to TEST
--> provision Plan C
--> Cao login/calendar smoke
--> next real Plan C order
+next genuine Plan C order
+-> Inquiry
+-> HOLD
+-> Confirm
+-> Prepare
+-> Depart
+-> Return
+-> Complete
+-> Audit
 -> record observed operational pain
 ```
 
@@ -173,12 +197,31 @@ This task does not change GitHub settings.
 PRODUCTION_DEPLOYMENT = false
 CUTOVER = false
 AUTHORITY_SWITCH = false
+PRELAUNCH_PASSWORDLESS_TEST_ONLY = true
+APPLICATION_PASSWORD_REQUIRED = false
+INFRASTRUCTURE_AUTH_CHANGED = false
+BUSINESS_DATA_CHANGED = false
+EXISTING_REAL_ORDERS_CHANGED = false
 TAG = false
 RELEASE = false
 ```
 
-PR #18 remains Draft and is not merged by this state synchronization. Production, Docker, and public `:80` remain untouched.
+PR #18 is historical `MERGED / CLOSED`; this post-merge candidate remains on `codex/test-runtime-vertical-slice` for TEST verification only. Production, Docker, and public `:80` remain untouched.
 
 ## Closed history
 
-Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, and PR #16 are merged/closed; their evidence remains in Git history and the branch ledger.
+Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, PR #16, and PR #18 are merged/closed; the passwordless TEST candidate is `c9c5493468757643269178f7fac3353b14b90ad5` and remains TEST-only. Their evidence remains in Git history and the branch ledger.
+
+## Status synchronization
+
+The following Owner-provided status is recorded without backfilling execution history:
+
+```text
+PLANC-20260812-TES-CAO = CONFIRMED / PLANNED / EXECUTION=UNKNOWN
+PLANC-20260823-TEST = CONFIRMED_WAITING_PREPARATION
+REAL-PILOT-TIMEZONE-VERIFY = PASS_TIMEZONE_NORMALIZATION_CORRECT
+PRELAUNCH_PASSWORDLESS = ENABLED (TEST)
+DECISION = ACCEPT_EXECUTION_UNKNOWN_NO_HISTORICAL_FILL
+```
+
+`EXECUTION=UNKNOWN` is accepted as stated. No historical Plan C order, execution receipt, or synthetic “real” order was created to fill the gap.
