@@ -407,7 +407,7 @@
     border-color: #86b79a;
     box-shadow: 0 5px 16px rgb(15 23 42 / 8%);
 }
-.available-slots summary {
+.available-slots > summary {
     display: flex;
     min-height: 5.4rem;
     align-items: center;
@@ -421,8 +421,8 @@
     cursor: pointer;
     list-style: none;
 }
-.available-slots summary::-webkit-details-marker { display: none; }
-.available-slots summary::before {
+.available-slots > summary::-webkit-details-marker { display: none; }
+.available-slots > summary::before {
     width: .48rem;
     height: .48rem;
     flex: 0 0 auto;
@@ -430,26 +430,89 @@
     background: #5b9270;
     content: '';
 }
-.available-slots summary::after {
+.available-slots > summary::after {
     color: #6b7f93;
     content: '＋';
     font-size: 1rem;
 }
-.available-slots[open] summary {
+.available-slots[open] > summary {
     min-height: 0;
     justify-content: space-between;
     border-bottom: 1px solid #dce7df;
     color: #285a3d;
     text-align: left;
 }
-.available-slots[open] summary::after { content: '−'; }
+.available-slots[open] > summary::after { content: '−'; }
 .available-slots.is-partial { margin-top: .65rem; }
-.available-slots.is-partial summary { min-height: 3.6rem; }
+.available-slots.is-partial > summary { min-height: 3.6rem; }
+.duration-first-chooser { padding: .6rem; }
+.duration-step-label {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0 0 .5rem;
+    color: #52667a;
+    font-size: .7rem;
+    font-weight: 850;
+}
+.duration-step-label span {
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #e3f1e8;
+    color: #285a3d;
+    font-size: .66rem;
+}
+.duration-choice {
+    overflow: hidden;
+    margin-top: .4rem;
+    border: 1px solid #d5e3da;
+    border-radius: .55rem;
+    background: #f8fbf9;
+}
+.duration-choice:first-of-type { margin-top: 0; }
+.duration-choice > summary {
+    display: flex;
+    min-height: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: .35rem;
+    padding: .58rem .65rem;
+    border: 0;
+    color: #183b29;
+    text-align: left;
+    cursor: pointer;
+    list-style: none;
+}
+.duration-choice > summary::-webkit-details-marker { display: none; }
+.duration-choice > summary::before { display: none; }
+.duration-choice > summary::after {
+    margin-left: auto;
+    color: #6b7f93;
+    content: '选择 ＋';
+    font-size: .68rem;
+}
+.duration-choice[open] > summary {
+    border-bottom: 1px solid #d5e3da;
+    background: #edf7f0;
+}
+.duration-choice[open] > summary::after { content: '收起 −'; }
+.duration-choice-label {
+    color: #183b29;
+    font-size: .86rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+.duration-slot-panel { padding: .55rem; }
+.duration-slot-panel .duration-step-label { margin-bottom: .4rem; }
 .available-slot-list {
     display: grid;
     gap: .45rem;
     margin: 0;
-    padding: .55rem;
+    padding: 0;
     list-style: none;
 }
 .available-slot-option {
@@ -473,11 +536,34 @@
     font-size: .7rem;
     font-variant-numeric: tabular-nums;
 }
+.available-slot-option .default-departure-note {
+    display: block;
+    width: fit-content;
+    margin-top: .3rem;
+    padding: .2rem .4rem;
+    border-radius: .35rem;
+    background: #fff4d8;
+    color: #805000;
+    font-weight: 850;
+}
 .available-slot-option .slot-action {
     grid-row: 1 / span 2;
     grid-column: 2;
     margin: 0;
     white-space: nowrap;
+}
+.duration-slot-panel .available-slot-option { grid-template-columns: 1fr; }
+.duration-slot-panel .available-slot-option .slot-action {
+    grid-row: auto;
+    grid-column: auto;
+    width: 100%;
+    min-height: 2.25rem;
+    justify-content: center;
+    padding: .42rem .55rem;
+    border: 1px solid #b6cfbf;
+    border-radius: .45rem;
+    background: #fff;
+    text-decoration: none;
 }
 .available-read-only {
     margin: 0;
@@ -564,7 +650,8 @@
         font-weight: 850;
     }
     .slot-card { padding: .62rem; }
-    .available-slots summary { min-height: 4.8rem; }
+    .available-slots > summary { min-height: 4.8rem; }
+    .duration-choice > summary { min-height: 2.65rem; }
     .available-slot-option { grid-template-columns: 1fr; }
     .available-slot-option .slot-action {
         grid-row: auto;
@@ -737,6 +824,9 @@
     $availabilityMode = $availableSlots->isNotEmpty() && $exceptionSlots->isEmpty()
         ? 'quiet'
         : ($availableSlots->isNotEmpty() ? 'partial' : 'exceptions');
+    $availableSlotsByDuration = $availableSlots
+        ->groupBy(static fn (array $slot): int => (int) $slot['duration_minutes'])
+        ->sortKeys();
     $dayHeader = $dateHeaders[$dateIndex];
 @endphp
 <td class="date-cell" data-business-date="{{ $day['date'] }}" data-availability-mode="{{ $availabilityMode }}">
@@ -777,10 +867,17 @@
 @endforeach
 
 @if($availableSlots->isNotEmpty())
-<details class="available-slots {{ $exceptionSlots->isNotEmpty() ? 'is-partial' : '' }}" data-available-trigger data-derived-available-count="{{ $availableSlots->count() }}">
-<summary>{{ $exceptionSlots->isNotEmpty() ? '还有 ' : '' }}{{ $availableSlots->count() }} 个可用时段 · 点击查看</summary>
+<details class="available-slots {{ $exceptionSlots->isNotEmpty() ? 'is-partial' : '' }}" data-available-trigger data-derived-available-count="{{ $availableSlots->count() }}" data-inquiry-entry-sequence="duration-slot-inquiry">
+<summary>{{ $exceptionSlots->isNotEmpty() ? '还有 ' : '' }}{{ $availableSlots->count() }} 个可用时段 · 选择时长</summary>
+<div class="duration-first-chooser" data-duration-first>
+<p class="duration-step-label"><span>1</span>先选择客人需要的时长</p>
+@foreach($availableSlotsByDuration as $durationMinutes => $durationSlots)
+<details class="duration-choice" data-duration-choice="{{ $durationMinutes }}">
+<summary><span class="duration-choice-label">{{ $durationLabel((int) $durationMinutes) }}</span></summary>
+<div class="duration-slot-panel" data-duration-panel="{{ $durationMinutes }}">
+<p class="duration-step-label"><span>2</span>再选择实际出发时段</p>
 <ul class="available-slot-list">
-@foreach($availableSlots as $slot)
+@foreach($durationSlots as $slot)
 @php
     $serviceStart = \Carbon\CarbonImmutable::parse($slot['service_start_local'])->format('H:i');
     $serviceEnd = \Carbon\CarbonImmutable::parse($slot['service_end_local'])->format('H:i');
@@ -791,14 +888,24 @@
         'slot_offering_id' => $slot['slot_offering_id'],
     ], static fn (mixed $value): bool => $value !== null);
 @endphp
-<li class="available-slot-option" data-available-slot-option data-calendar-status="AVAILABLE" data-slot-code="{{ $slot['code'] }}">
-<span><strong>{{ $slotDisplayName }}</strong><time datetime="{{ $slot['service_start_local'] }}">{{ $serviceStart }}</time>–<time datetime="{{ $slot['service_end_local'] }}">{{ $serviceEnd }}</time> <small>· {{ $durationLabel((int) $slot['duration_minutes']) }}</small></span>
+<li class="available-slot-option" data-available-slot-option data-calendar-status="AVAILABLE" data-duration-minutes="{{ $durationMinutes }}" data-slot-code="{{ $slot['code'] }}">
+<span>
+<strong>{{ $slotDisplayName }}</strong>
+<time datetime="{{ $slot['service_start_local'] }}">{{ $serviceStart }}</time>–<time datetime="{{ $slot['service_end_local'] }}">{{ $serviceEnd }}</time>
+@if((int) $slot['duration_minutes'] === 480)
+<small class="default-departure-note" data-default-departure>默认 {{ $serviceStart }} 出航 · 固定至 {{ $serviceEnd }}</small>
+@endif
+</span>
 @if($operatorMembership?->can_booking_workflow)
 <a class="slot-action" data-available-action href="{{ route('operator.inquiries.create', $inquiryQuery) }}">创建询价 →</a>
 @endif
 </li>
 @endforeach
 </ul>
+</div>
+</details>
+@endforeach
+</div>
 @unless($operatorMembership?->can_booking_workflow)
 <p class="available-read-only">当前账号仅可查看可用时段。</p>
 @endunless

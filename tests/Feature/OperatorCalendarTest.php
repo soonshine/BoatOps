@@ -46,6 +46,15 @@ class OperatorCalendarTest extends TestCase
             ->assertSee('data-view-days="7"', false)
             ->assertSee('data-availability-mode="quiet"', false)
             ->assertSee('data-available-trigger', false)
+            ->assertSee('data-inquiry-entry-sequence="duration-slot-inquiry"', false)
+            ->assertSee('data-duration-first', false)
+            ->assertSee('先选择客人需要的时长')
+            ->assertSee('再选择实际出发时段')
+            ->assertSee('data-duration-choice="240"', false)
+            ->assertSee('data-duration-choice="360"', false)
+            ->assertSee('data-duration-choice="480"', false)
+            ->assertSee('data-default-departure', false)
+            ->assertSee('默认 10:00 出航 · 固定至 18:00')
             ->assertSee('data-available-slot-option', false)
             ->assertSee('data-available-action', false)
             ->assertSee('data-calendar-status="AVAILABLE"', false)
@@ -85,6 +94,15 @@ class OperatorCalendarTest extends TestCase
         $this->assertSame(46, substr_count($response->getContent(), 'data-available-slot-option'));
         $this->assertSame(0, substr_count($response->getContent(), 'slot-card status-available'));
         $this->assertCount(7, $response->viewData('dateHeaders'));
+        $response->assertSeeInOrder([
+            'data-duration-choice="240"',
+            'data-slot-code="PLAN-C-FISH-4H-AM"',
+            'data-slot-code="PLAN-C-FISH-4H-PM"',
+            'data-duration-choice="360"',
+            'data-slot-code="PLAN-C-FISH-6H"',
+            'data-duration-choice="480"',
+            'data-slot-code="PLAN-C-FISH-8H"',
+        ], false);
         $response->assertSee(route('operator.inquiries.create', [
             'boat_id' => $context['boat_ids']['available'],
             'service_date' => '2026-09-01',
@@ -114,6 +132,68 @@ class OperatorCalendarTest extends TestCase
         $this->assertSame($inventoryCounts, $this->inventoryCounts());
     }
 
+    public function test_duration_first_flow_uses_configured_slot_times_and_prefills_the_chosen_slot(): void
+    {
+        $context = $this->context();
+        // An unusual fictional time proves the UI reads the Slot Offering instead of encoding a 6-hour rule.
+        DB::table('slot_offerings')
+            ->where('id', $context['slot_ids']['PLAN-C-FISH-6H'])
+            ->update([
+                'service_start_time' => '11:15:00',
+                'service_end_time' => '17:15:00',
+                'updated_at' => now(),
+            ]);
+        $this->actingAs($context['user']);
+        $inventoryCounts = $this->inventoryCounts();
+
+        $response = $this->get('/operator/calendar?from=2026-09-01&range=7&boat_id='.$context['boat_ids']['available'])
+            ->assertOk()
+            ->assertSee('data-inquiry-entry-sequence="duration-slot-inquiry"', false)
+            ->assertSee('data-duration-choice="240"', false)
+            ->assertSee('data-duration-panel="240"', false)
+            ->assertSee('data-duration-choice="360"', false)
+            ->assertSee('data-duration-panel="360"', false)
+            ->assertSee('data-duration-choice="480"', false)
+            ->assertSee('data-duration-panel="480"', false)
+            ->assertSee('09:00')
+            ->assertSee('13:00')
+            ->assertSee('14:00')
+            ->assertSee('11:15')
+            ->assertSee('17:15')
+            ->assertSee('10:00')
+            ->assertSee('18:00')
+            ->assertSee('默认 10:00 出航 · 固定至 18:00')
+            ->assertDontSee('默认 11:15 出航');
+
+        $response->assertSeeInOrder([
+            'data-duration-choice="240"',
+            'data-duration-minutes="240" data-slot-code="PLAN-C-FISH-4H-AM"',
+            'data-duration-minutes="240" data-slot-code="PLAN-C-FISH-4H-PM"',
+            'data-duration-choice="360"',
+            'data-duration-minutes="360" data-slot-code="PLAN-C-FISH-6H"',
+            '11:15',
+            '17:15',
+            'data-duration-choice="480"',
+            'data-duration-minutes="480" data-slot-code="PLAN-C-FISH-8H"',
+            '10:00',
+            '18:00',
+            '默认 10:00 出航 · 固定至 18:00',
+        ], false);
+        $sixHourInquiryUrl = route('operator.inquiries.create', [
+            'boat_id' => $context['boat_ids']['available'],
+            'service_date' => '2026-09-01',
+            'slot_offering_id' => $context['slot_ids']['PLAN-C-FISH-6H'],
+        ]);
+        $response->assertSee($sixHourInquiryUrl);
+
+        $this->get($sixHourInquiryUrl)
+            ->assertOk()
+            ->assertSee('value="2026-09-01"', false)
+            ->assertSee('value="'.$context['boat_ids']['available'].'" selected', false)
+            ->assertSee('value="'.$context['slot_ids']['PLAN-C-FISH-6H'].'" selected', false);
+        $this->assertSame($inventoryCounts, $this->inventoryCounts());
+    }
+
     public function test_calendar_read_only_operator_sees_inventory_without_mutation_actions(): void
     {
         $context = $this->context(false, false);
@@ -126,6 +206,7 @@ class OperatorCalendarTest extends TestCase
             ->assertSee('data-calendar-status="CONFIRMED"', false)
             ->assertSee('data-calendar-status="BLOCKED"', false)
             ->assertSee('data-available-trigger', false)
+            ->assertSee('data-duration-choice="240"', false)
             ->assertSee('data-available-slot-option', false)
             ->assertSee('当前账号仅可查看可用时段。')
             ->assertSee('当前账号无可执行操作，库存详情仍可查看。')
@@ -228,7 +309,7 @@ class OperatorCalendarTest extends TestCase
             ->assertSee('data-business-date="2026-09-01" data-availability-mode="partial"', false)
             ->assertSee('data-exception-status="HELD"', false)
             ->assertSee('data-slot-code="FLEET_LATE_AVAILABLE"', false)
-            ->assertSee('还有 1 个可用时段 · 点击查看')
+            ->assertSee('还有 1 个可用时段 · 选择时长')
             ->assertSee('下午 4 小时钓鱼')
             ->assertSee(route('operator.inquiries.create', [
                 'boat_id' => $context['boat_ids']['held'],
@@ -362,6 +443,7 @@ class OperatorCalendarTest extends TestCase
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            $slotIds[$code] = $slotId;
         }
 
         $holdId = DB::table('holds')->insertGetId([
