@@ -1,6 +1,6 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-14 17:16 Asia/Bangkok
+Last updated: 2026-08-14 19:07 Asia/Bangkok
 
 The active operational queue contains Owner real-use feedback and the next genuine Plan C order. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here. CAL-UX-001/002/003 and the TEST reconciliation are completed evidence, not active engineering items.
 
@@ -36,6 +36,7 @@ CAL-UX-002:
 
 CAL-UX-003:
   classification = OBSERVED_OPERATIONAL_PAIN
+  source = OWNER_REAL_TEST_USE
   Issue #26 = CLOSED
   PR #25 = MERGED / CLOSED
   merge commit = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
@@ -66,9 +67,18 @@ unauthenticated Calendar boundary = PASS
 ## Current GitHub snapshot
 
 ```text
-canonical main:
-  verified state-repair baseline: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
-  live head source: GitHub refs/heads/main
+live main observed:
+  sha: a2c1c69086eae9cad355c9ea4a6e962d203c177c
+  source: GitHub refs/heads/main
+  reviewed / accepted / deploy-authorized by this task: NO
+
+verified CAL-UX-003 TEST baseline:
+  sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+  TEST deployed source: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+  main ahead of TEST: true
+  main / TEST relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+
+verified ancestry at the TEST baseline:
   PR #18 included: YES
   PR #19 included: YES
   PR #24 included: YES
@@ -213,6 +223,9 @@ CAL_UX_002_PR_24 = MERGED_CLOSED
 CAL_UX_002_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_003_PR_25 = MERGED_CLOSED
 CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
+LIVE_MAIN_VS_TEST_TRUTH = PASS
+CAL_UX_003_SOURCE_ACCURACY = PASS
+PR_27_MERGE = NOT_YET_AUTHORIZED
 ENGINEERING = STOP
 CAL_UX_004_EXISTS = false
 

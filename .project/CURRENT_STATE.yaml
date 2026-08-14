@@ -1,6 +1,6 @@
 schema_version: 15
 project: BoatOps
-updated_at: "2026-08-14T17:16:40+07:00"
+updated_at: "2026-08-14T19:07:33+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
@@ -27,9 +27,14 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
-    sha_role: VERIFIED_OWNER_TASK_BASELINE
+    live_main_observed_sha: "a2c1c69086eae9cad355c9ea4a6e962d203c177c"
+    verified_cal_ux_003_test_baseline_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+    main_ahead_of_test: true
+    main_test_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
     live_head_source: GITHUB_REF
+    live_main_reviewed: false
+    live_main_accepted: false
+    live_main_deploy_authorized: false
     pr_18_included: true
     pr_19_included: true
     cal_ux_001_included: true
@@ -366,7 +371,7 @@ cal_ux_002:
 
 cal_ux_003:
   classification: OBSERVED_OPERATIONAL_PAIN
-  source: OWNER_TEST_CALENDAR_REVIEW
+  source: OWNER_REAL_TEST_USE
   owner_authorization: GRANTED
   issue: 26
   issue_state: CLOSED
@@ -420,7 +425,7 @@ development_rule:
       global_feature_development_reopened: false
     - id: CAL-UX-003
       basis: OBSERVED_OPERATIONAL_PAIN
-      source: OWNER_TEST_CALENDAR_REVIEW
+      source: OWNER_REAL_TEST_USE
       status: COMPLETED_MERGED_TEST_DEPLOYED
       global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
@@ -460,7 +465,7 @@ gates:
     cal_ux_002: MERGED_TEST_DEPLOYED
     cal_ux_003: MERGED_TEST_DEPLOYED
   test_deployment:
-    status: CURRENT_MAIN_DEPLOYED
+    status: VERIFIED_CAL_UX_003_TEST_BASELINE_DEPLOYED_MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
     environment: TEST_ONLY
     authorized: false
     authorization_consumed: true

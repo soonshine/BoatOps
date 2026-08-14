@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-14 17:16 Asia/Bangkok
+Updated: 2026-08-14 19:07 Asia/Bangkok
 
 ## Current decision
 
@@ -18,6 +18,7 @@ PR_18_MERGED
 CAL_UX_001_INTEGRATION_COMPLETE
 CAL_UX_002_MERGED_TEST_DEPLOYED
 CAL_UX_003_MERGED_TEST_DEPLOYED
+LIVE_MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 ENGINEERING_STOP
 NO_NEW_FEATURE_DEVELOPMENT
 ```
@@ -31,9 +32,18 @@ The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operation
 ## Exact GitHub identity
 
 ```text
-canonical main:
-  verified state-repair baseline: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
-  live head: resolve refs/heads/main from GitHub at each later gate
+live main observed:
+  sha: a2c1c69086eae9cad355c9ea4a6e962d203c177c
+  source: GitHub refs/heads/main
+  reviewed / accepted / deploy-authorized by this task: NO
+
+verified CAL-UX-003 TEST baseline:
+  sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+  TEST deployed source: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+  main ahead of TEST: true
+  main / TEST relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+
+verified ancestry at the TEST baseline:
   PR #18 included: YES
   PR #19 included: YES
   Real Pilot candidate ancestry included: YES
@@ -71,7 +81,7 @@ PR #25:
   merge commit: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 ```
 
-`2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` is the verified canonical-main baseline for this state repair. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
+`a2c1c69086eae9cad355c9ea4a6e962d203c177c` is only the observed live `main` SHA; this task does not mark it reviewed, accepted, or deploy-authorized. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` is the verified CAL-UX-003 TEST baseline and current TEST deployed source. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
 
 ## TEST runtime
 
@@ -218,7 +228,7 @@ CAL-UX-002 is closed and no longer belongs to the active engineering queue. It k
 
 ```text
 classification = OBSERVED_OPERATIONAL_PAIN
-source = OWNER_TEST_CALENDAR_REVIEW
+source = OWNER_REAL_TEST_USE
 Issue #26 = CLOSED
 PR #25 = MERGED / CLOSED
 merge commit = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
@@ -320,6 +330,9 @@ PR_19 = MERGED_CLOSED
 CAL_UX_001_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_002_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
+LIVE_MAIN_VS_TEST_TRUTH = PASS
+CAL_UX_003_SOURCE_ACCURACY = PASS
+PR_27_MERGE = NOT_YET_AUTHORIZED
 CAL_UX_001_PRODUCTION_DEPLOYMENT = false
 TAG = false
 RELEASE = false
