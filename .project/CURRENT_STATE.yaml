@@ -28,14 +28,15 @@ repository:
   default_branch: main
   canonical_main:
     live_main_observed_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+    verified_cal_ux_003_test_baseline_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
     main_ahead_of_test: false
     main_test_relation: SYNCHRONIZED
-    deployment_drift: false
-    undeployed_main_delta: false
     live_head_source: GITHUB_REF
     live_main_reviewed: true
     live_main_accepted: true
-    live_main_deploy_authorized: true
+    live_main_deploy_authorized: false
+    live_main_deployed_to_test: true
+    deployment_drift: false
     pr_18_included: true
     pr_19_included: true
     cal_ux_001_included: true
@@ -51,17 +52,51 @@ repository:
     merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
     included_in_main_ancestry: true
     implementation_head_sha: "987eba04a1dc9073be6c02631792808debc35635"
+    implementation_base_main_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
+    implementation_delta:
+      ahead_by: 2
+      behind_by: 0
+    live_head_source: GITHUB_REF
+    state_sync_commit_is_docs_only_descendant: true
   pr_18:
     number: 18
     title: "feat: add transactional pilot provisioning"
     state: MERGED_CLOSED
+    draft: false
+    merged: true
+    base_branch: main
+    head_branch: "codex/test-runtime-vertical-slice"
     head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
     merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
+    implementation_candidate_sha: "987eba04a1dc9073be6c02631792808debc35635"
   pr_19:
     number: 19
     title: "CAL-UX-001: Fleet Inventory Calendar"
     state: MERGED_CLOSED
+    integration_state: COMPLETE
+    draft: false
+    merged: true
+    base_branch: main
+    base_sha: "82494d85bc2d918359d610932ae01869a29839e8"
+    head_branch: "codex/cal-ux-001"
+    head_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
     merge_commit_sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
+  pr_18_scope:
+    included:
+      - BOUNDED_PILOT_PROVISIONING
+      - PILOT_PROVISIONING_TESTS
+      - VERIFIED_OPERATING_TIME_OBSERVED_PAIN_FIX
+      - PROJECT_STATE_SYNC
+    excluded:
+      - ADMIN_UI
+      - CRM
+      - FINANCE_EXPANSION
+      - PRODUCT_ENGINE
+      - CAPACITY_ENGINE
+      - OTA
+      - CHANNELHUB
+      - HISTORICAL_MIGRATION
+      - ERP_EXPANSION
 
 core_safety:
   status: COMPLETE
@@ -103,19 +138,26 @@ test_runtime:
     rollback: PASS
     scheduler_holds_expire: PASS
   deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
-  deployed_source_class: CURRENT_MAIN_SYNCHRONIZED_WITH_TEST
+  deployed_source_class: CURRENT_MAIN_WITH_REAL_PILOT_CAL_UX_001_002_003_AND_TODAY_OPERATIONS_V1
   source_runtime_relation: SYNCHRONIZED
   deployment_drift: false
   real_pilot_candidate_included_in_deployed_ancestry: true
+  deployed_source_is_bare_real_pilot_candidate: false
   cal_ux_001_deployed: true
   cal_ux_002_deployed: true
   cal_ux_003_deployed: true
   today_operations_v1_deployed: true
+  fleet_inventory_source_present: true
   unauthenticated_calendar_boundary: PASS
   authenticated_operator_access: PASS_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
   credential_secret_recorded: false
   plan_c_read_model_smoke: PASS
   inventory_zero_write: PASS
+  inventory_read_proof:
+    allocations: UNCHANGED
+    holds: UNCHANGED
+    bookings: UNCHANGED
+    blocks: UNCHANGED
   existing_docker_services_modified: false
   public_port_80_modified: false
 
@@ -150,8 +192,24 @@ dr04:
   synthetic_proof: PASS
   command: "pilot:provision {manifest} {--validate}"
   schema_migration_required: false
+  exact_rerun_semantics: UNCHANGED
+  drift_semantics: FAIL_CLOSED_ZERO_WRITE
+  late_failure_rollback: PASS
+  secrets_in_manifest: FORBIDDEN
   implementation_candidate_sha: "987eba04a1dc9073be6c02631792808debc35635"
-  github_ci: SUCCESS
+  observed_pain_fix:
+    status: COMPLETE
+    issue: OWNER_CONFIRMED_OPERATING_TIMES_COULD_NOT_BE_REPRESENTED
+    result: VERIFIED_ACCEPTED
+    commit: "987eba04a1dc9073be6c02631792808debc35635"
+    changed_files:
+      - app/Pilot/PilotManifest.php
+      - tests/Feature/PilotProvisioningTest.php
+  tests:
+    pint: PASS
+    pilot_provisioning: "7 tests / 39 assertions PASS"
+    full_php_suite: "283 tests / 3293 assertions PASS"
+    github_ci: SUCCESS
 
 real_pilot:
   authorization: GRANTED
@@ -170,6 +228,11 @@ real_pilot:
   unauthenticated_calendar_boundary: PASS
   plan_c_read_model_smoke: PASS
   inventory_zero_write: PASS
+  inventory_read_proof:
+    allocations: UNCHANGED
+    holds: UNCHANGED
+    bookings: UNCHANGED
+    blocks: UNCHANGED
   organization:
     name: Ayany Boat Operations
     timezone: Asia/Bangkok
@@ -189,25 +252,49 @@ real_pilot:
       service_time: "09:00-13:00"
       duration_minutes: 240
       operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
     - code: PLAN-C-FISH-4H-PM
       service_time: "14:00-18:00"
       duration_minutes: 240
       operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
     - code: PLAN-C-FISH-6H
       service_time: "12:00-18:00"
       duration_minutes: 360
       operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
     - code: PLAN-C-FISH-8H
       service_time: "10:00-18:00"
       duration_minutes: 480
       operating_time_status: VERIFIED
+      applicable_boats:
+        - Plan C
   compatibility: []
   compatibility_default: DENY_OVERLAPPING_SAME_BOAT_WITHOUT_ALLOW_RULE
   hold_ttl_minutes: 30
+  operator:
+    name: Cao
+    email: cao@mukuy.com
+    permissions:
+      can_calendar_read: true
+      can_booking_workflow: true
+      can_block: true
   historical_plan_c_migration: false
   first_real_vertical_slice:
     trigger: NEXT_GENUINE_PLAN_C_ORDER
     synthetic_or_invented_real_order_forbidden: true
+    sequence:
+      - INQUIRY
+      - HOLD
+      - CONFIRM
+      - PREPARE
+      - DEPART
+      - RETURN
+      - COMPLETE
+      - AUDIT
 
 real_pilot_candidate:
   sha: "987eba04a1dc9073be6c02631792808debc35635"
@@ -223,6 +310,7 @@ cal_ux_001:
   classification: OBSERVED_OPERATOR_CALENDAR_USABILITY_PAIN
   owner_authorization: GRANTED
   code_review: ACCEPTED
+  owner_merge_authorization: GRANTED_AND_CONSUMED
   implementation_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
   merge_commit_sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
   branch: "codex/cal-ux-001"
@@ -232,10 +320,20 @@ cal_ux_001:
   integration: COMPLETE
   included_in_main_ancestry: true
   scope: UI_AND_EXISTING_READ_PATH_ONLY
+  inventory_authority_changed: false
   schema_changed: false
+  slot_calendar_read_model_changed: false
+  application_inventory_actions_changed: false
   deployment: TEST_ONLY_DEPLOYED
-  test_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
-  production_touched: false
+  deployment_authorized: true
+  deployed: true
+  test_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  fleet_inventory_source_present: true
+  unauthenticated_calendar_boundary: PASS
+  tag: NOT_AUTHORIZED
+  tag_authorized: false
+  release: NOT_AUTHORIZED
+  release_authorized: false
 
 cal_ux_002:
   classification: OBSERVED_OPERATIONAL_PAIN
@@ -250,12 +348,32 @@ cal_ux_002:
   branch_status: MERGED_HISTORICAL
   state: MERGED_TEST_DEPLOYED
   scope: CHINESE_FIRST_AND_QUIET_AVAILABLE_OPERATOR_CALENDAR
+  inventory_authority_changed: false
   schema_changed: false
+  migrations_changed: false
+  slot_calendar_read_model_changed: false
+  application_inventory_actions_changed: false
+  organization_isolation_preserved: true
+  permission_degradation_preserved: true
   local_validation: PASS
+  visual_validation:
+    desktop_1440: PASS
+    mobile_390_viewport: PASS
+    full_page_horizontal_overflow: false
+    browser_console_errors: 0
+  owner_merge_authorization: GRANTED_AND_CONSUMED
+  merge_authorized: false
+  deployment_authorization: GRANTED_AND_CONSUMED
+  deployment_authorized: false
   deployed: true
   deployment: TEST_ONLY_DEPLOYED
-  test_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+  test_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  included_in_test_source_ancestry: true
   production_touched: false
+  cutover_authorized: false
+  authority_switch_authorized: false
+  tag_authorized: false
+  release_authorized: false
 
 cal_ux_003:
   classification: OBSERVED_OPERATIONAL_PAIN
@@ -264,21 +382,35 @@ cal_ux_003:
   issue: 26
   issue_state: CLOSED
   pr: 25
+  implementation_base_sha: "44cdb261ce9ec981e948decfceda916c8eca2984"
   merge_commit_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
   branch: "codex/cal-ux-003"
   branch_status: MERGED_HISTORICAL
   state: MERGED_TEST_DEPLOYED
   scope: DURATION_FIRST_INQUIRY_ENTRY
+  inventory_authority_changed: false
   schema_changed: false
+  migrations_changed: false
+  slot_calendar_read_model_changed: false
+  application_inventory_actions_changed: false
+  owner_merge_authorization: GRANTED_AND_CONSUMED
+  merge_authorized: false
+  deployment_authorization: GRANTED_AND_CONSUMED
+  deployment_authorized: false
   deployed: true
   deployment: TEST_ONLY_DEPLOYED
-  test_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+  test_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  included_in_test_source_ancestry: true
   production_touched: false
+  cutover_authorized: false
+  authority_switch_authorized: false
+  tag_authorized: false
+  release_authorized: false
 
 today_operations_v1:
   task_implementation: BOATOPS-CORE-001
   task_release: BOATOPS-CORE-002
-  implementation_status: COMPLETE
+  implementation: COMPLETE
   implementation_sha: "f5d6785e586d039072a80cc1a67b5d12c9d8b4dd"
   merge_commit_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
   merged: true
@@ -294,12 +426,6 @@ today_operations_v1:
   status_enum_changed: false
   business_flow_changed: false
   production_touched: false
-
-tasks:
-  BOATOPS-CORE-001:
-    status: DONE_VERIFIED
-  BOATOPS-CORE-002:
-    status: DONE_VERIFIED
 
 dr16:
   status: PARALLEL_BEFORE_CUTOVER
@@ -317,17 +443,32 @@ development_rule:
   authorized_narrow_exceptions:
     - id: CAL-UX-001
       basis: OBSERVED_OPERATIONAL_PAIN
-      status: COMPLETED_MERGED_TEST_DEPLOYED
+      global_feature_development_reopened: false
     - id: CAL-UX-002
       basis: OBSERVED_OPERATIONAL_PAIN
+      source: OWNER_TEST_CALENDAR_REVIEW
       status: COMPLETED_MERGED_TEST_DEPLOYED
+      global_feature_development_reopened: false
     - id: CAL-UX-003
       basis: OBSERVED_OPERATIONAL_PAIN
+      source: OWNER_REAL_TEST_USE
       status: COMPLETED_MERGED_TEST_DEPLOYED
+      global_feature_development_reopened: false
     - id: BOATOPS-CORE-001
       basis: OWNER_AUTHORIZED_TIME_TO_REAL_USE
       status: COMPLETED_MERGED_TEST_DEPLOYED
+      global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
+  state_updates: SAME_RELEVANT_PR_BY_DEFAULT
+  routine_lifecycle:
+    - REAL_PROBLEM
+    - SMALLEST_TASK
+    - IMPLEMENTATION_PR
+    - TEST
+    - MERGE
+    - TEST_OR_REAL_USE
+    - OBSERVED_PAIN
+    - NEXT_MINIMUM_CHANGE
   deferred:
     - ADMIN_UI
     - SETUP_WIZARD
@@ -347,13 +488,19 @@ gates:
   code:
     status: ENGINEERING_STOP_CURRENT_VERIFIED
     new_feature_development_authorized: false
-    cal_ux_001: COMPLETE
+    pr_18: MERGED_CLOSED
+    pr_19: MERGED_CLOSED
+    cal_ux_001_owner_merge_authorization: GRANTED_AND_CONSUMED
+    cal_ux_001_integration: COMPLETE
     cal_ux_002: MERGED_TEST_DEPLOYED
     cal_ux_003: MERGED_TEST_DEPLOYED
     today_operations_v1: MERGED_TEST_DEPLOYED_VERIFIED
   test_deployment:
     status: VERIFIED_CURRENT_MAIN_SYNCHRONIZED
     environment: TEST_ONLY
+    authorized: false
+    authorization_consumed: true
+    further_deployment_authorized: false
     source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
     main_test_relation: SYNCHRONIZED
     deployment_drift: false
@@ -365,10 +512,12 @@ gates:
   cutover:
     status: NOT_OPEN
     authorized: false
+    authority_switch_authorized: false
   release:
     status: NOT_OPEN
     tag_authorized: false
     release_authorized: false
+    github_release_authorized: false
 
 production:
   touched: false
@@ -385,22 +534,64 @@ remaining_gate_prerequisites:
   first_real_plan_c_order: WAITING_FOR_NEXT_GENUINE_ORDER
   owner_real_use_feedback: WAITING
   engineering_required_now: false
+  note: "Authenticated Operator access has been demonstrated through the approved existing Cao credential path; no secret is recorded. No further engineering is required now."
 
 next_action:
   id: OWNER_FEEDBACK_OR_NEXT_GENUINE_PLAN_C_ORDER
   engineering_required: false
   note: "Wait for Owner real-use feedback or the next genuine Plan C order; do not create a synthetic order or CAL-UX-004."
+  sequence:
+    - WAIT_FOR_NEXT_GENUINE_PLAN_C_ORDER
+    - INQUIRY
+    - HOLD
+    - CONFIRM
+    - PREPARE
+    - DEPART
+    - RETURN
+    - COMPLETE
+    - AUDIT
+    - RECORD_OBSERVED_OPERATIONAL_PAIN
+
+stop_conditions:
+  - NO_NEW_FEATURE_DEVELOPMENT_UNLESS_REAL_PILOT_BLOCKER_OBSERVED_OPERATIONAL_PAIN_OR_UNIVERSAL_CORE_SAFETY_DEFECT
+  - NO_WP4_WP5_WP6
+  - NO_PRODUCTION_DEPLOYMENT
+  - NO_HISTORICAL_MIGRATION
+  - NO_SYNTHETIC_OR_INVENTED_REAL_ORDER
+  - NO_CUTOVER
+  - NO_AUTHORITY_SWITCH
+  - NO_FURTHER_TEST_DEPLOYMENT_WITHOUT_SEPARATE_AUTHORIZATION
+  - NO_TAG
+  - NO_RELEASE
 
 closed_history:
   core_safety_pr_12: MERGED_CLOSED
   deployment_readiness_governance_pr_15: MERGED_CLOSED
-  deployment_readiness_closure_plan_pr_16: MERGED_CLOSED
-  real_pilot_pr_18: MERGED_CLOSED
-  cal_ux_001_pr_19: MERGED_CLOSED
-  cal_ux_002_pr_24: MERGED_CLOSED_TEST_DEPLOYED
-  cal_ux_003_pr_25: MERGED_CLOSED_TEST_DEPLOYED
-  boatops_core_001: DONE_VERIFIED
-  boatops_core_002: DONE_VERIFIED
+  deployment_readiness_closure_plan_pr_16:
+    status: MERGED_CLOSED
+    merge_commit_sha: "36fe230a12e3d24a7bcb8c0333f3ec15012c029e"
+  real_pilot_pr_18:
+    status: MERGED_CLOSED
+    head_sha: "71d2da4cfaa28c9fe8ecc31d7925d004c89e9236"
+    merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
+  cal_ux_001_pr_19:
+    status: MERGED_CLOSED
+    head_sha: "fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa"
+    merge_commit_sha: "77db16f16617ddcbb09ebf66d83a65a0c97695e5"
+  cal_ux_002_pr_24:
+    status: MERGED_CLOSED_TEST_DEPLOYED
+    merge_commit_sha: "44cdb261ce9ec981e948decfceda916c8eca2984"
+    issue_23: CLOSED
+  cal_ux_003_pr_25:
+    status: MERGED_CLOSED_TEST_DEPLOYED
+    merge_commit_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+    issue_26: CLOSED
+  boatops_core_001:
+    status: DONE_VERIFIED
+    implementation_sha: "f5d6785e586d039072a80cc1a67b5d12c9d8b4dd"
+  boatops_core_002:
+    status: DONE_VERIFIED
+    merge_and_test_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
 
 authorities:
   charter: ".project/PROJECT_CHARTER.md"
@@ -408,3 +599,4 @@ authorities:
   review_evidence: ".project/REVIEW_QUEUE.md"
   branch_ledger: ".project/BRANCH_LEDGER.md"
   real_operations_path: "docs/product/REAL_OPERATIONS_PILOT_MVP.md"
+  historical_wp1_wp3_contract: "docs/product/REAL_OPERATIONS_PILOT_MVP_SCOPE_FREEZE.md"
