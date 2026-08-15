@@ -9,6 +9,7 @@ use App\Http\Controllers\Operator\BookingWorkflowController;
 use App\Http\Controllers\Operator\InquiryController;
 use App\Http\Controllers\Operator\OperatorCalendarController;
 use App\Http\Controllers\Operator\OperatorSessionController;
+use App\Http\Controllers\Operator\TodayOperationsController;
 use App\Http\Controllers\Operator\TripDeskController;
 use App\Http\Controllers\Operator\TripWorkflowController;
 use App\Http\Middleware\ResolveDemoSiteContext;
@@ -21,6 +22,7 @@ Route::prefix('operator')->middleware(UseChineseOperatorUi::class)->name('operat
     Route::get('/login', [OperatorSessionController::class, 'create'])->name('login');
     Route::post('/login', [OperatorSessionController::class, 'store'])->middleware('throttle:operator-login')->name('login.store');
     Route::post('/logout', [OperatorSessionController::class, 'destroy'])->name('logout');
+    Route::get('/today', [TodayOperationsController::class, 'index'])->middleware('operator.membership:booking_workflow')->name('today');
     Route::get('/calendar', [OperatorCalendarController::class, 'index'])->middleware('operator.membership:calendar_read')->name('calendar');
     Route::get('/audit', [AuditController::class, 'index'])->middleware('operator.membership:calendar_read')->name('audit');
     Route::get('/blocks', [BlockController::class, 'index'])->middleware('operator.membership:block')->name('blocks.index');
