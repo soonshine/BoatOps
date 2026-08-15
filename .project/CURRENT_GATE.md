@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-14 19:07 Asia/Bangkok
+Updated: 2026-08-15 11:07 Asia/Bangkok
 
 ## Current decision
 
@@ -18,12 +18,13 @@ PR_18_MERGED
 CAL_UX_001_INTEGRATION_COMPLETE
 CAL_UX_002_MERGED_TEST_DEPLOYED
 CAL_UX_003_MERGED_TEST_DEPLOYED
-LIVE_MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+TODAY_OPERATIONS_V1_MERGED_TEST_DEPLOYED_VERIFIED
+MAIN_TEST_SYNCHRONIZED
 ENGINEERING_STOP
 NO_NEW_FEATURE_DEVELOPMENT
 ```
 
-BoatOps has left the active Deployment Readiness / governance-planning phase. CAL-UX-002 and CAL-UX-003 are merged, deployed to TEST, and closed as engineering items. Engineering is stopped; the next input is Owner real-use feedback or the next genuine Plan C order. No CAL-UX-004 exists and no global new-feature package is open.
+BoatOps has left the active Deployment Readiness / governance-planning phase. CAL-UX-002 and CAL-UX-003 are merged, deployed to TEST, and closed as engineering items. Today Operations V1 is also merged, deployed to TEST, and verified on the real PostgreSQL runtime. Engineering is stopped; the next input is Owner real-use feedback or the next genuine Plan C order. No CAL-UX-004 exists and no global new-feature package is open.
 
 The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operational queue is in `REVIEW_QUEUE.md`.
 
@@ -33,23 +34,29 @@ The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operation
 
 ```text
 live main observed:
-  sha: a2c1c69086eae9cad355c9ea4a6e962d203c177c
+  sha: 6d739fccab4de69f511663e130c1e2308e483afb
   source: GitHub refs/heads/main
-  reviewed / accepted / deploy-authorized by this task: NO
+  reviewed / accepted: YES
+  currently open deploy authorization: NO
+  deployed to TEST: YES
 
-verified CAL-UX-003 TEST baseline:
+verified CAL-UX-003 historical TEST baseline:
   sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
-  TEST deployed source: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
-  main ahead of TEST: true
-  main / TEST relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 
-verified ancestry at the TEST baseline:
+current TEST deployed source:
+  sha: 6d739fccab4de69f511663e130c1e2308e483afb
+  main ahead of TEST: false
+  main / TEST relation: SYNCHRONIZED
+  deployment drift: false
+
+verified ancestry at current TEST source:
   PR #18 included: YES
   PR #19 included: YES
   Real Pilot candidate ancestry included: YES
   CAL-UX-001 implementation ancestry included: YES
   CAL-UX-002 implementation ancestry included: YES
   CAL-UX-003 implementation ancestry included: YES
+  Today Operations V1 included: YES
 
 former Real Pilot branch:
   codex/test-runtime-vertical-slice
@@ -79,9 +86,15 @@ PR #25:
   MERGED / CLOSED
   Issue #26: CLOSED
   merge commit: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+
+Today Operations:
+  BOATOPS-CORE-001: DONE / VERIFIED
+  implementation: f5d6785e586d039072a80cc1a67b5d12c9d8b4dd
+  BOATOPS-CORE-002: DONE / VERIFIED
+  merge / current TEST: 6d739fccab4de69f511663e130c1e2308e483afb
 ```
 
-`a2c1c69086eae9cad355c9ea4a6e962d203c177c` is only the observed live `main` SHA; this task does not mark it reviewed, accepted, or deploy-authorized. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` is the verified CAL-UX-003 TEST baseline and current TEST deployed source. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
+`a2c1c69086eae9cad355c9ea4a6e962d203c177c` is historical evidence for the earlier Chinese UI TEST state. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` remains the historical CAL-UX-003 TEST baseline and merge commit. Neither is the current main or current TEST identity. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
 
 ## TEST runtime
 
@@ -95,16 +108,21 @@ Verified state:
 - `/up`: HTTP 200;
 - Nginx, PHP-FPM, PostgreSQL, and Scheduler: active;
 - PostgreSQL backup, restore proof, rollback proof, and `holds:expire` scheduler proof: PASS;
-- existing Docker services and public `:80`: untouched.
-- deployed source: `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7`;
+- existing Docker services and public `:80`: untouched;
+- deployed source: `6d739fccab4de69f511663e130c1e2308e483afb`;
+- main / TEST source relation: `SYNCHRONIZED`;
 - the immutable Real Pilot candidate `987eba04a1dc9073be6c02631792808debc35635` is included in deployed ancestry, not deployed as a bare SHA;
 - CAL-UX-001, CAL-UX-002, and CAL-UX-003 Calendar source is present on TEST;
+- Today Operations V1 source is present on TEST;
 - unauthenticated Calendar boundary: PASS;
 - authenticated Operator access through the approved existing Cao credential path: PASS; no secret is recorded;
 - Plan C Calendar read-model smoke: PASS;
-- inventory zero-write proof: PASS (`allocations`, `holds`, `bookings`, and `blocks` unchanged).
+- Today Operations `/operator/today`: HTTP 200 on real PostgreSQL;
+- Today desktop 1440 and mobile 390 browser validation: PASS; console/page errors 0;
+- Today runtime had no genuine current-day Trip, so the real runtime proof covered the PostgreSQL query and empty-state path without creating fake orders;
+- inventory/business-data zero-write proof: PASS.
 
-This makes the TEST runtime `READY` with the verified Real Pilot and CAL-UX-001/002/003 ancestry deployed. It does not claim that TEST is running the bare immutable candidate SHA.
+This makes the TEST runtime `READY` with the verified Real Pilot, CAL-UX-001/002/003, Chinese UI, and Today Operations ancestry deployed.
 
 ## Completed synthetic proof
 
@@ -150,7 +168,7 @@ REAL_PILOT_CONFIGURATION = AUTHORIZED
 Verified TEST execution state:
 
 ```text
-TEST source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+TEST source = 6d739fccab4de69f511663e130c1e2308e483afb
 Real Pilot candidate included in deployed ancestry = true
 Plan C provisioning first execution = UNCHANGED
 Plan C provisioning exact rerun = UNCHANGED
@@ -191,7 +209,7 @@ SlotCalendarReadModel changed = false
 schema / migrations changed = false
 application inventory actions changed = false
 deployment = TEST_ONLY_DEPLOYED
-test source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+historical integration TEST source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 Fleet Inventory source present = true
 unauthenticated Calendar boundary = PASS
 tag = NOT_AUTHORIZED
@@ -218,7 +236,7 @@ application inventory actions changed = false
 local validation = PASS
 desktop 1440 visual proof = PASS
 mobile 390 viewport proof = PASS
-TEST source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+historical integration TEST source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 production deployment = false
 ```
 
@@ -238,20 +256,45 @@ inventory authority changed = false
 SlotCalendarReadModel changed = false
 schema / migrations changed = false
 application inventory actions changed = false
-TEST source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+historical integration TEST source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 production deployment = false
 ```
 
 CAL-UX-003 is closed and no longer belongs to the active engineering queue. No CAL-UX-004 exists.
 
+## Today Operations V1 completed integration
+
+```text
+BOATOPS-CORE-001 = DONE / VERIFIED
+BOATOPS-CORE-002 = DONE / VERIFIED
+implementation = f5d6785e586d039072a80cc1a67b5d12c9d8b4dd
+merge commit = 6d739fccab4de69f511663e130c1e2308e483afb
+state = MERGED / TEST DEPLOYED / VERIFIED
+scope = EXISTING SSOT READ VIEW ONLY
+PostgreSQL runtime = PASS
+empty-state runtime = PASS
+desktop browser = PASS
+mobile 390 browser = PASS
+business data changed = false
+schema changed = false
+API contract changed = false
+status enum changed = false
+business flow changed = false
+production deployment = false
+```
+
+Today Operations V1 is closed and no longer belongs to the active engineering queue. The current TEST date had no genuine Trip, so non-empty cards remain covered by automated tests until the next genuine operating day supplies a real non-empty runtime path.
+
 ## Remaining gate prerequisite
 
 ```text
 PLAN_C_REAL_CONFIG = READY
-TEST_DEPLOYED_SOURCE = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+TEST_DEPLOYED_SOURCE = 6d739fccab4de69f511663e130c1e2308e483afb
+MAIN_TEST_RELATION = SYNCHRONIZED
 REAL_PILOT_CANDIDATE_IN_DEPLOYED_ANCESTRY = true
 PLAN_C_PROVISIONING = COMPLETE
 AUTHENTICATED_OPERATOR_ACCESS = PASS_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
+TODAY_OPERATIONS_V1 = COMPLETE_MERGED_TEST_DEPLOYED_VERIFIED
 FIRST_REAL_PLAN_C_ORDER = WAITING_FOR_NEXT_GENUINE_ORDER
 NO_ACTIVE_ENGINEERING_BLOCKER = true
 ENGINEERING = STOP
@@ -285,7 +328,7 @@ PR #19 = MERGED / CLOSED
 implementation fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa = INCLUDED IN MAIN ANCESTRY
 merge commit = 77db16f16617ddcbb09ebf66d83a65a0c97695e5
 deployment = TEST_ONLY_DEPLOYED
-test source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+historical integration test source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 Fleet Inventory source present = true
 unauthenticated Calendar boundary = PASS
 ```
@@ -302,7 +345,7 @@ UNLESS:
 
 Admin UI, setup wizard, capacity/seat inventory, Product engine, CRM, Finance expansion, reporting, maintenance, historical migration, ChannelHub, OTA, second-company onboarding, and SaaS administration remain deferred.
 
-Routine progress does not require a governance-only PR. This bounded SSOT repair is the explicitly authorized exception; CAL-UX-002 and CAL-UX-003 are complete and do not create an active engineering item.
+Routine progress does not require a governance-only PR. This bounded SSOT repair is the explicitly authorized exception; CAL-UX-002, CAL-UX-003, and Today Operations V1 are complete and do not create an active engineering item.
 
 ## Parallel items
 
@@ -320,6 +363,8 @@ CAL-UX-001 is `CODE_REVIEW_ACCEPTED / OWNER_MERGE_AUTHORIZATION_GRANTED_AND_CONS
 
 CAL-UX-002 and CAL-UX-003 are `MERGED / CLOSED / TEST DEPLOYED`; Issues #23 and #26 are closed. Neither is active implementation or deployment authority.
 
+Today Operations V1 is `DONE / VERIFIED / MERGED / TEST DEPLOYED`; BOATOPS-CORE-001 and BOATOPS-CORE-002 are closed historical tasks.
+
 ## Explicit boundaries
 
 ```text
@@ -330,15 +375,16 @@ PR_19 = MERGED_CLOSED
 CAL_UX_001_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_002_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
-LIVE_MAIN_VS_TEST_TRUTH = PASS
+TODAY_OPERATIONS_V1_TEST_DEPLOYMENT = VERIFIED
+LIVE_MAIN_VS_TEST_TRUTH = SYNCHRONIZED
 CAL_UX_003_SOURCE_ACCURACY = PASS
 CAL_UX_001_PRODUCTION_DEPLOYMENT = false
 TAG = false
 RELEASE = false
 ```
 
-This governance-only synchronization changes no runtime behavior. It records the already verified CAL-UX-002/003 merge, TEST deployment, and authenticated Cao access facts; it records no password or secret and executes no deployment, provisioning, production change, real-data migration, cutover, tag, or release.
+This governance-only synchronization changes no runtime behavior. It records the already verified CAL-UX-002/003 history, Today Operations merge/TEST deployment, authenticated Cao access, and current main/TEST identity; it records no password or secret and executes no deployment, provisioning, production change, real-data migration, cutover, tag, or release.
 
 ## Closed history
 
-Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, PR #16, PR #18, PR #19, PR #24, and PR #25 are merged/closed. CAL-UX-002 and CAL-UX-003 are deployed to TEST and await only Owner real-use feedback, not further engineering.
+Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, PR #16, PR #18, PR #19, PR #24, and PR #25 are merged/closed. CAL-UX-002 and CAL-UX-003 are deployed to TEST. BOATOPS-CORE-001 and BOATOPS-CORE-002 are DONE / VERIFIED. The system awaits Owner real-use feedback or the next genuine Plan C order, not further engineering.

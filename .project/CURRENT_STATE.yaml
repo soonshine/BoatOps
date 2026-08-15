@@ -1,6 +1,6 @@
 schema_version: 15
 project: BoatOps
-updated_at: "2026-08-14T19:07:33+07:00"
+updated_at: "2026-08-15T11:07:00+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
@@ -27,19 +27,22 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    live_main_observed_sha: "a2c1c69086eae9cad355c9ea4a6e962d203c177c"
+    live_main_observed_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
     verified_cal_ux_003_test_baseline_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
-    main_ahead_of_test: true
-    main_test_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+    main_ahead_of_test: false
+    main_test_relation: SYNCHRONIZED
     live_head_source: GITHUB_REF
-    live_main_reviewed: false
-    live_main_accepted: false
+    live_main_reviewed: true
+    live_main_accepted: true
     live_main_deploy_authorized: false
+    live_main_deployed_to_test: true
+    deployment_drift: false
     pr_18_included: true
     pr_19_included: true
     cal_ux_001_included: true
     cal_ux_002_included: true
     cal_ux_003_included: true
+    today_operations_v1_included: true
     real_pilot_candidate_included: true
   real_pilot_branch:
     name: "codex/test-runtime-vertical-slice"
@@ -134,13 +137,16 @@ test_runtime:
     restore: PASS
     rollback: PASS
     scheduler_holds_expire: PASS
-  deployed_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
-  deployed_source_class: MAIN_WITH_REAL_PILOT_AND_CAL_UX_001_002_003_ANCESTRY
+  deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+  deployed_source_class: CURRENT_MAIN_WITH_REAL_PILOT_CAL_UX_001_002_003_AND_TODAY_OPERATIONS_V1
+  source_runtime_relation: SYNCHRONIZED
+  deployment_drift: false
   real_pilot_candidate_included_in_deployed_ancestry: true
   deployed_source_is_bare_real_pilot_candidate: false
   cal_ux_001_deployed: true
   cal_ux_002_deployed: true
   cal_ux_003_deployed: true
+  today_operations_v1_deployed: true
   fleet_inventory_source_present: true
   unauthenticated_calendar_boundary: PASS
   authenticated_operator_access: PASS_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
@@ -217,7 +223,7 @@ real_pilot:
     status: DEMONSTRATED
     credential_path: APPROVED_EXISTING_CAO_CREDENTIAL
     secret_recorded: false
-  test_deployed_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  test_deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
   test_deployed_real_pilot_candidate_included_in_ancestry: true
   unauthenticated_calendar_boundary: PASS
   plan_c_read_model_smoke: PASS
@@ -296,7 +302,7 @@ real_pilot_candidate:
   code_configuration_status: INCLUDED_IN_MAIN_ANCESTRY
   merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
   test_deployment_status: DEPLOYED_AS_MAIN_ANCESTRY
-  deployed_source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+  deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
   included_in_deployed_ancestry: true
   github_ci: SUCCESS
 
@@ -401,6 +407,26 @@ cal_ux_003:
   tag_authorized: false
   release_authorized: false
 
+today_operations_v1:
+  task_implementation: BOATOPS-CORE-001
+  task_release: BOATOPS-CORE-002
+  implementation: COMPLETE
+  implementation_sha: "f5d6785e586d039072a80cc1a67b5d12c9d8b4dd"
+  merge_commit_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+  merged: true
+  deployed_to_test: true
+  test_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+  postgres_runtime: PASS
+  browser_desktop: PASS
+  browser_mobile: PASS
+  empty_state_runtime: PASS
+  business_data_changed: false
+  schema_change: false
+  api_contract_changed: false
+  status_enum_changed: false
+  business_flow_changed: false
+  production_touched: false
+
 dr16:
   status: PARALLEL_BEFORE_CUTOVER
   current_real_pilot_blocker: false
@@ -426,6 +452,10 @@ development_rule:
     - id: CAL-UX-003
       basis: OBSERVED_OPERATIONAL_PAIN
       source: OWNER_REAL_TEST_USE
+      status: COMPLETED_MERGED_TEST_DEPLOYED
+      global_feature_development_reopened: false
+    - id: BOATOPS-CORE-001
+      basis: OWNER_AUTHORIZED_TIME_TO_REAL_USE
       status: COMPLETED_MERGED_TEST_DEPLOYED
       global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
@@ -456,7 +486,7 @@ development_rule:
 
 gates:
   code:
-    status: ENGINEERING_STOP_CAL_UX_002_003_COMPLETE
+    status: ENGINEERING_STOP_CURRENT_VERIFIED
     new_feature_development_authorized: false
     pr_18: MERGED_CLOSED
     pr_19: MERGED_CLOSED
@@ -464,13 +494,16 @@ gates:
     cal_ux_001_integration: COMPLETE
     cal_ux_002: MERGED_TEST_DEPLOYED
     cal_ux_003: MERGED_TEST_DEPLOYED
+    today_operations_v1: MERGED_TEST_DEPLOYED_VERIFIED
   test_deployment:
-    status: VERIFIED_CAL_UX_003_TEST_BASELINE_DEPLOYED_MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+    status: VERIFIED_CURRENT_MAIN_SYNCHRONIZED
     environment: TEST_ONLY
     authorized: false
     authorization_consumed: true
     further_deployment_authorized: false
-    source_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
+    source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+    main_test_relation: SYNCHRONIZED
+    deployment_drift: false
   real_pilot_use:
     status: AUTHENTICATED_OPERATOR_ACCESS_PROVEN_WAITING_NEXT_GENUINE_ORDER
     real_operator_use_authorized: true
@@ -553,6 +586,12 @@ closed_history:
     status: MERGED_CLOSED_TEST_DEPLOYED
     merge_commit_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
     issue_26: CLOSED
+  boatops_core_001:
+    status: DONE_VERIFIED
+    implementation_sha: "f5d6785e586d039072a80cc1a67b5d12c9d8b4dd"
+  boatops_core_002:
+    status: DONE_VERIFIED
+    merge_and_test_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
 
 authorities:
   charter: ".project/PROJECT_CHARTER.md"
