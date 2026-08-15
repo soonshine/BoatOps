@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-15 11:07 Asia/Bangkok
 
-The active operational queue contains Owner real-use feedback and the next genuine Plan C order. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here. CAL-UX-001/002/003 and Today Operations V1 are completed evidence, not active engineering items.
+The active operational queue contains Owner real-use feedback and the next genuine Plan C order. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here. CAL-UX-001/002/003, Today Operations V1, and their TEST reconciliation are completed evidence, not active engineering items.
 
 ## Active queue
 
@@ -20,36 +20,7 @@ OWNER-REAL-USE-FEEDBACK OR WAIT-FOR-NEXT-GENUINE-PLAN-C-ORDER
 -> RECORD_OBSERVED_OPERATIONAL_PAIN
 ```
 
-No feature-development item belongs in this queue unless it is a proven Real Pilot blocker, observed operational pain, or universal core safety defect.
-
-## Current GitHub / TEST snapshot
-
-```text
-current main:
-  sha: 6d739fccab4de69f511663e130c1e2308e483afb
-  source: GitHub refs/heads/main
-
-current TEST deployed source:
-  sha: 6d739fccab4de69f511663e130c1e2308e483afb
-  environment: http://43.156.151.62:8080
-
-main ahead of TEST: false
-main / TEST relation: SYNCHRONIZED
-deployment drift: false
-undeployed main delta: false
-active engineering item: NONE
-```
-
-Historical identities remain evidence only:
-
-```text
-CAL-UX-003 historical TEST baseline / merge commit = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
-Chinese UI TEST source before Today deployment = a2c1c69086eae9cad355c9ea4a6e962d203c177c
-Real Pilot immutable candidate = 987eba04a1dc9073be6c02631792808debc35635
-CAL-UX-002 historical authoring base = c176b91530019f47145947e63fe5929880d2ff37
-```
-
-None of those historical SHAs is the current main or current TEST identity.
+No feature-development item belongs in this queue unless it is a proven Real Pilot blocker or observed operational pain.
 
 ## Completed Today Operations V1
 
@@ -101,13 +72,14 @@ CAL-UX-003:
   TEST deployment = VERIFIED
 
 current TEST source = 6d739fccab4de69f511663e130c1e2308e483afb
+historical CAL-UX-003 TEST baseline = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 inventory authority / SlotCalendarReadModel / schema / migrations / application inventory actions = UNCHANGED
 active engineering item = NONE
 ```
 
-## Completed CAL-UX-001 integration
+## Completed bounded integration
 
-CAL-UX-001 is classified `OBSERVED_OPERATOR_CALENDAR_USABILITY_PAIN` and remains accepted historical evidence.
+CAL-UX-001 is classified `OBSERVED_OPERATOR_CALENDAR_USABILITY_PAIN` and does not replace the Real Pilot operational order above.
 
 ```text
 CODE_REVIEW = ACCEPTED
@@ -117,10 +89,78 @@ implementation = fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa
 merge commit = 77db16f16617ddcbb09ebf66d83a65a0c97695e5
 integration = COMPLETE
 deployment = TEST_ONLY_DEPLOYED
+historical integration test source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 current TEST source = 6d739fccab4de69f511663e130c1e2308e483afb
 Fleet Inventory source present = true
 unauthenticated Calendar boundary = PASS
 ```
+
+## Current GitHub snapshot
+
+```text
+live main observed:
+  sha: 6d739fccab4de69f511663e130c1e2308e483afb
+  source: GitHub refs/heads/main
+  reviewed / accepted: YES
+  currently open deploy authorization: NO
+  deployed to TEST: YES
+
+current TEST deployed source:
+  sha: 6d739fccab4de69f511663e130c1e2308e483afb
+  main ahead of TEST: false
+  main / TEST relation: SYNCHRONIZED
+  deployment drift: false
+
+historical CAL-UX-003 TEST baseline:
+  sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+
+verified ancestry at current TEST source:
+  PR #18 included: YES
+  PR #19 included: YES
+  PR #24 included: YES
+  PR #25 included: YES
+  Today Operations V1 included: YES
+
+former Real Pilot branch:
+  codex/test-runtime-vertical-slice
+  status: MERGED / HISTORICAL
+
+immutable Real Pilot implementation candidate:
+  987eba04a1dc9073be6c02631792808debc35635
+  included in main ancestry: YES
+
+PR #18:
+  title: feat: add transactional pilot provisioning
+  state: MERGED / CLOSED
+  head: 71d2da4cfaa28c9fe8ecc31d7925d004c89e9236
+  merge commit: 00a029c9a3dcd2122a958514e845334d0a295ac9
+
+PR #19:
+  title: CAL-UX-001: Fleet Inventory Calendar
+  state: MERGED / CLOSED
+  head: codex/cal-ux-001 @ fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa
+  merge commit: 77db16f16617ddcbb09ebf66d83a65a0c97695e5
+
+PR #24:
+  title: CAL-UX-002 Chinese-first quiet fleet calendar
+  state: MERGED / CLOSED
+  Issue #23: CLOSED
+  merge commit: 44cdb261ce9ec981e948decfceda916c8eca2984
+
+PR #25:
+  title: CAL-UX-003 Duration-first inquiry entry
+  state: MERGED / CLOSED
+  Issue #26: CLOSED
+  merge commit: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
+
+Today Operations:
+  BOATOPS-CORE-001: DONE / VERIFIED
+  implementation: f5d6785e586d039072a80cc1a67b5d12c9d8b4dd
+  BOATOPS-CORE-002: DONE / VERIFIED
+  merge / TEST: 6d739fccab4de69f511663e130c1e2308e483afb
+```
+
+`a2c1c69086eae9cad355c9ea4a6e962d203c177c` remains historical evidence for the earlier Chinese UI TEST state. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` remains the historical CAL-UX-003 baseline. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE`; later gates must still resolve the live GitHub ref.
 
 ## Closed execution evidence
 
@@ -133,16 +173,19 @@ unauthenticated Calendar boundary = PASS
 | Synthetic provisioning | `PASS` | First provision `CREATED`; exact rerun `UNCHANGED` |
 | Drift and rollback | `PASS` | Configuration drift fail-closed with zero write; late failure rollback PASS |
 | Synthetic Vertical Slice | `COMPLETE` | Login through Audit PASS; Early Complete fail-closed; cross-org Audit leakage `0` |
-| PostgreSQL backup / restore | `PASS` | TEST backup and clean restore proof complete |
+| PostgreSQL backup | `PASS` | TEST backup proof complete |
+| PostgreSQL restore | `PASS` | Clean restore proof complete |
 | Deployment rollback | `PASS` | TEST rollback proof complete |
 | Scheduler | `PASS` | Recurring `holds:expire` proof complete |
-| Plan C configuration | `COMPLETE` | Owner-approved Organization, Boat, Slots, TTL, Operator, and permission configuration supplied |
-| PR #18 integration | `MERGED / CLOSED` | Real Pilot implementation ancestry preserved in current main/TEST |
-| CAL-UX-001 / PR #19 | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED` | Historical integration preserved; present in current TEST ancestry |
-| CAL-UX-002 / PR #24 | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED` | Issue #23 closed; present in current TEST ancestry |
-| CAL-UX-003 / PR #25 | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED` | Issue #26 closed; present in current TEST ancestry |
+| Plan C input / former DR17 | `COMPLETE` | Owner-approved Organization, Boat, Slots, TTL, Operator, and permission configuration supplied |
+| `VERIFIED` observed-pain fix | `COMPLETE` | Commit `987eba04a1dc9073be6c02631792808debc35635`; only `PilotManifest.php` and `PilotProvisioningTest.php` changed |
+| Candidate tests | `PASS` | Pint PASS; PilotProvisioning 7 tests / 39 assertions; full PHP suite 283 tests / 3293 assertions; GitHub CI SUCCESS |
+| PR #18 integration | `MERGED / CLOSED` | Head `71d2da4cfaa28c9fe8ecc31d7925d004c89e9236` merged into `main` as `00a029c9a3dcd2122a958514e845334d0a295ac9` |
+| CAL-UX-001 / PR #19 integration | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED` | Accepted implementation `fe05d92a9534b8e2dac2f4b6af4c6161ec4c4afa` is included in current TEST ancestry |
+| CAL-UX-002 / PR #24 integration | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED` | Issue #23 closed; merge commit `44cdb261ce9ec981e948decfceda916c8eca2984`; included in current TEST ancestry |
+| CAL-UX-003 / PR #25 integration | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED` | Issue #26 closed; historical merge/test baseline `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7`; included in current TEST ancestry |
 | BOATOPS-CORE-001 | `DONE / VERIFIED` | Today Operations V1 implementation accepted at `f5d6785e586d039072a80cc1a67b5d12c9d8b4dd` |
-| BOATOPS-CORE-002 | `DONE / VERIFIED` | Today merged/deployed as main/TEST `6d739fccab4de69f511663e130c1e2308e483afb`; PostgreSQL + browser PASS |
+| BOATOPS-CORE-002 | `DONE / VERIFIED` | Today merged and deployed as main/TEST `6d739fccab4de69f511663e130c1e2308e483afb`; PostgreSQL and browser verification PASS |
 
 ## Approved Plan C configuration
 
@@ -152,8 +195,8 @@ Timezone: Asia/Bangkok
 Boat: Plan C
 Buffer: 30 / 30 minutes
 HOLD TTL: 30 minutes
-Operator access: approved existing Cao credential path
-Credential secret recorded: NO
+Operator: Cao <cao@mukuy.com>
+Permissions: calendar=true, booking_workflow=true, block=true
 
 PLAN-C-FISH-4H-AM  09:00-13:00  240  VERIFIED
 PLAN-C-FISH-4H-PM  14:00-18:00  240  VERIFIED
@@ -163,9 +206,13 @@ PLAN-C-FISH-8H     10:00-18:00  480  VERIFIED
 applicable Boat: Plan C
 compatibility: []
 configuration: READY
-provisioning: COMPLETE
+provisioning: COMPLETE (first execution UNCHANGED; exact rerun UNCHANGED)
+Operator access: PASS / APPROVED EXISTING CAO CREDENTIAL PATH
+Credential secret recorded: NO
+Cao login smoke: PASS
 Plan C read projection: PASS
 inventory zero-write: PASS
+allocations / holds / bookings / blocks: UNCHANGED
 ```
 
 ## First real order policy
@@ -207,24 +254,30 @@ TEST_ONLY = true
 REAL_OPERATOR_USE = AUTHORIZED
 REAL_PILOT_CONFIGURATION = AUTHORIZED
 
+CAL_UX_001_OWNER_AUTHORIZATION = GRANTED
+CAL_UX_001_CODE_REVIEW = ACCEPTED
+CAL_UX_001_OWNER_MERGE_AUTHORIZATION = GRANTED_AND_CONSUMED
 CAL_UX_001_PR_19 = MERGED_CLOSED
+CAL_UX_001_INTEGRATION = COMPLETE
 CAL_UX_001_TEST_DEPLOYMENT = VERIFIED
+CAL_UX_001_PRODUCTION_DEPLOYMENT = false
+CAL_UX_001_TAG = NOT_AUTHORIZED
+CAL_UX_001_RELEASE = NOT_AUTHORIZED
+
 CAL_UX_002_PR_24 = MERGED_CLOSED
 CAL_UX_002_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_003_PR_25 = MERGED_CLOSED
 CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
-
 BOATOPS_CORE_001 = DONE_VERIFIED
 BOATOPS_CORE_002 = DONE_VERIFIED
 TODAY_OPERATIONS_V1 = MERGED_TEST_DEPLOYED_VERIFIED
-
 CURRENT_MAIN = 6d739fccab4de69f511663e130c1e2308e483afb
 CURRENT_TEST = 6d739fccab4de69f511663e130c1e2308e483afb
-MAIN_TEST_RELATION = SYNCHRONIZED
-DEPLOYMENT_DRIFT = false
-
+LIVE_MAIN_VS_TEST_TRUTH = SYNCHRONIZED
+CAL_UX_003_SOURCE_ACCURACY = PASS
 ENGINEERING = STOP
 CAL_UX_004_EXISTS = false
+
 PRODUCTION_DEPLOYMENT = false
 CUTOVER = false
 AUTHORITY_SWITCH = false
