@@ -1,14 +1,14 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-16 18:08 Asia/Bangkok
+Last updated: 2026-08-16 18:33 Asia/Bangkok
 
-Owner real-use feedback is now captured by Issue #28 and implemented as the bounded INQ-OPS-001 candidate. The active gate is Control Plane review; merge and TEST deployment remain separate Owner decisions. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here.
+Owner real-use feedback was captured by Issue #28 and implemented as the bounded INQ-OPS-001 work, now merged via PR #30 at 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0. TEST deployment precheck and authorization remain separate Owner decisions. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here.
 
 ## Active queue
 
 | ID | Status | Next proof |
 | --- | --- | --- |
-| `INQ-OPS-001` | `COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW` | Review the bounded Issue #28 implementation and exact-head evidence; do not infer merge or deployment authority |
+| `INQ-OPS-001` | `MERGED / NOT_TEST_DEPLOYED` | Run TEST deployment precheck and obtain separate authorization; do not infer deployment authority |
 | `OWNER-REAL-USE-FEEDBACK` | `RECEIVED / INQ-OPS-001` | Issue #28 records the observed Inquiry dossier pain; future feedback remains evidence-driven |
 | `FIRST-REAL-PLAN-C-VERTICAL-SLICE` | `WAITING / NEXT_GENUINE_ORDER` | Run the next genuine Plan C order from Inquiry through Audit; do not invent an order |
 | `DR16` | `PARALLEL_BEFORE_CUTOVER / NOT_CURRENT_REAL_PILOT_BLOCKER` | Keep `main.protected=false` visible; require separate authorization before any GitHub settings mutation |
@@ -16,14 +16,14 @@ Owner real-use feedback is now captured by Issue #28 and implemented as the boun
 ## Operational order
 
 ```text
-INQ-OPS-001 CONTROL-PLANE-REVIEW
--> OWNER-MERGE-DECISION
--> SEPARATE-TEST-DEPLOY-AUTHORIZATION-IF-APPROVED
+INQ-OPS-001 MERGED
+-> TEST-DEPLOY-PRE-CHECK
+-> SEPARATE-TEST-DEPLOY-AUTHORIZATION
 ```
 
 No adjacent feature-development item belongs in this queue unless it is a proven Real Pilot blocker, observed operational pain, or universal core-safety defect.
 
-## INQ-OPS-001 candidate evidence
+## INQ-OPS-001 merged evidence
 
 ```text
 classification = OBSERVED_OPERATIONAL_PAIN
@@ -34,8 +34,9 @@ branch = feat/inq-ops-001-operational-dossier-v1
 starting head = 8895d2c6f0c91b7c12188b93284e5f5586cd2153
 implementation commit = b8daba01fc3f2157d5d5b5ee862bac0a5575deab
 origin/main at validation = 12d85ced7e6568b7992f12841264bb01ea8ee765
-PR = #30 (same open PR)
-status = COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW
+PR #30 = MERGED / CLOSED
+merge commit = 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
+status = MERGED / NOT_TEST_DEPLOYED
 R1 review fixes = PASS
 Inquiry operational-dossier SSOT = PRESERVED
 new proven execution-gap fields = 8
@@ -44,13 +45,14 @@ inventory authority / SlotCalendarReadModel / HOLD conflict logic = UNCHANGED
 Booking / Trip lifecycle = UNCHANGED
 organization isolation = PRESERVED
 real booking data = NONE
+owner merge authorization = GRANTED_AND_CONSUMED
 merge authorization = NO
 TEST deployment authorization = NO
 TEST deployed = NO
 Production touched = NO
 ```
 
-The candidate is one implementation PR with its necessary state updates. It does not create a second Order or Booking dossier, a duration/departure truth, CRM, finance, add-on, capacity, hotel, route-taxonomy, Calendar, or Today Operations scope.
+The merged work is one implementation PR with its necessary state updates. It does not create a second Order or Booking dossier, a duration/departure truth, CRM, finance, add-on, capacity, hotel, route-taxonomy, Calendar, or Today Operations scope.
 
 ## Completed Today Operations V1
 
@@ -104,7 +106,7 @@ CAL-UX-003:
 current TEST source = 6d739fccab4de69f511663e130c1e2308e483afb
 historical CAL-UX-003 TEST baseline = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 inventory authority / SlotCalendarReadModel / schema / migrations / application inventory actions = UNCHANGED
-active implementation candidate = INQ-OPS-001 / CONTROL_PLANE_REVIEW
+active merged item = INQ-OPS-001 / MERGED_NOT_TEST_DEPLOYED
 ```
 
 ## Completed bounded integration
@@ -129,11 +131,11 @@ unauthenticated Calendar boundary = PASS
 
 ```text
 live main observed:
-  sha: 12d85ced7e6568b7992f12841264bb01ea8ee765
+  sha: 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
   source: GitHub refs/heads/main
   reviewed / accepted: REVIEWED_FOR_SCOPE / NOT_ACCEPTED_AS_TEST_BASELINE
   currently open deploy authorization: NO
-  deployed to TEST: NO (PR #31 docs-only delta remains external to TEST)
+  deployed to TEST: NO (PR #30 INQ-OPS-001 code delta and PR #31 docs-only delta remain external to TEST)
 
 current TEST deployed source:
   sha: 6d739fccab4de69f511663e130c1e2308e483afb
@@ -301,16 +303,17 @@ CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
 BOATOPS_CORE_001 = DONE_VERIFIED
 BOATOPS_CORE_002 = DONE_VERIFIED
 TODAY_OPERATIONS_V1 = MERGED_TEST_DEPLOYED_VERIFIED
-INQ_OPS_001 = COMPLETED_CANDIDATE_CONTROL_PLANE_REVIEW
+INQ_OPS_001 = MERGED_NOT_TEST_DEPLOYED
+INQ_OPS_001_OWNER_MERGE_AUTHORIZATION = GRANTED_AND_CONSUMED
 INQ_OPS_001_MERGE_AUTHORIZATION = NO
 INQ_OPS_001_TEST_DEPLOYMENT_AUTHORIZATION = NO
 INQ_OPS_001_TEST_DEPLOYED = NO
 INQ_OPS_001_PRODUCTION_TOUCHED = NO
-CURRENT_MAIN = 12d85ced7e6568b7992f12841264bb01ea8ee765
+CURRENT_MAIN = 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
 CURRENT_TEST = 6d739fccab4de69f511663e130c1e2308e483afb
 LIVE_MAIN_VS_TEST_TRUTH = MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 CAL_UX_003_SOURCE_ACCURACY = PASS
-ENGINEERING = STOP_AT_INQ_OPS_001_CANDIDATE
+ENGINEERING = STOP_AT_MERGED_NOT_TEST_DEPLOYED
 CAL_UX_004_EXISTS = false
 
 PRODUCTION_DEPLOYMENT = false
