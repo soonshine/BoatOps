@@ -1,13 +1,13 @@
 schema_version: 16
 project: BoatOps
-updated_at: "2026-08-16T18:33:34+07:00"
+updated_at: "2026-08-16T22:05:13+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
 engineering:
-  status: MERGED_NOT_TEST_DEPLOYED
+  status: MERGED_TEST_DEPLOYED_VERIFIED
   active_task: INQ-OPS-001
-  next: TEST_DEPLOY_PRE_CHECK
+  next: REAL_OPERATOR_USE
   cal_ux_004_exists: false
 
 north_star:
@@ -27,19 +27,21 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    live_main_observed_sha: "46b3d9f4fe239c933f6c2e2e32c0449100b7faf0"
+    live_main_observed_sha: "ea8b5a822c395768b8a297f13408aadcf6edcb06"
     verified_cal_ux_003_test_baseline_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
-    main_ahead_of_test: true
-    main_test_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+    main_ahead_of_test: false
+    main_test_relation: SYNCHRONIZED
     live_head_source: GITHUB_REF
     live_main_reviewed: true
-    live_main_accepted: false
+    live_main_accepted: true
     live_main_deploy_authorized: false
-    live_main_deployed_to_test: false
-    deployment_drift: true
+    live_main_deployed_to_test: true
+    deployment_drift: false
     pr_18_included: true
     pr_19_included: true
     pr_30_included: true
+    pr_31_included: true
+    pr_32_included: true
     inq_ops_001_included: true
     cal_ux_001_included: true
     cal_ux_002_included: true
@@ -124,7 +126,7 @@ test_runtime:
     postgresql: "16.14"
     btree_gist: "1.7"
   migrations:
-    ran: 19
+    ran: 20
     pending: 0
   health:
     path: /up
@@ -139,16 +141,17 @@ test_runtime:
     restore: PASS
     rollback: PASS
     scheduler_holds_expire: PASS
-  deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
-  deployed_source_class: VERIFIED_TEST_SOURCE_WITH_REAL_PILOT_CAL_UX_001_002_003_AND_TODAY_OPERATIONS_V1
-  source_runtime_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
-  deployment_drift: true
+  deployed_source_sha: "ea8b5a822c395768b8a297f13408aadcf6edcb06"
+  deployed_source_class: CURRENT_MAIN_WITH_REAL_PILOT_CAL_UX_001_002_003_TODAY_OPERATIONS_V1_AND_INQ_OPS_001
+  source_runtime_relation: SYNCHRONIZED
+  deployment_drift: false
   real_pilot_candidate_included_in_deployed_ancestry: true
   deployed_source_is_bare_real_pilot_candidate: false
   cal_ux_001_deployed: true
   cal_ux_002_deployed: true
   cal_ux_003_deployed: true
   today_operations_v1_deployed: true
+  inq_ops_001_deployed: true
   fleet_inventory_source_present: true
   unauthenticated_calendar_boundary: PASS
   authenticated_operator_access: PASS_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
@@ -225,7 +228,7 @@ real_pilot:
     status: DEMONSTRATED
     credential_path: APPROVED_EXISTING_CAO_CREDENTIAL
     secret_recorded: false
-  test_deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+  test_deployed_source_sha: "ea8b5a822c395768b8a297f13408aadcf6edcb06"
   test_deployed_real_pilot_candidate_included_in_ancestry: true
   unauthenticated_calendar_boundary: PASS
   plan_c_read_model_smoke: PASS
@@ -304,7 +307,7 @@ real_pilot_candidate:
   code_configuration_status: INCLUDED_IN_MAIN_ANCESTRY
   merge_commit_sha: "00a029c9a3dcd2122a958514e845334d0a295ac9"
   test_deployment_status: DEPLOYED_AS_MAIN_ANCESTRY
-  deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+  deployed_source_sha: "ea8b5a822c395768b8a297f13408aadcf6edcb06"
   included_in_deployed_ancestry: true
   github_ci: SUCCESS
 
@@ -423,8 +426,8 @@ inq_ops_001:
   pr: 30
   merge_commit_sha: "46b3d9f4fe239c933f6c2e2e32c0449100b7faf0"
   merged_at: "2026-08-16T11:26:44Z"
-  state: MERGED_NOT_TEST_DEPLOYED
-  next_gate: TEST_DEPLOY_PRE_CHECK
+  state: MERGED_TEST_DEPLOYED_VERIFIED
+  next_gate: REAL_OPERATOR_USE
   r1_review_fixes: PASS
   scope: INQUIRY_OPERATIONAL_DOSSIER_V1
   inquiry_remains_dossier_ssot: true
@@ -439,8 +442,11 @@ inq_ops_001:
   real_data_changed: false
   owner_merge_authorization: GRANTED_AND_CONSUMED
   merge_authorized: false
+  test_deployment_authorization: GRANTED_AND_CONSUMED
   test_deployment_authorized: false
-  test_deployed: false
+  test_deployed: true
+  test_deployed_source_sha: "ea8b5a822c395768b8a297f13408aadcf6edcb06"
+  deployment_verified: true
   production_touched: false
   cutover_authorized: false
   tag_authorized: false
@@ -500,7 +506,7 @@ development_rule:
     - id: INQ-OPS-001
       basis: OBSERVED_OPERATIONAL_PAIN
       source: OWNER_REAL_USE_FEEDBACK
-      status: COMPLETED_MERGED_NOT_TEST_DEPLOYED
+      status: COMPLETED_MERGED_TEST_DEPLOYED_VERIFIED
       global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
   state_updates: SAME_RELEVANT_PR_BY_DEFAULT
@@ -530,7 +536,7 @@ development_rule:
 
 gates:
   code:
-    status: INQ_OPS_001_MERGED_NOT_TEST_DEPLOYED
+    status: INQ_OPS_001_MERGED_TEST_DEPLOYED_VERIFIED
     new_feature_development_authorized: false
     pr_18: MERGED_CLOSED
     pr_19: MERGED_CLOSED
@@ -539,16 +545,16 @@ gates:
     cal_ux_002: MERGED_TEST_DEPLOYED
     cal_ux_003: MERGED_TEST_DEPLOYED
     today_operations_v1: MERGED_TEST_DEPLOYED_VERIFIED
-    inq_ops_001: MERGED_NOT_TEST_DEPLOYED
+    inq_ops_001: MERGED_TEST_DEPLOYED_VERIFIED
   test_deployment:
-    status: VERIFIED_TEST_BASELINE_MAIN_AHEAD
+    status: VERIFIED_CURRENT_MAIN_SYNCHRONIZED
     environment: TEST_ONLY
     authorized: false
     authorization_consumed: true
     further_deployment_authorized: false
-    source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
-    main_test_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
-    deployment_drift: true
+    source_sha: "ea8b5a822c395768b8a297f13408aadcf6edcb06"
+    main_test_relation: SYNCHRONIZED
+    deployment_drift: false
   real_pilot_use:
     status: AUTHENTICATED_OPERATOR_ACCESS_PROVEN_WAITING_NEXT_GENUINE_ORDER
     real_operator_use_authorized: true
@@ -580,15 +586,14 @@ remaining_gate_prerequisites:
   owner_real_use_feedback: RECEIVED_INQ_OPS_001
   inq_ops_001_control_plane_review: COMPLETE_MERGED
   engineering_required_now: false
-  note: "INQ-OPS-001 merged to main via PR #30 at 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0. TEST deployment precheck and separate authorization remain pending; production untouched."
+  note: "INQ-OPS-001 merged via PR #30 at 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0, TEST-deployed and verified at ea8b5a822c395768b8a297f13408aadcf6edcb06 (main == TEST). Next: REAL_OPERATOR_USE on the next genuine Plan C order; production untouched."
 
 next_action:
-  id: TEST_DEPLOY_PRE_CHECK_AND_AUTHORIZATION
+  id: REAL_OPERATOR_USE
   engineering_required: false
-  note: "INQ-OPS-001 merged via PR #30 at 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0. Run TEST deployment precheck, then obtain separate TEST deployment authorization; production remains unauthorized."
+  note: "INQ-OPS-001 merged via PR #30 at 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0 and TEST-deployed/verified at ea8b5a822c395768b8a297f13408aadcf6edcb06. Next: REAL_OPERATOR_USE on the next genuine Plan C order; production remains unauthorized."
   sequence:
-    - TEST_DEPLOY_PRE_CHECK
-    - SEPARATE_TEST_DEPLOY_AUTHORIZATION_IF_APPROVED
+    - NEXT_GENUINE_PLAN_C_ORDER
 
 stop_conditions:
   - NO_NEW_FEATURE_DEVELOPMENT_UNLESS_REAL_PILOT_BLOCKER_OBSERVED_OPERATIONAL_PAIN_OR_UNIVERSAL_CORE_SAFETY_DEFECT

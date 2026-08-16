@@ -1,14 +1,14 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-16 18:33 Asia/Bangkok
+Last updated: 2026-08-16 22:05 Asia/Bangkok
 
-Owner real-use feedback was captured by Issue #28 and implemented as the bounded INQ-OPS-001 work, now merged via PR #30 at 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0. TEST deployment precheck and authorization remain separate Owner decisions. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here.
+Owner real-use feedback was captured by Issue #28 and implemented as the bounded INQ-OPS-001 work, now merged via PR #30 at 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0. TEST deployment is complete and verified at ea8b5a822c395768b8a297f13408aadcf6edcb06; next is REAL_OPERATOR_USE. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here.
 
 ## Active queue
 
 | ID | Status | Next proof |
 | --- | --- | --- |
-| `INQ-OPS-001` | `MERGED / NOT_TEST_DEPLOYED` | Run TEST deployment precheck and obtain separate authorization; do not infer deployment authority |
+| `INQ-OPS-001` | `MERGED / TEST_DEPLOYED / VERIFIED` | Proceed to REAL_OPERATOR_USE; run the next genuine Plan C order |
 | `OWNER-REAL-USE-FEEDBACK` | `RECEIVED / INQ-OPS-001` | Issue #28 records the observed Inquiry dossier pain; future feedback remains evidence-driven |
 | `FIRST-REAL-PLAN-C-VERTICAL-SLICE` | `WAITING / NEXT_GENUINE_ORDER` | Run the next genuine Plan C order from Inquiry through Audit; do not invent an order |
 | `DR16` | `PARALLEL_BEFORE_CUTOVER / NOT_CURRENT_REAL_PILOT_BLOCKER` | Keep `main.protected=false` visible; require separate authorization before any GitHub settings mutation |
@@ -17,13 +17,13 @@ Owner real-use feedback was captured by Issue #28 and implemented as the bounded
 
 ```text
 INQ-OPS-001 MERGED
--> TEST-DEPLOY-PRE-CHECK
--> SEPARATE-TEST-DEPLOY-AUTHORIZATION
+-> TEST-DEPLOYED-VERIFIED
+-> REAL-OPERATOR-USE
 ```
 
 No adjacent feature-development item belongs in this queue unless it is a proven Real Pilot blocker, observed operational pain, or universal core-safety defect.
 
-## INQ-OPS-001 merged evidence
+## INQ-OPS-001 TEST-deployed verified evidence
 
 ```text
 classification = OBSERVED_OPERATIONAL_PAIN
@@ -36,7 +36,7 @@ implementation commit = b8daba01fc3f2157d5d5b5ee862bac0a5575deab
 origin/main at validation = 12d85ced7e6568b7992f12841264bb01ea8ee765
 PR #30 = MERGED / CLOSED
 merge commit = 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
-status = MERGED / NOT_TEST_DEPLOYED
+status = MERGED / TEST_DEPLOYED / VERIFIED
 R1 review fixes = PASS
 Inquiry operational-dossier SSOT = PRESERVED
 new proven execution-gap fields = 8
@@ -47,8 +47,9 @@ organization isolation = PRESERVED
 real booking data = NONE
 owner merge authorization = GRANTED_AND_CONSUMED
 merge authorization = NO
-TEST deployment authorization = NO
-TEST deployed = NO
+TEST deployment authorization = GRANTED_AND_CONSUMED
+TEST deployed = YES at ea8b5a822c395768b8a297f13408aadcf6edcb06
+TEST deployed source = ea8b5a822c395768b8a297f13408aadcf6edcb06
 Production touched = NO
 ```
 
@@ -103,10 +104,10 @@ CAL-UX-003:
   merge commit = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
   TEST deployment = VERIFIED
 
-current TEST source = 6d739fccab4de69f511663e130c1e2308e483afb
+current TEST source = ea8b5a822c395768b8a297f13408aadcf6edcb06
 historical CAL-UX-003 TEST baseline = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 inventory authority / SlotCalendarReadModel / schema / migrations / application inventory actions = UNCHANGED
-active merged item = INQ-OPS-001 / MERGED_NOT_TEST_DEPLOYED
+active merged item = INQ-OPS-001 / MERGED_TEST_DEPLOYED_VERIFIED
 ```
 
 ## Completed bounded integration
@@ -122,7 +123,7 @@ merge commit = 77db16f16617ddcbb09ebf66d83a65a0c97695e5
 integration = COMPLETE
 deployment = TEST_ONLY_DEPLOYED
 historical integration test source = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
-current TEST source = 6d739fccab4de69f511663e130c1e2308e483afb
+current TEST source = ea8b5a822c395768b8a297f13408aadcf6edcb06
 Fleet Inventory source present = true
 unauthenticated Calendar boundary = PASS
 ```
@@ -131,17 +132,17 @@ unauthenticated Calendar boundary = PASS
 
 ```text
 live main observed:
-  sha: 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
+  sha: ea8b5a822c395768b8a297f13408aadcf6edcb06
   source: GitHub refs/heads/main
-  reviewed / accepted: REVIEWED_FOR_SCOPE / NOT_ACCEPTED_AS_TEST_BASELINE
+  reviewed / accepted: REVIEWED_FOR_SCOPE / ACCEPTED_AS_TEST_BASELINE
   currently open deploy authorization: NO
-  deployed to TEST: NO (PR #30 INQ-OPS-001 code delta and PR #31 docs-only delta remain external to TEST)
+  deployed to TEST: YES (PR #30 INQ-OPS-001 code, PR #31 docs-only delta, and PR #32 governance docs are on TEST at ea8b5a822c395768b8a297f13408aadcf6edcb06)
 
 current TEST deployed source:
-  sha: 6d739fccab4de69f511663e130c1e2308e483afb
-  main ahead of TEST: true
-  main / TEST relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
-  deployment drift: true
+  sha: ea8b5a822c395768b8a297f13408aadcf6edcb06
+  main ahead of TEST: false
+  main / TEST relation: SYNCHRONIZED
+  deployment drift: false
 
 historical CAL-UX-003 TEST baseline:
   sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
@@ -152,6 +153,7 @@ verified ancestry at current TEST source:
   PR #24 included: YES
   PR #25 included: YES
   Today Operations V1 included: YES
+  INQ-OPS-001 included: YES
 
 former Real Pilot branch:
   codex/test-runtime-vertical-slice
@@ -218,6 +220,7 @@ Today Operations:
 | CAL-UX-003 / PR #25 integration | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED` | Issue #26 closed; historical merge/test baseline `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7`; included in current TEST ancestry |
 | BOATOPS-CORE-001 | `DONE / VERIFIED` | Today Operations V1 implementation accepted at `f5d6785e586d039072a80cc1a67b5d12c9d8b4dd` |
 | BOATOPS-CORE-002 | `DONE / VERIFIED` | Today merged and deployed as main/TEST `6d739fccab4de69f511663e130c1e2308e483afb`; PostgreSQL and browser verification PASS |
+| INQ-OPS-001 / PR #30 | `COMPLETE / MERGED / CLOSED / TEST DEPLOYED / VERIFIED` | Issue #28 closed; merge `46b3d9f4fe239c933f6c2e2e32c0449100b7faf0`; TEST deployed/verified at `ea8b5a822c395768b8a297f13408aadcf6edcb06`; next REAL_OPERATOR_USE |
 
 ## Approved Plan C configuration
 
@@ -303,17 +306,17 @@ CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
 BOATOPS_CORE_001 = DONE_VERIFIED
 BOATOPS_CORE_002 = DONE_VERIFIED
 TODAY_OPERATIONS_V1 = MERGED_TEST_DEPLOYED_VERIFIED
-INQ_OPS_001 = MERGED_NOT_TEST_DEPLOYED
+INQ_OPS_001 = MERGED_TEST_DEPLOYED_VERIFIED
 INQ_OPS_001_OWNER_MERGE_AUTHORIZATION = GRANTED_AND_CONSUMED
 INQ_OPS_001_MERGE_AUTHORIZATION = NO
-INQ_OPS_001_TEST_DEPLOYMENT_AUTHORIZATION = NO
-INQ_OPS_001_TEST_DEPLOYED = NO
+INQ_OPS_001_TEST_DEPLOYMENT_AUTHORIZATION = GRANTED_AND_CONSUMED
+INQ_OPS_001_TEST_DEPLOYED = YES
 INQ_OPS_001_PRODUCTION_TOUCHED = NO
-CURRENT_MAIN = 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
-CURRENT_TEST = 6d739fccab4de69f511663e130c1e2308e483afb
-LIVE_MAIN_VS_TEST_TRUTH = MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+CURRENT_MAIN = ea8b5a822c395768b8a297f13408aadcf6edcb06
+CURRENT_TEST = ea8b5a822c395768b8a297f13408aadcf6edcb06
+LIVE_MAIN_VS_TEST_TRUTH = SYNCHRONIZED
 CAL_UX_003_SOURCE_ACCURACY = PASS
-ENGINEERING = STOP_AT_MERGED_NOT_TEST_DEPLOYED
+ENGINEERING = STOP_AT_TEST_DEPLOYED_VERIFIED_REAL_USE
 CAL_UX_004_EXISTS = false
 
 PRODUCTION_DEPLOYMENT = false
