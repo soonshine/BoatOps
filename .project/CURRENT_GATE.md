@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-16 10:18 Asia/Bangkok
+Updated: 2026-08-16 18:08 Asia/Bangkok
 
 ## Current decision
 
@@ -19,7 +19,7 @@ CAL_UX_001_INTEGRATION_COMPLETE
 CAL_UX_002_MERGED_TEST_DEPLOYED
 CAL_UX_003_MERGED_TEST_DEPLOYED
 TODAY_OPERATIONS_V1_MERGED_TEST_DEPLOYED_VERIFIED
-MAIN_TEST_SYNCHRONIZED
+MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 INQ_OPS_001_COMPLETED_CANDIDATE
 CONTROL_PLANE_REVIEW_REQUIRED
 ENGINEERING_STOP_AT_CANDIDATE
@@ -36,20 +36,20 @@ The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operation
 
 ```text
 live main observed:
-  sha: 6d739fccab4de69f511663e130c1e2308e483afb
+  sha: 12d85ced7e6568b7992f12841264bb01ea8ee765
   source: GitHub refs/heads/main
-  reviewed / accepted: YES
+  reviewed / accepted: REVIEWED_FOR_SCOPE / NOT_ACCEPTED_AS_TEST_BASELINE
   currently open deploy authorization: NO
-  deployed to TEST: YES
+  deployed to TEST: NO (PR #31 docs-only delta remains external to TEST)
 
 verified CAL-UX-003 historical TEST baseline:
   sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 
 current TEST deployed source:
   sha: 6d739fccab4de69f511663e130c1e2308e483afb
-  main ahead of TEST: false
-  main / TEST relation: SYNCHRONIZED
-  deployment drift: false
+  main ahead of TEST: true
+  main / TEST relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+  deployment drift: true
 
 verified ancestry at current TEST source:
   PR #18 included: YES
@@ -96,7 +96,7 @@ Today Operations:
   merge / current TEST: 6d739fccab4de69f511663e130c1e2308e483afb
 ```
 
-`a2c1c69086eae9cad355c9ea4a6e962d203c177c` is historical evidence for the earlier Chinese UI TEST state. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` remains the historical CAL-UX-003 TEST baseline and merge commit. Neither is the current main or current TEST identity. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
+`a2c1c69086eae9cad355c9ea4a6e962d203c177c` is historical evidence for the earlier Chinese UI TEST state. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` remains the historical CAL-UX-003 TEST baseline and merge commit. Neither is the current main or current TEST identity. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. Current live main is `12d85ced7e6568b7992f12841264bb01ea8ee765`; current TEST remains `6d739fccab4de69f511663e130c1e2308e483afb`, with PR #31's docs-only delta not deployed. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
 
 ## TEST runtime
 
@@ -112,7 +112,7 @@ Verified state:
 - PostgreSQL backup, restore proof, rollback proof, and `holds:expire` scheduler proof: PASS;
 - existing Docker services and public `:80`: untouched;
 - deployed source: `6d739fccab4de69f511663e130c1e2308e483afb`;
-- main / TEST source relation: `SYNCHRONIZED`;
+- main / TEST source relation: `MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA`;
 - the immutable Real Pilot candidate `987eba04a1dc9073be6c02631792808debc35635` is included in deployed ancestry, not deployed as a bare SHA;
 - CAL-UX-001, CAL-UX-002, and CAL-UX-003 Calendar source is present on TEST;
 - Today Operations V1 source is present on TEST;
@@ -272,8 +272,12 @@ source = OWNER_REAL_USE_FEEDBACK
 Issue #28 = AUTHORITATIVE CONTRACT / OPEN
 baseline main = 5bbb1ae75a1e40ec09dc8fa9a052e20c40eec38b
 branch = feat/inq-ops-001-operational-dossier-v1
-implementation = 241c4bdd0c75aa8ae222d07bb8ab5f68c6db3195
+starting head = 8895d2c6f0c91b7c12188b93284e5f5586cd2153
+implementation = b8daba01fc3f2157d5d5b5ee862bac0a5575deab
+origin/main at validation = 12d85ced7e6568b7992f12841264bb01ea8ee765
+PR = 30 (same open PR)
 state = COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW
+R1 review fixes = PASS
 scope = INQUIRY OPERATIONAL DOSSIER V1
 Inquiry remains operational-dossier SSOT = true
 proven execution-gap fields added = 8
@@ -321,7 +325,8 @@ Today Operations V1 is closed and no longer belongs to the active engineering qu
 ```text
 PLAN_C_REAL_CONFIG = READY
 TEST_DEPLOYED_SOURCE = 6d739fccab4de69f511663e130c1e2308e483afb
-MAIN_TEST_RELATION = SYNCHRONIZED
+LIVE_MAIN_OBSERVED = 12d85ced7e6568b7992f12841264bb01ea8ee765
+MAIN_TEST_RELATION = MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 REAL_PILOT_CANDIDATE_IN_DEPLOYED_ANCESTRY = true
 PLAN_C_PROVISIONING = COMPLETE
 AUTHENTICATED_OPERATOR_ACCESS = PASS_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
@@ -409,7 +414,7 @@ INQ_OPS_001_MERGE_AUTHORIZED = false
 INQ_OPS_001_TEST_DEPLOYMENT_AUTHORIZED = false
 INQ_OPS_001_TEST_DEPLOYED = false
 INQ_OPS_001_PRODUCTION_TOUCHED = false
-LIVE_MAIN_VS_TEST_TRUTH = SYNCHRONIZED
+LIVE_MAIN_VS_TEST_TRUTH = MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 CAL_UX_003_SOURCE_ACCURACY = PASS
 CAL_UX_001_PRODUCTION_DEPLOYMENT = false
 TAG = false

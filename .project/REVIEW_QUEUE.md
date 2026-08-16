@@ -1,6 +1,6 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-16 10:18 Asia/Bangkok
+Last updated: 2026-08-16 18:08 Asia/Bangkok
 
 Owner real-use feedback is now captured by Issue #28 and implemented as the bounded INQ-OPS-001 candidate. The active gate is Control Plane review; merge and TEST deployment remain separate Owner decisions. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here.
 
@@ -31,8 +31,12 @@ source = OWNER_REAL_USE_FEEDBACK
 Issue #28 = authoritative contract
 baseline main = 5bbb1ae75a1e40ec09dc8fa9a052e20c40eec38b
 branch = feat/inq-ops-001-operational-dossier-v1
-implementation commit = 241c4bdd0c75aa8ae222d07bb8ab5f68c6db3195
+starting head = 8895d2c6f0c91b7c12188b93284e5f5586cd2153
+implementation commit = b8daba01fc3f2157d5d5b5ee862bac0a5575deab
+origin/main at validation = 12d85ced7e6568b7992f12841264bb01ea8ee765
+PR = #30 (same open PR)
 status = COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW
+R1 review fixes = PASS
 Inquiry operational-dossier SSOT = PRESERVED
 new proven execution-gap fields = 8
 Inquiry -> HOLD -> Booking -> Trip contract = PRESERVED
@@ -125,17 +129,17 @@ unauthenticated Calendar boundary = PASS
 
 ```text
 live main observed:
-  sha: 6d739fccab4de69f511663e130c1e2308e483afb
+  sha: 12d85ced7e6568b7992f12841264bb01ea8ee765
   source: GitHub refs/heads/main
-  reviewed / accepted: YES
+  reviewed / accepted: REVIEWED_FOR_SCOPE / NOT_ACCEPTED_AS_TEST_BASELINE
   currently open deploy authorization: NO
-  deployed to TEST: YES
+  deployed to TEST: NO (PR #31 docs-only delta remains external to TEST)
 
 current TEST deployed source:
   sha: 6d739fccab4de69f511663e130c1e2308e483afb
-  main ahead of TEST: false
-  main / TEST relation: SYNCHRONIZED
-  deployment drift: false
+  main ahead of TEST: true
+  main / TEST relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+  deployment drift: true
 
 historical CAL-UX-003 TEST baseline:
   sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
@@ -302,9 +306,9 @@ INQ_OPS_001_MERGE_AUTHORIZATION = NO
 INQ_OPS_001_TEST_DEPLOYMENT_AUTHORIZATION = NO
 INQ_OPS_001_TEST_DEPLOYED = NO
 INQ_OPS_001_PRODUCTION_TOUCHED = NO
-CURRENT_MAIN = 6d739fccab4de69f511663e130c1e2308e483afb
+CURRENT_MAIN = 12d85ced7e6568b7992f12841264bb01ea8ee765
 CURRENT_TEST = 6d739fccab4de69f511663e130c1e2308e483afb
-LIVE_MAIN_VS_TEST_TRUTH = SYNCHRONIZED
+LIVE_MAIN_VS_TEST_TRUTH = MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 CAL_UX_003_SOURCE_ACCURACY = PASS
 ENGINEERING = STOP_AT_INQ_OPS_001_CANDIDATE
 CAL_UX_004_EXISTS = false

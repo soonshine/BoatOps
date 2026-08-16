@@ -1,6 +1,6 @@
 schema_version: 16
 project: BoatOps
-updated_at: "2026-08-16T10:18:47+07:00"
+updated_at: "2026-08-16T18:08:00+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
@@ -27,16 +27,16 @@ repository:
   url: "https://github.com/soonshine/BoatOps"
   default_branch: main
   canonical_main:
-    live_main_observed_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
+    live_main_observed_sha: "12d85ced7e6568b7992f12841264bb01ea8ee765"
     verified_cal_ux_003_test_baseline_sha: "2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7"
-    main_ahead_of_test: false
-    main_test_relation: SYNCHRONIZED
+    main_ahead_of_test: true
+    main_test_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
     live_head_source: GITHUB_REF
     live_main_reviewed: true
-    live_main_accepted: true
+    live_main_accepted: false
     live_main_deploy_authorized: false
-    live_main_deployed_to_test: true
-    deployment_drift: false
+    live_main_deployed_to_test: false
+    deployment_drift: true
     pr_18_included: true
     pr_19_included: true
     cal_ux_001_included: true
@@ -138,9 +138,9 @@ test_runtime:
     rollback: PASS
     scheduler_holds_expire: PASS
   deployed_source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
-  deployed_source_class: CURRENT_MAIN_WITH_REAL_PILOT_CAL_UX_001_002_003_AND_TODAY_OPERATIONS_V1
-  source_runtime_relation: SYNCHRONIZED
-  deployment_drift: false
+  deployed_source_class: VERIFIED_TEST_SOURCE_WITH_REAL_PILOT_CAL_UX_001_002_003_AND_TODAY_OPERATIONS_V1
+  source_runtime_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+  deployment_drift: true
   real_pilot_candidate_included_in_deployed_ancestry: true
   deployed_source_is_bare_real_pilot_candidate: false
   cal_ux_001_deployed: true
@@ -415,9 +415,13 @@ inq_ops_001:
   contract_source: GITHUB_ISSUE
   baseline_main_sha: "5bbb1ae75a1e40ec09dc8fa9a052e20c40eec38b"
   branch: "feat/inq-ops-001-operational-dossier-v1"
-  implementation_sha: "241c4bdd0c75aa8ae222d07bb8ab5f68c6db3195"
+  starting_head_sha: "8895d2c6f0c91b7c12188b93284e5f5586cd2153"
+  implementation_sha: "b8daba01fc3f2157d5d5b5ee862bac0a5575deab"
+  origin_main_at_validation_sha: "12d85ced7e6568b7992f12841264bb01ea8ee765"
+  pr: 30
   state: COMPLETED_CANDIDATE
   next_gate: CONTROL_PLANE_REVIEW
+  r1_review_fixes: PASS
   scope: INQUIRY_OPERATIONAL_DOSSIER_V1
   inquiry_remains_dossier_ssot: true
   proven_execution_gap_fields_added: 8
@@ -532,14 +536,14 @@ gates:
     today_operations_v1: MERGED_TEST_DEPLOYED_VERIFIED
     inq_ops_001: COMPLETED_CANDIDATE_NOT_MERGED
   test_deployment:
-    status: VERIFIED_CURRENT_MAIN_SYNCHRONIZED
+    status: VERIFIED_TEST_BASELINE_MAIN_AHEAD
     environment: TEST_ONLY
     authorized: false
     authorization_consumed: true
     further_deployment_authorized: false
     source_sha: "6d739fccab4de69f511663e130c1e2308e483afb"
-    main_test_relation: SYNCHRONIZED
-    deployment_drift: false
+    main_test_relation: MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
+    deployment_drift: true
   real_pilot_use:
     status: AUTHENTICATED_OPERATOR_ACCESS_PROVEN_WAITING_NEXT_GENUINE_ORDER
     real_operator_use_authorized: true
