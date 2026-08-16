@@ -437,7 +437,8 @@ inq_ops_001:
   trip_lifecycle_changed: false
   organization_isolation_preserved: true
   real_data_changed: false
-  merge_authorized: true
+  owner_merge_authorization: GRANTED_AND_CONSUMED
+  merge_authorized: false
   test_deployment_authorized: false
   test_deployed: false
   production_touched: false
