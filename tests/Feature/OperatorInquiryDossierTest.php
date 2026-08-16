@@ -102,6 +102,43 @@ class OperatorInquiryDossierTest extends TestCase
         $this->assertDatabaseCount('allocations', 0);
     }
 
+    public function test_partial_inquiry_execution_fields_can_be_completed_idempotently_before_hold_without_inventory_writes(): void
+    {
+        $context = $this->context();
+        $this->actingAs($context['user']);
+        $this->post('/operator/inquiries', [
+            'idempotency_key' => (string) Str::uuid(),
+            'reference' => 'FICTIONAL-EXECUTION-COMPLETE',
+        ])->assertStatus(303);
+        $inquiryId = (int) DB::table('inquiries')->where('reference', 'FICTIONAL-EXECUTION-COMPLETE')->value('id');
+        $path = "/operator/inquiries/{$inquiryId}/execution";
+        $payload = [
+            'service_date' => '2026-09-12',
+            'boat_id' => $context['boat_id'],
+            'trip_template_id' => $context['template_id'],
+            'slot_offering_id' => $context['slot_id'],
+        ];
+        $key = (string) Str::uuid();
+        $beforeInventory = $this->inventoryState($context['organization_id']);
+
+        $this->post($path, ['idempotency_key' => $key, ...$payload])->assertStatus(303);
+        $this->assertDatabaseHas('inquiries', ['id' => $inquiryId, ...$payload, 'hold_id' => null]);
+        $this->assertSame($beforeInventory, $this->inventoryState($context['organization_id']));
+        $this->assertDatabaseHas('audit_logs', ['action' => 'INQUIRY_EXECUTION_UPDATED', 'object_id' => $inquiryId]);
+        $this->assertSame(1, DB::table('idempotency_keys')->where('operation', 'operator.inquiries.execution.update:'.$inquiryId)->count());
+
+        $this->post($path, ['idempotency_key' => $key, ...$payload])->assertStatus(303);
+        $this->assertSame(1, DB::table('audit_logs')->where('action', 'INQUIRY_EXECUTION_UPDATED')->where('object_id', $inquiryId)->count());
+        $this->post($path, ['idempotency_key' => $key, ...$payload, 'service_date' => '2026-09-13'])->assertConflict();
+
+        $this->configureHoldPolicy($context['organization_id']);
+        $this->post("/operator/inquiries/{$inquiryId}/hold", ['idempotency_key' => (string) Str::uuid()])->assertStatus(303);
+        $holdId = (int) DB::table('inquiries')->where('id', $inquiryId)->value('hold_id');
+        $this->assertGreaterThan(0, $holdId);
+        $this->post($path, ['idempotency_key' => (string) Str::uuid(), ...$payload, 'service_date' => '2026-09-14'])->assertConflict();
+        $this->assertDatabaseHas('inquiries', ['id' => $inquiryId, 'service_date' => '2026-09-12']);
+    }
+
     public function test_validation_enforces_pairing_party_age_pickup_currency_and_max_lengths(): void
     {
         $context = $this->context();
@@ -121,12 +158,13 @@ class OperatorInquiryDossierTest extends TestCase
             [['child_count' => 1, 'child_ages' => ['4', '7']], ['child_ages']],
             [['child_ages' => ['-1']], ['child_ages.0']],
             [['child_ages' => ['4.5']], ['child_ages.0']],
-            [['child_ages' => '4,7'], ['child_ages.0']],
+            [['child_count' => 1, 'child_ages' => '4,7'], ['child_ages']],
             [['pickup_required' => '2'], ['pickup_required']],
             [['pickup_time' => '25:00'], ['pickup_time']],
             [['selling_currency' => 'THB'], ['selling_amount']],
             [['selling_amount' => '0'], ['selling_currency']],
             [['selling_currency' => 'thb', 'selling_amount' => '0'], ['selling_currency']],
+            [['selling_currency' => 'JPY', 'selling_amount' => '100'], ['selling_currency']],
             [['selling_currency' => 'THB', 'selling_amount' => '-1'], ['selling_amount']],
             [['selling_currency' => 'THB', 'selling_amount' => '1.001'], ['selling_amount']],
             [['selling_currency' => 'THB', 'selling_amount' => '1e2'], ['selling_amount']],
@@ -162,18 +200,18 @@ class OperatorInquiryDossierTest extends TestCase
         $this->actingAs($context['user']);
 
         $structuredId = $this->createInquiry($context, 'FICTIONAL-STRUCTURED-AGES', [
-            'party_size' => 3,
+            'party_size' => 4,
             'adult_count' => 1,
-            'child_count' => 2,
-            'child_ages' => "21\n4",
+            'child_count' => 3,
+            'child_ages' => "21,4\n7",
             'pickup_required' => '',
         ]);
         $this->assertDatabaseHas('inquiries', [
             'id' => $structuredId,
-            'party_size' => 3,
+            'party_size' => 4,
             'adult_count' => 1,
-            'child_count' => 2,
-            'child_ages' => '[21,4]',
+            'child_count' => 3,
+            'child_ages' => '[21,4,7]',
             'pickup_required' => null,
         ]);
 
@@ -238,6 +276,13 @@ class OperatorInquiryDossierTest extends TestCase
         $this->post("/operator/inquiries/{$foreignId}/dossier", [
             'idempotency_key' => (string) Str::uuid(),
             ...$this->dossier('CROSS-ORG'),
+        ])->assertNotFound();
+        $this->post("/operator/inquiries/{$foreignId}/execution", [
+            'idempotency_key' => (string) Str::uuid(),
+            'service_date' => '2026-09-11',
+            'boat_id' => $allowed['boat_id'],
+            'trip_template_id' => $allowed['template_id'],
+            'slot_offering_id' => $allowed['slot_id'],
         ])->assertNotFound();
 
         $early = $this->dossier('EARLY');

@@ -6,20 +6,14 @@
 <meta name="robots" content="noindex,nofollow">
 <title>@yield('title', '船务操作台')</title>
 <style>
-* { box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; margin: 2rem; overflow-wrap: anywhere; }
-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+body { font-family: system-ui, sans-serif; margin: 2rem; }
+nav { display: flex; gap: 1rem; }
 label { display: block; margin: 1rem 0; }
 .card { padding: 1rem; background: #f4f4f4; margin: 1rem 0; }
 .error { color: #b00; }
-input, select, textarea { max-width: 100%; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ccc; padding: .5rem; text-align: left; vertical-align: top; }
 fieldset { margin: 1rem 0; padding: 1rem; }
-@media (max-width: 480px) {
-    body { margin: 1rem; }
-    nav form { width: 100%; margin: 0; }
-}
 </style>
 @yield('head')
 </head>

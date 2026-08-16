@@ -28,6 +28,8 @@ final class InquiryController extends Controller
 
     private const DOSSIER_UPDATE_OPERATION_PREFIX = 'operator.inquiries.dossier.update:';
 
+    private const EXECUTION_UPDATE_OPERATION_PREFIX = 'operator.inquiries.execution.update:';
+
     private const CONTACT_METHODS = ['PHONE', 'WHATSAPP', 'WECHAT', 'LINE', 'EMAIL', 'OTHER'];
 
     private const DOSSIER_FIELDS = [
@@ -51,6 +53,13 @@ final class InquiryController extends Controller
         'internal_notes',
         'selling_currency',
         'selling_amount_minor',
+    ];
+
+    private const EXECUTION_FIELDS = [
+        'service_date',
+        'boat_id',
+        'trip_template_id',
+        'slot_offering_id',
     ];
 
     public function __construct(
@@ -186,7 +195,7 @@ final class InquiryController extends Controller
             'childAgesText' => $this->childAgesText($record->child_ages),
             'sellingAmountDecimal' => $record->selling_amount_minor === null
                 ? null
-                : MinorUnitAmount::toDecimal((int) $record->selling_amount_minor),
+                : MinorUnitAmount::toDecimal((int) $record->selling_amount_minor, (string) ($record->selling_currency ?: MinorUnitAmount::defaultCurrency())),
             'missingInformation' => $this->missingInformation($record),
             'boats' => DB::table('boats')->where('organization_id', $organization->id)->where('status', 'ACTIVE')->orderBy('name')->get(),
             'products' => DB::table('trip_templates')->where('organization_id', $organization->id)->where('status', 'ACTIVE')->orderBy('name')->get(),
@@ -198,6 +207,7 @@ final class InquiryController extends Controller
             'amendIdempotencyKey' => (string) Str::uuid(),
             'cancelIdempotencyKey' => (string) Str::uuid(),
             'dossierIdempotencyKey' => (string) Str::uuid(),
+            'executionIdempotencyKey' => (string) Str::uuid(),
         ]);
     }
 
@@ -287,6 +297,111 @@ final class InquiryController extends Controller
             ->with('status', '运营资料已更新。');
     }
 
+    public function updateExecution(Request $r, int $inquiry): RedirectResponse
+    {
+        $organization = $r->attributes->get('organization');
+        $this->scopedInquiry((int) $organization->id, $inquiry);
+        $this->mergeHeaderIdempotencyKey($r);
+        $input = $r->validate([
+            'idempotency_key' => ['required', 'uuid'],
+            'service_date' => ['nullable', 'date_format:Y-m-d'],
+            'boat_id' => ['nullable', 'integer', 'min:1'],
+            'trip_template_id' => ['nullable', 'integer', 'min:1'],
+            'slot_offering_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        foreach (['boats' => 'boat_id', 'trip_templates' => 'trip_template_id', 'slot_offerings' => 'slot_offering_id'] as $table => $field) {
+            if (isset($input[$field]) && ! DB::table($table)->where('organization_id', $organization->id)->where('id', $input[$field])->exists()) {
+                abort(404);
+            }
+        }
+
+        $payload = [
+            'service_date' => $input['service_date'] ?? null,
+            'boat_id' => isset($input['boat_id']) ? (int) $input['boat_id'] : null,
+            'trip_template_id' => isset($input['trip_template_id']) ? (int) $input['trip_template_id'] : null,
+            'slot_offering_id' => isset($input['slot_offering_id']) ? (int) $input['slot_offering_id'] : null,
+        ];
+        $requestHash = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
+        $operation = self::EXECUTION_UPDATE_OPERATION_PREFIX.$inquiry;
+        $idempotencyKey = $input['idempotency_key'];
+
+        $result = DB::transaction(function () use ($organization, $inquiry, $payload, $requestHash, $operation, $idempotencyKey): array {
+            DB::table('organizations')->where('id', $organization->id)->lockForUpdate()->first();
+            $existing = DB::table('idempotency_keys')
+                ->where('organization_id', $organization->id)
+                ->where('operation', $operation)
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+            if ($existing) {
+                if (! hash_equals($existing->request_hash, $requestHash)) {
+                    abort(409, 'Idempotency key was already used for different inquiry execution data.');
+                }
+
+                return [
+                    'status' => (int) $existing->response_status,
+                    'body' => json_decode($existing->response_body, true, 512, JSON_THROW_ON_ERROR),
+                ];
+            }
+
+            $record = DB::table('inquiries')
+                ->where('organization_id', $organization->id)
+                ->where('id', $inquiry)
+                ->lockForUpdate()
+                ->first();
+            abort_if(! $record, 404);
+            if ($record->hold_id !== null || $record->status !== 'INQUIRY') {
+                abort(409, 'Execution fields are immutable after a HOLD is linked.');
+            }
+
+            $before = $this->storedExecutionPayload((array) $record);
+            $changedFields = array_values(array_filter(
+                self::EXECUTION_FIELDS,
+                static fn (string $field): bool => $before[$field] !== $payload[$field],
+            ));
+            $now = now();
+            if ($changedFields !== []) {
+                DB::table('inquiries')
+                    ->where('organization_id', $organization->id)
+                    ->where('id', $inquiry)
+                    ->update([...$payload, 'updated_at' => $now]);
+                DB::table('audit_logs')->insert([
+                    'organization_id' => $organization->id,
+                    'actor_type' => 'operator_user',
+                    'actor_id' => Auth::id(),
+                    'action' => 'INQUIRY_EXECUTION_UPDATED',
+                    'object_type' => 'inquiry',
+                    'object_id' => $inquiry,
+                    'before_values' => json_encode($this->executionAuditMetadata($before), JSON_THROW_ON_ERROR),
+                    'after_values' => json_encode([
+                        ...$this->executionAuditMetadata($payload),
+                        'changed_fields' => $changedFields,
+                    ], JSON_THROW_ON_ERROR),
+                    'reason' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+
+            $body = ['inquiry_id' => $inquiry, 'changed_fields' => $changedFields];
+            DB::table('idempotency_keys')->insert([
+                'organization_id' => $organization->id,
+                'operation' => $operation,
+                'idempotency_key' => $idempotencyKey,
+                'request_hash' => $requestHash,
+                'response_status' => 303,
+                'response_body' => json_encode($body, JSON_THROW_ON_ERROR),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            return ['status' => 303, 'body' => $body];
+        }, 3);
+
+        return redirect()->route('operator.inquiries.show', $result['body']['inquiry_id'], $result['status'])
+            ->with('status', '出航资料已更新。');
+    }
+
     public function createHold(Request $r, int $inquiry): RedirectResponse
     {
         $input = $r->validate(['idempotency_key' => ['required', 'uuid']]);
@@ -353,7 +468,7 @@ final class InquiryController extends Controller
     }
 
     /** @return array<string, array<int, mixed>> */
-    private function dossierRules(): array
+    private function dossierRules(Request $request): array
     {
         return [
             'contact_name' => ['nullable', 'string', 'max:255'],
@@ -375,11 +490,11 @@ final class InquiryController extends Controller
             'agent_reference' => ['nullable', 'string', 'max:255'],
             'service_notes' => ['nullable', 'string', 'max:5000'],
             'internal_notes' => ['nullable', 'string', 'max:5000'],
-            'selling_currency' => ['nullable', 'string', 'size:3', 'regex:/\A[A-Z]{3}\z/', 'required_with:selling_amount'],
+            'selling_currency' => ['nullable', 'string', 'size:3', 'regex:/\A[A-Z]{3}\z/', Rule::in(MinorUnitAmount::supportedCurrencies()), 'required_with:selling_amount'],
             'selling_amount' => [
                 'nullable',
                 'required_with:selling_currency',
-                static function (string $attribute, mixed $value, Closure $fail): void {
+                function (string $attribute, mixed $value, Closure $fail) use ($request): void {
                     if (! is_string($value) && ! is_int($value)) {
                         $fail('销售金额必须是最多两位小数的非负金额。');
 
@@ -387,7 +502,7 @@ final class InquiryController extends Controller
                     }
 
                     try {
-                        MinorUnitAmount::fromDecimal((string) $value);
+                        MinorUnitAmount::fromDecimal((string) $value, (string) $request->input('selling_currency'));
                     } catch (InvalidArgumentException) {
                         $fail('销售金额必须是最多两位小数且不超过系统整数范围的非负金额。');
                     }
@@ -423,7 +538,7 @@ final class InquiryController extends Controller
             'internal_notes' => $input['internal_notes'] ?? null,
             'selling_currency' => $input['selling_currency'] ?? null,
             'selling_amount_minor' => isset($input['selling_amount'])
-                ? MinorUnitAmount::fromDecimal((string) $input['selling_amount'])
+                ? MinorUnitAmount::fromDecimal((string) $input['selling_amount'], (string) $input['selling_currency'])
                 : null,
         ];
     }
@@ -467,7 +582,7 @@ final class InquiryController extends Controller
         $this->normalizeChildAges($request);
         $validator = ValidatorFacade::make($request->all(), [
             ...$additionalRules,
-            ...$this->dossierRules(),
+            ...$this->dossierRules($request),
         ]);
         $validator->after(function (Validator $validator): void {
             $data = $validator->getData();
@@ -502,7 +617,7 @@ final class InquiryController extends Controller
             return;
         }
         if (is_string($value)) {
-            $value = preg_split('/\R/u', $value) ?: [];
+            $value = preg_split('/[\r\n,]+/u', $value) ?: [];
         }
         if (! is_array($value)) {
             return;
@@ -517,6 +632,28 @@ final class InquiryController extends Controller
         }
 
         $request->merge(['child_ages' => $ages === [] ? null : $ages]);
+    }
+
+    /** @param array<string, mixed> $record */
+    private function storedExecutionPayload(array $record): array
+    {
+        return [
+            'service_date' => $record['service_date'],
+            'boat_id' => $record['boat_id'] === null ? null : (int) $record['boat_id'],
+            'trip_template_id' => $record['trip_template_id'] === null ? null : (int) $record['trip_template_id'],
+            'slot_offering_id' => $record['slot_offering_id'] === null ? null : (int) $record['slot_offering_id'],
+        ];
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function executionAuditMetadata(array $payload): array
+    {
+        return [
+            'service_date' => $payload['service_date'],
+            'boat_id' => $payload['boat_id'],
+            'trip_template_id' => $payload['trip_template_id'],
+            'slot_offering_id' => $payload['slot_offering_id'],
+        ];
     }
 
     /** @param array<string, mixed> $record */

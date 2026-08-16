@@ -2,6 +2,8 @@
 
 @section('title', '询价 '.$inquiry->reference)
 
+@section('bodyClass', 'inquiry-layout')
+
 @section('head')
 @include('operator.inquiries._styles')
 @endsection
@@ -27,6 +29,52 @@
 <section class="card inquiry-complete" role="status">
 <h2>核心执行资料已记录</h2>
 <p>房间号仍可稍后补充，明确不是确认阻断条件。</p>
+</section>
+@endif
+
+@if($inquiry->hold_id === null)
+<form method="post" action="{{ route('operator.inquiries.execution.update', $inquiry->id) }}">
+@csrf
+<input type="hidden" name="idempotency_key" value="{{ $executionIdempotencyKey }}">
+<section class="card">
+<h2>出航执行资料</h2>
+<p class="inquiry-help">这里只补全现有询价的日期、船只、产品和服务时段；保存不会占用库存或创建预留。</p>
+<div class="inquiry-form-grid">
+<label>服务日期
+<input type="date" name="service_date" value="{{ old('service_date', $inquiry->service_date) }}">
+</label>
+<label>船只
+<select name="boat_id">
+<option value="">暂不选择</option>
+@foreach($boats as $boat)
+<option value="{{ $boat->id }}" @selected((string) old('boat_id', $inquiry->boat_id) === (string) $boat->id)>{{ $boat->name }}</option>
+@endforeach
+</select>
+</label>
+<label>产品 / 出航模板
+<select name="trip_template_id">
+<option value="">暂不选择</option>
+@foreach($products as $product)
+<option value="{{ $product->id }}" @selected((string) old('trip_template_id', $inquiry->trip_template_id) === (string) $product->id)>{{ $product->name }}</option>
+@endforeach
+</select>
+</label>
+<label>服务时段
+<select name="slot_offering_id">
+<option value="">暂不选择</option>
+@foreach($slots as $slot)
+<option value="{{ $slot->id }}" @selected((string) old('slot_offering_id', $inquiry->slot_offering_id) === (string) $slot->id)>{{ \App\Support\OperatorUi::slotName($slot->name, $slot->code) }}（{{ \App\Support\OperatorUi::wallClockRange($slot->service_start_time, $slot->service_end_time) }} / {{ \App\Support\OperatorUi::durationMinutes((int) $slot->duration_minutes) }}）</option>
+@endforeach
+</select>
+</label>
+</div>
+<button>保存出航资料</button>
+</section>
+</form>
+@else
+<section class="card">
+<h2>出航执行资料</h2>
+<p class="inquiry-help">预留已关联；日期、船只、产品和服务时段由预留流程锁定。</p>
 </section>
 @endif
 
@@ -80,6 +128,7 @@
 </label>
 @php($editChildAges = old('child_ages', $childAgesText))
 @php($editChildAges = is_array($editChildAges) ? implode("\n", $editChildAges) : $editChildAges)
+<p class="inquiry-help">儿童年龄可用换行或逗号分隔，系统仍按结构化 JSON 数组保存。</p>
 <label>儿童年龄
 <textarea name="child_ages" inputmode="numeric" placeholder="每行填写一名儿童的年龄">{{ $editChildAges }}</textarea>
 <span class="inquiry-help">可暂不填写；系统不设定统一的成人 / 儿童年龄分界。</span>

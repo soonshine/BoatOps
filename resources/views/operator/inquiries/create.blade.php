@@ -2,6 +2,8 @@
 
 @section('title', '新建询价')
 
+@section('bodyClass', 'inquiry-layout')
+
 @section('head')
 @include('operator.inquiries._styles')
 @endsection
@@ -86,6 +88,7 @@
 </label>
 @php($createChildAges = old('child_ages', ''))
 @php($createChildAges = is_array($createChildAges) ? implode("\n", $createChildAges) : $createChildAges)
+<p class="inquiry-help">儿童年龄可用换行或逗号分隔，系统仍按结构化 JSON 数组保存。</p>
 <label>儿童年龄
 <textarea name="child_ages" inputmode="numeric" placeholder="每行填写一名儿童的年龄">{{ $createChildAges }}</textarea>
 <span class="inquiry-help">可暂不填写；系统不设定统一的成人 / 儿童年龄分界。</span>

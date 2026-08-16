@@ -44,4 +44,19 @@ class MinorUnitAmountTest extends TestCase
         $this->assertSame('0.01', MinorUnitAmount::toDecimal(1));
         $this->assertSame('1234.56', MinorUnitAmount::toDecimal(123456));
     }
+
+    public function test_only_configured_two_decimal_currencies_are_accepted(): void
+    {
+        $this->assertSame(12345, MinorUnitAmount::fromDecimal('123.45', 'USD'));
+        $this->assertSame('123.45', MinorUnitAmount::toDecimal(12345, 'USD'));
+
+        foreach (['JPY', 'KWD', 'XYZ'] as $currency) {
+            try {
+                MinorUnitAmount::fromDecimal('1.00', $currency);
+                $this->fail("Expected [{$currency}] to be rejected.");
+            } catch (InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
 }

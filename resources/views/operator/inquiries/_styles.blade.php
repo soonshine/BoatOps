@@ -1,5 +1,10 @@
 <style>
+.inquiry-layout { overflow-wrap: anywhere; }
+.inquiry-layout nav { flex-wrap: wrap; align-items: center; }
+.inquiry-page,
+.inquiry-page * { box-sizing: border-box; }
 .inquiry-page { max-width: 72rem; margin: 0 auto; }
+.inquiry-page { overflow-wrap: anywhere; }
 .inquiry-page .card { border-radius: .5rem; }
 .inquiry-form-grid,
 .inquiry-summary-grid {
@@ -30,5 +35,9 @@
     .inquiry-summary-grid { grid-template-columns: minmax(0, 1fr); }
     .inquiry-form-grid .wide,
     .inquiry-summary-grid .wide { grid-column: auto; }
+}
+@media (max-width: 480px) {
+    .inquiry-layout { margin: 1rem; }
+    .inquiry-layout nav form { width: 100%; margin: 0; }
 }
 </style>
