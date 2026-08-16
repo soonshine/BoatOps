@@ -1,6 +1,6 @@
 # BoatOps Current Gate
 
-Updated: 2026-08-16 18:08 Asia/Bangkok
+Updated: 2026-08-16 18:33 Asia/Bangkok
 
 ## Current decision
 
@@ -20,13 +20,13 @@ CAL_UX_002_MERGED_TEST_DEPLOYED
 CAL_UX_003_MERGED_TEST_DEPLOYED
 TODAY_OPERATIONS_V1_MERGED_TEST_DEPLOYED_VERIFIED
 MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
-INQ_OPS_001_COMPLETED_CANDIDATE
-CONTROL_PLANE_REVIEW_REQUIRED
-ENGINEERING_STOP_AT_CANDIDATE
+INQ_OPS_001_MERGED_NOT_TEST_DEPLOYED
+TEST_DEPLOY_PRE_CHECK_PENDING
+ENGINEERING_STOP_AT_MERGED_NOT_TEST_DEPLOYED
 NO_GLOBAL_NEW_FEATURE_DEVELOPMENT
 ```
 
-Owner real-use feedback produced the bounded `OBSERVED_OPERATIONAL_PAIN` contract in Issue #28. INQ-OPS-001 implementation and local validation are complete as a candidate for Control Plane review. It is not merged or deployed, and it grants no merge, TEST deployment, Production, Cutover, Tag, or Release authority. No CAL-UX-004 exists and no global new-feature package is open.
+Owner real-use feedback produced the bounded `OBSERVED_OPERATIONAL_PAIN` contract in Issue #28. INQ-OPS-001 was implemented, reviewed, and merged to `main` via PR #30 at `46b3d9f4fe239c933f6c2e2e32c0449100b7faf0`. It is not TEST-deployed, and it grants no TEST deployment, Production, Cutover, Tag, or Release authority. No CAL-UX-004 exists and no global new-feature package is open.
 
 The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operational queue is in `REVIEW_QUEUE.md`.
 
@@ -36,11 +36,11 @@ The exact machine-readable state is in `CURRENT_STATE.yaml`; the small operation
 
 ```text
 live main observed:
-  sha: 12d85ced7e6568b7992f12841264bb01ea8ee765
+  sha: 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
   source: GitHub refs/heads/main
   reviewed / accepted: REVIEWED_FOR_SCOPE / NOT_ACCEPTED_AS_TEST_BASELINE
   currently open deploy authorization: NO
-  deployed to TEST: NO (PR #31 docs-only delta remains external to TEST)
+  deployed to TEST: NO (PR #30 INQ-OPS-001 code delta and PR #31 docs-only delta remain external to TEST)
 
 verified CAL-UX-003 historical TEST baseline:
   sha: 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
@@ -96,7 +96,7 @@ Today Operations:
   merge / current TEST: 6d739fccab4de69f511663e130c1e2308e483afb
 ```
 
-`a2c1c69086eae9cad355c9ea4a6e962d203c177c` is historical evidence for the earlier Chinese UI TEST state. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` remains the historical CAL-UX-003 TEST baseline and merge commit. Neither is the current main or current TEST identity. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. Current live main is `12d85ced7e6568b7992f12841264bb01ea8ee765`; current TEST remains `6d739fccab4de69f511663e130c1e2308e483afb`, with PR #31's docs-only delta not deployed. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
+`a2c1c69086eae9cad355c9ea4a6e962d203c177c` is historical evidence for the earlier Chinese UI TEST state. `2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7` remains the historical CAL-UX-003 TEST baseline and merge commit. Neither is the current main or current TEST identity. `c176b91530019f47145947e63fe5929880d2ff37` remains only the historical CAL-UX-002 authoring base. Current live main is `46b3d9f4fe239c933f6c2e2e32c0449100b7faf0`; current TEST remains `6d739fccab4de69f511663e130c1e2308e483afb`, with PR #30's INQ-OPS-001 code and PR #31's docs-only delta not deployed. `LIVE_BRANCH_REF_IS_EXTERNAL_STATE` remains in force.
 
 ## TEST runtime
 
@@ -264,19 +264,20 @@ production deployment = false
 
 CAL-UX-003 is closed and no longer belongs to the active engineering queue. No CAL-UX-004 exists.
 
-## INQ-OPS-001 completed candidate
+## INQ-OPS-001 merged, not TEST-deployed
 
 ```text
 classification = OBSERVED_OPERATIONAL_PAIN
 source = OWNER_REAL_USE_FEEDBACK
-Issue #28 = AUTHORITATIVE CONTRACT / OPEN
+Issue #28 = AUTHORITATIVE CONTRACT / CLOSED
 baseline main = 5bbb1ae75a1e40ec09dc8fa9a052e20c40eec38b
 branch = feat/inq-ops-001-operational-dossier-v1
 starting head = 8895d2c6f0c91b7c12188b93284e5f5586cd2153
 implementation = b8daba01fc3f2157d5d5b5ee862bac0a5575deab
 origin/main at validation = 12d85ced7e6568b7992f12841264bb01ea8ee765
-PR = 30 (same open PR)
-state = COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW
+PR #30 = MERGED / CLOSED
+merge commit = 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
+state = MERGED / NOT TEST DEPLOYED
 R1 review fixes = PASS
 scope = INQUIRY OPERATIONAL DOSSIER V1
 Inquiry remains operational-dossier SSOT = true
@@ -289,13 +290,13 @@ Booking lifecycle changed = false
 Trip lifecycle changed = false
 organization isolation preserved = true
 real data changed = false
-merge authorized = false
+merge authorized = true / CONSUMED
 TEST deployment authorized = false
 TEST deployed = false
 Production touched = false
 ```
 
-The candidate keeps `Inquiry reference -> HOLD external_reference` and the existing `Inquiry -> HOLD -> Booking -> Trip` path. Room number remains optional/later-fillable, pickup time remains separate from the selected Slot service interval, and selling amounts remain minor-unit integers behind decimal operator input. Control Plane review is the next gate; this executor does not self-final-accept.
+The merged work keeps `Inquiry reference -> HOLD external_reference` and the existing `Inquiry -> HOLD -> Booking -> Trip` path. Room number remains optional/later-fillable, pickup time remains separate from the selected Slot service interval, and selling amounts remain minor-unit integers behind decimal operator input. Merge is complete; TEST deployment precheck and separate authorization are the next gates; this executor does not self-final-accept.
 
 ## Today Operations V1 completed integration
 
@@ -325,28 +326,27 @@ Today Operations V1 is closed and no longer belongs to the active engineering qu
 ```text
 PLAN_C_REAL_CONFIG = READY
 TEST_DEPLOYED_SOURCE = 6d739fccab4de69f511663e130c1e2308e483afb
-LIVE_MAIN_OBSERVED = 12d85ced7e6568b7992f12841264bb01ea8ee765
+LIVE_MAIN_OBSERVED = 46b3d9f4fe239c933f6c2e2e32c0449100b7faf0
 MAIN_TEST_RELATION = MAIN_HAS_UNDEPLOYED_EXTERNAL_DELTA
 REAL_PILOT_CANDIDATE_IN_DEPLOYED_ANCESTRY = true
 PLAN_C_PROVISIONING = COMPLETE
 AUTHENTICATED_OPERATOR_ACCESS = PASS_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
 TODAY_OPERATIONS_V1 = COMPLETE_MERGED_TEST_DEPLOYED_VERIFIED
 FIRST_REAL_PLAN_C_ORDER = WAITING_FOR_NEXT_GENUINE_ORDER
-INQ_OPS_001 = COMPLETED_CANDIDATE_NOT_MERGED_NOT_DEPLOYED
-INQ_OPS_001_CONTROL_PLANE_REVIEW = WAITING
+INQ_OPS_001 = MERGED_NOT_TEST_DEPLOYED
+INQ_OPS_001_CONTROL_PLANE_REVIEW = COMPLETE_MERGED
 NO_ACTIVE_ENGINEERING_BLOCKER = true
-ENGINEERING = STOP_AT_COMPLETED_CANDIDATE
+ENGINEERING = STOP_AT_MERGED_NOT_TEST_DEPLOYED
 ```
 
-Authenticated Operator access has been demonstrated through the approved existing Cao credential path. No password or secret is recorded here. The immediate gate is independent Control Plane review of INQ-OPS-001; merge and any TEST deployment remain separate Owner decisions.
+Authenticated Operator access has been demonstrated through the approved existing Cao credential path. No password or secret is recorded here. INQ-OPS-001 is merged at 46b3d9f; the next gate is TEST deployment precheck, and any TEST deployment remains a separate Owner decision.
 
 ## Next operational path
 
-No further INQ-OPS-001 implementation is authorized before review. The next gate sequence is:
+No further INQ-OPS-001 implementation is authorized. The next gate sequence is:
 
 ```text
-CONTROL_PLANE_REVIEW
--> OWNER_MERGE_DECISION
+TEST_DEPLOY_PRE_CHECK
 -> SEPARATE_TEST_DEPLOY_AUTHORIZATION_IF_APPROVED
 ```
 
@@ -376,7 +376,7 @@ UNLESS:
 
 Admin UI, setup wizard, capacity/seat inventory, Product engine, CRM, Finance expansion, reporting, maintenance, historical migration, ChannelHub, OTA, second-company onboarding, and SaaS administration remain deferred.
 
-Routine progress does not require a governance-only PR. INQ-OPS-001 is the authorized bounded implementation exception from Owner real-use feedback, and its necessary state updates travel in the same implementation PR. CAL-UX-002, CAL-UX-003, and Today Operations V1 remain completed history.
+Routine progress does not require a governance-only PR. INQ-OPS-001 was the authorized bounded implementation exception from Owner real-use feedback; this post-merge state sync is the Control-Plane-directed update. CAL-UX-002, CAL-UX-003, and Today Operations V1 remain completed history.
 
 ## Parallel items
 
@@ -396,7 +396,7 @@ CAL-UX-002 and CAL-UX-003 are `MERGED / CLOSED / TEST DEPLOYED`; Issues #23 and 
 
 Today Operations V1 is `DONE / VERIFIED / MERGED / TEST DEPLOYED`; BOATOPS-CORE-001 and BOATOPS-CORE-002 are closed historical tasks.
 
-INQ-OPS-001 is `COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW`; it is not merged or deployed and creates no authority for adjacent Inquiry, Booking, Calendar, Today Operations, CRM, finance, or inventory work.
+INQ-OPS-001 is `MERGED / NOT TEST DEPLOYED`; it is not TEST-deployed and creates no authority for adjacent Inquiry, Booking, Calendar, Today Operations, CRM, finance, or inventory work.
 
 ## Explicit boundaries
 
@@ -409,8 +409,8 @@ CAL_UX_001_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_002_TEST_DEPLOYMENT = VERIFIED
 CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
 TODAY_OPERATIONS_V1_TEST_DEPLOYMENT = VERIFIED
-INQ_OPS_001 = COMPLETED_CANDIDATE
-INQ_OPS_001_MERGE_AUTHORIZED = false
+INQ_OPS_001 = MERGED_NOT_TEST_DEPLOYED
+INQ_OPS_001_MERGE_AUTHORIZED = true / CONSUMED
 INQ_OPS_001_TEST_DEPLOYMENT_AUTHORIZED = false
 INQ_OPS_001_TEST_DEPLOYED = false
 INQ_OPS_001_PRODUCTION_TOUCHED = false
@@ -425,4 +425,4 @@ This bounded implementation candidate changes the existing Inquiry schema and op
 
 ## Closed history
 
-Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, PR #16, PR #18, PR #19, PR #24, and PR #25 are merged/closed. CAL-UX-002 and CAL-UX-003 are deployed to TEST. BOATOPS-CORE-001 and BOATOPS-CORE-002 are DONE / VERIFIED. INQ-OPS-001 now awaits Control Plane review; no merge or deployment is implied.
+Core Safety and the prior Deployment Readiness planning work remain accepted history, not active queue items. PR #12, PR #15, PR #16, PR #18, PR #19, PR #24, and PR #25 are merged/closed. CAL-UX-002 and CAL-UX-003 are deployed to TEST. BOATOPS-CORE-001 and BOATOPS-CORE-002 are DONE / VERIFIED. INQ-OPS-001 is merged via PR #30 at 46b3d9f; no TEST deployment is implied.
