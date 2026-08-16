@@ -1,13 +1,13 @@
-schema_version: 15
+schema_version: 16
 project: BoatOps
-updated_at: "2026-08-15T11:07:00+07:00"
+updated_at: "2026-08-16T10:18:47+07:00"
 
 current_phase: REAL_PILOT_EXECUTION
 
 engineering:
-  status: STOP
-  active_task: NONE
-  next: OWNER_REAL_USE_FEEDBACK_OR_NEXT_GENUINE_PLAN_C_ORDER
+  status: COMPLETED_CANDIDATE
+  active_task: INQ-OPS-001
+  next: CONTROL_PLANE_REVIEW
   cal_ux_004_exists: false
 
 north_star:
@@ -407,6 +407,36 @@ cal_ux_003:
   tag_authorized: false
   release_authorized: false
 
+inq_ops_001:
+  classification: OBSERVED_OPERATIONAL_PAIN
+  source: OWNER_REAL_USE_FEEDBACK
+  owner_authorization: IMPLEMENT_TEST_OPEN_PR_ONLY
+  issue: 28
+  contract_source: GITHUB_ISSUE
+  baseline_main_sha: "5bbb1ae75a1e40ec09dc8fa9a052e20c40eec38b"
+  branch: "feat/inq-ops-001-operational-dossier-v1"
+  implementation_sha: "241c4bdd0c75aa8ae222d07bb8ab5f68c6db3195"
+  state: COMPLETED_CANDIDATE
+  next_gate: CONTROL_PLANE_REVIEW
+  scope: INQUIRY_OPERATIONAL_DOSSIER_V1
+  inquiry_remains_dossier_ssot: true
+  proven_execution_gap_fields_added: 8
+  schema_changed: true
+  inventory_authority_changed: false
+  slot_calendar_read_model_changed: false
+  hold_conflict_logic_changed: false
+  booking_lifecycle_changed: false
+  trip_lifecycle_changed: false
+  organization_isolation_preserved: true
+  real_data_changed: false
+  merge_authorized: false
+  test_deployment_authorized: false
+  test_deployed: false
+  production_touched: false
+  cutover_authorized: false
+  tag_authorized: false
+  release_authorized: false
+
 today_operations_v1:
   task_implementation: BOATOPS-CORE-001
   task_release: BOATOPS-CORE-002
@@ -458,6 +488,11 @@ development_rule:
       basis: OWNER_AUTHORIZED_TIME_TO_REAL_USE
       status: COMPLETED_MERGED_TEST_DEPLOYED
       global_feature_development_reopened: false
+    - id: INQ-OPS-001
+      basis: OBSERVED_OPERATIONAL_PAIN
+      source: OWNER_REAL_USE_FEEDBACK
+      status: COMPLETED_CANDIDATE_CONTROL_PLANE_REVIEW
+      global_feature_development_reopened: false
   routine_governance_pr: FORBIDDEN
   state_updates: SAME_RELEVANT_PR_BY_DEFAULT
   routine_lifecycle:
@@ -486,7 +521,7 @@ development_rule:
 
 gates:
   code:
-    status: ENGINEERING_STOP_CURRENT_VERIFIED
+    status: INQ_OPS_001_COMPLETED_CANDIDATE_CONTROL_PLANE_REVIEW
     new_feature_development_authorized: false
     pr_18: MERGED_CLOSED
     pr_19: MERGED_CLOSED
@@ -495,6 +530,7 @@ gates:
     cal_ux_002: MERGED_TEST_DEPLOYED
     cal_ux_003: MERGED_TEST_DEPLOYED
     today_operations_v1: MERGED_TEST_DEPLOYED_VERIFIED
+    inq_ops_001: COMPLETED_CANDIDATE_NOT_MERGED
   test_deployment:
     status: VERIFIED_CURRENT_MAIN_SYNCHRONIZED
     environment: TEST_ONLY
@@ -532,25 +568,19 @@ current_blockers: []
 remaining_gate_prerequisites:
   authenticated_operator_smoke: COMPLETE_APPROVED_EXISTING_CAO_CREDENTIAL_PATH
   first_real_plan_c_order: WAITING_FOR_NEXT_GENUINE_ORDER
-  owner_real_use_feedback: WAITING
+  owner_real_use_feedback: RECEIVED_INQ_OPS_001
+  inq_ops_001_control_plane_review: WAITING
   engineering_required_now: false
-  note: "Authenticated Operator access has been demonstrated through the approved existing Cao credential path; no secret is recorded. No further engineering is required now."
+  note: "INQ-OPS-001 is a completed implementation candidate from Owner real-use feedback. Control Plane review is next; merge and TEST deployment remain separately unauthorized."
 
 next_action:
-  id: OWNER_FEEDBACK_OR_NEXT_GENUINE_PLAN_C_ORDER
+  id: INQ_OPS_001_CONTROL_PLANE_REVIEW
   engineering_required: false
-  note: "Wait for Owner real-use feedback or the next genuine Plan C order; do not create a synthetic order or CAL-UX-004."
+  note: "Review the bounded INQ-OPS-001 implementation PR. Owner decides merge; TEST deployment requires separate authorization if approved."
   sequence:
-    - WAIT_FOR_NEXT_GENUINE_PLAN_C_ORDER
-    - INQUIRY
-    - HOLD
-    - CONFIRM
-    - PREPARE
-    - DEPART
-    - RETURN
-    - COMPLETE
-    - AUDIT
-    - RECORD_OBSERVED_OPERATIONAL_PAIN
+    - CONTROL_PLANE_REVIEW
+    - OWNER_MERGE_DECISION
+    - SEPARATE_TEST_DEPLOY_AUTHORIZATION_IF_APPROVED
 
 stop_conditions:
   - NO_NEW_FEATURE_DEVELOPMENT_UNLESS_REAL_PILOT_BLOCKER_OBSERVED_OPERATIONAL_PAIN_OR_UNIVERSAL_CORE_SAFETY_DEFECT
@@ -561,6 +591,8 @@ stop_conditions:
   - NO_CUTOVER
   - NO_AUTHORITY_SWITCH
   - NO_FURTHER_TEST_DEPLOYMENT_WITHOUT_SEPARATE_AUTHORIZATION
+  - NO_SELF_FINAL_ACCEPTANCE
+  - NO_MERGE_WITHOUT_OWNER_AUTHORIZATION
   - NO_TAG
   - NO_RELEASE
 

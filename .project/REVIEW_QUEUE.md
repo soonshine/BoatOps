@@ -1,26 +1,52 @@
 # BoatOps Operational Queue and Evidence Ledger
 
-Last updated: 2026-08-15 11:07 Asia/Bangkok
+Last updated: 2026-08-16 10:18 Asia/Bangkok
 
-The active operational queue contains Owner real-use feedback and the next genuine Plan C order. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here. CAL-UX-001/002/003, Today Operations V1, and their TEST reconciliation are completed evidence, not active engineering items.
+Owner real-use feedback is now captured by Issue #28 and implemented as the bounded INQ-OPS-001 candidate. The active gate is Control Plane review; merge and TEST deployment remain separate Owner decisions. Authenticated Operator access has already been demonstrated through the approved existing Cao credential path; no credential or secret is recorded here.
 
 ## Active queue
 
 | ID | Status | Next proof |
 | --- | --- | --- |
-| `OWNER-REAL-USE-FEEDBACK` | `WAITING / NO_ENGINEERING` | Record only feedback observed through real TEST use; do not pre-create CAL-UX-004 |
+| `INQ-OPS-001` | `COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW` | Review the bounded Issue #28 implementation and exact-head evidence; do not infer merge or deployment authority |
+| `OWNER-REAL-USE-FEEDBACK` | `RECEIVED / INQ-OPS-001` | Issue #28 records the observed Inquiry dossier pain; future feedback remains evidence-driven |
 | `FIRST-REAL-PLAN-C-VERTICAL-SLICE` | `WAITING / NEXT_GENUINE_ORDER` | Run the next genuine Plan C order from Inquiry through Audit; do not invent an order |
 | `DR16` | `PARALLEL_BEFORE_CUTOVER / NOT_CURRENT_REAL_PILOT_BLOCKER` | Keep `main.protected=false` visible; require separate authorization before any GitHub settings mutation |
 
 ## Operational order
 
 ```text
-OWNER-REAL-USE-FEEDBACK OR WAIT-FOR-NEXT-GENUINE-PLAN-C-ORDER
--> FIRST-REAL-PLAN-C-VERTICAL-SLICE
--> RECORD_OBSERVED_OPERATIONAL_PAIN
+INQ-OPS-001 CONTROL-PLANE-REVIEW
+-> OWNER-MERGE-DECISION
+-> SEPARATE-TEST-DEPLOY-AUTHORIZATION-IF-APPROVED
 ```
 
-No feature-development item belongs in this queue unless it is a proven Real Pilot blocker or observed operational pain.
+No adjacent feature-development item belongs in this queue unless it is a proven Real Pilot blocker, observed operational pain, or universal core-safety defect.
+
+## INQ-OPS-001 candidate evidence
+
+```text
+classification = OBSERVED_OPERATIONAL_PAIN
+source = OWNER_REAL_USE_FEEDBACK
+Issue #28 = authoritative contract
+baseline main = 5bbb1ae75a1e40ec09dc8fa9a052e20c40eec38b
+branch = feat/inq-ops-001-operational-dossier-v1
+implementation commit = 241c4bdd0c75aa8ae222d07bb8ab5f68c6db3195
+status = COMPLETED_CANDIDATE / CONTROL_PLANE_REVIEW
+Inquiry operational-dossier SSOT = PRESERVED
+new proven execution-gap fields = 8
+Inquiry -> HOLD -> Booking -> Trip contract = PRESERVED
+inventory authority / SlotCalendarReadModel / HOLD conflict logic = UNCHANGED
+Booking / Trip lifecycle = UNCHANGED
+organization isolation = PRESERVED
+real booking data = NONE
+merge authorization = NO
+TEST deployment authorization = NO
+TEST deployed = NO
+Production touched = NO
+```
+
+The candidate is one implementation PR with its necessary state updates. It does not create a second Order or Booking dossier, a duration/departure truth, CRM, finance, add-on, capacity, hotel, route-taxonomy, Calendar, or Today Operations scope.
 
 ## Completed Today Operations V1
 
@@ -74,7 +100,7 @@ CAL-UX-003:
 current TEST source = 6d739fccab4de69f511663e130c1e2308e483afb
 historical CAL-UX-003 TEST baseline = 2f59fb67ab8eea830ef6f8860ed0ee8a2acd9aa7
 inventory authority / SlotCalendarReadModel / schema / migrations / application inventory actions = UNCHANGED
-active engineering item = NONE
+active implementation candidate = INQ-OPS-001 / CONTROL_PLANE_REVIEW
 ```
 
 ## Completed bounded integration
@@ -271,11 +297,16 @@ CAL_UX_003_TEST_DEPLOYMENT = VERIFIED
 BOATOPS_CORE_001 = DONE_VERIFIED
 BOATOPS_CORE_002 = DONE_VERIFIED
 TODAY_OPERATIONS_V1 = MERGED_TEST_DEPLOYED_VERIFIED
+INQ_OPS_001 = COMPLETED_CANDIDATE_CONTROL_PLANE_REVIEW
+INQ_OPS_001_MERGE_AUTHORIZATION = NO
+INQ_OPS_001_TEST_DEPLOYMENT_AUTHORIZATION = NO
+INQ_OPS_001_TEST_DEPLOYED = NO
+INQ_OPS_001_PRODUCTION_TOUCHED = NO
 CURRENT_MAIN = 6d739fccab4de69f511663e130c1e2308e483afb
 CURRENT_TEST = 6d739fccab4de69f511663e130c1e2308e483afb
 LIVE_MAIN_VS_TEST_TRUTH = SYNCHRONIZED
 CAL_UX_003_SOURCE_ACCURACY = PASS
-ENGINEERING = STOP
+ENGINEERING = STOP_AT_INQ_OPS_001_CANDIDATE
 CAL_UX_004_EXISTS = false
 
 PRODUCTION_DEPLOYMENT = false
