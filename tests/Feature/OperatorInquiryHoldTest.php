@@ -54,6 +54,7 @@ class OperatorInquiryHoldTest extends TestCase
         $hold = DB::table('holds')->first();
 
         $this->assertSame('2026-08-10 00:37:00', $hold->expires_at);
+        $this->assertSame('FICTIONAL-HOLD-SUCCESS', $hold->external_reference);
         $this->assertDatabaseHas('inquiries', ['id' => $id, 'hold_id' => $hold->id, 'status' => 'INQUIRY']);
         $this->assertDatabaseCount('holds', 1);
         $this->assertDatabaseCount('allocations', 1);
