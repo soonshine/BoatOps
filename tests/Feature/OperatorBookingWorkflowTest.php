@@ -26,7 +26,7 @@ class OperatorBookingWorkflowTest extends TestCase
         $inquiry = $this->inquiryWithHold($context, 'FICTIONAL-OPERATOR-CONFIRM');
         $hold = DB::table('holds')->first();
         $key = (string) Str::uuid();
-        $page = $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('G1 商业边界')->assertSee('定价和收款不在 G1 范围内')->assertSee('明确创建未定价订单')->assertSee('尚未达到生产商业就绪')->assertSee('确认未定价订单')->assertDontSee('name="rate_snapshot"', false)->assertSee('name="selling_currency"', false)->assertSee('name="selling_amount_minor"', false)->assertDontSee('name="tax_amount_minor"', false)->assertDontSee('name="commission_amount_minor"', false)->assertDontSee('name="customer"', false)->assertDontSee('name="order"', false);
+        $page = $this->get("/operator/inquiries/{$inquiry}")->assertOk()->assertSee('G1 商业边界')->assertSee('定价和收款不在 G1 范围内')->assertSee('明确创建未定价订单')->assertSee('尚未达到生产商业就绪')->assertSee('确认未定价订单')->assertDontSee('name="rate_snapshot"', false)->assertSee('name="selling_currency"', false)->assertSee('name="selling_amount"', false)->assertDontSee('name="selling_amount_minor"', false)->assertDontSee('name="tax_amount_minor"', false)->assertDontSee('name="commission_amount_minor"', false)->assertDontSee('name="customer"', false)->assertDontSee('name="order"', false);
         $this->assertMatchesRegularExpression('/name="idempotency_key" value="[0-9a-f-]{36}"/', $page->getContent());
         $path = "/operator/inquiries/{$inquiry}/holds/{$hold->id}/confirm";
         $this->post($path, ['idempotency_key' => $key])->assertStatus(303)

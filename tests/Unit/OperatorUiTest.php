@@ -55,6 +55,15 @@ class OperatorUiTest extends TestCase
         $this->assertSame('客制夕阳航程', OperatorUi::slotName('客制夕阳航程', 'CUSTOM_SUNSET'));
     }
 
+    public function test_slot_wall_clock_and_duration_labels_use_existing_slot_truth(): void
+    {
+        $this->assertSame('08:00–12:00', OperatorUi::wallClockRange('08:00:00', '12:00:00'));
+        $this->assertSame('未记录', OperatorUi::wallClockRange(null, '12:00:00'));
+        $this->assertSame('4 小时', OperatorUi::durationMinutes(240));
+        $this->assertSame('2 小时 30 分钟', OperatorUi::durationMinutes(150));
+        $this->assertSame('45 分钟', OperatorUi::durationMinutes(45));
+    }
+
     public function test_action_errors_are_chinese_even_when_shared_contract_messages_are_english(): void
     {
         $this->assertSame(

@@ -2,30 +2,108 @@
 
 @section('title', '询价 '.$inquiry->reference)
 
-@section('content')
-<h1>询价 {{ $inquiry->reference }}</h1>
-<div>询价状态：{{ \App\Support\OperatorUi::status($inquiry->status) }}</div>
-<div>服务日期：{{ \App\Support\OperatorUi::date($inquiry->service_date) }}</div>
-<div>询价备注：{{ $inquiry->notes ?: '无' }}</div>
+@section('bodyClass', 'inquiry-layout')
 
+@section('head')
+@include('operator.inquiries._styles')
+@endsection
+
+@section('content')
+<main class="inquiry-page">
+<h1>询价 {{ $inquiry->reference }}</h1>
+<p>询价状态：{{ \App\Support\OperatorUi::status($inquiry->status) }}</p>
+<p class="inquiry-help">询价参考号保持不变，并继续作为后续预留的外部参考号。</p>
+
+@if($missingInformation !== [])
+<section class="card inquiry-warning" role="status">
+<h2>执行资料待补充</h2>
+<ul>
+@foreach($missingInformation as $missingItem)
+<li>{{ $missingItem }}</li>
+@endforeach
+</ul>
+<p>这是可见性提醒，不会改变现有创建预留或确认订单门槛。</p>
+<p>房间号可在客人入住后补充，明确不是确认阻断条件。</p>
+</section>
+@else
+<section class="card inquiry-complete" role="status">
+<h2>核心执行资料已记录</h2>
+<p>房间号仍可稍后补充，明确不是确认阻断条件。</p>
+</section>
+@endif
+
+@if($inquiry->hold_id === null)
+<form method="post" action="{{ route('operator.inquiries.execution.update', $inquiry->id) }}">
+@csrf
+<input type="hidden" name="idempotency_key" value="{{ $executionIdempotencyKey }}">
 <section class="card">
-<h2>运营资料</h2>
-<div>联系人：{{ $inquiry->contact_name ?: '未提供' }}</div>
-<div>联系方式：{{ \App\Support\OperatorUi::contactMethod($inquiry->contact_method) }}{{ $inquiry->contact_value ? ' / '.$inquiry->contact_value : '' }}</div>
-<div>人数：{{ $inquiry->party_size ?: '未提供' }}</div>
-<div>集合地点：{{ $inquiry->meeting_point ?: '未提供' }}</div>
-<div>服务地点 / 下客点：{{ $inquiry->service_location ?: '未提供' }}</div>
-<div>销售来源：{{ $inquiry->sales_source ?: '未提供' }}</div>
-<div>代理 / 合作方参考号：{{ $inquiry->agent_reference ?: '未提供' }}</div>
-<div>客户 / 服务备注：{{ $inquiry->service_notes ?: '无' }}</div>
-<div>内部运营备注：{{ $inquiry->internal_notes ?: '无' }}</div>
-<div>销售金额：{{ $inquiry->selling_currency && $inquiry->selling_amount_minor !== null ? $inquiry->selling_currency.' '.$inquiry->selling_amount_minor.'（最小货币单位）' : '未提供' }}</div>
-<p>创建预留或确认订单后，这些资料仍可编辑；更新资料不会改变库存或订单 / 出航生命周期状态。</p>
+<h2>出航执行资料</h2>
+<p class="inquiry-help">这里只补全现有询价的日期、船只、产品和服务时段；保存不会占用库存或创建预留。</p>
+<div class="inquiry-form-grid">
+<label>服务日期
+<input type="date" name="service_date" value="{{ old('service_date', $inquiry->service_date) }}">
+</label>
+<label>船只
+<select name="boat_id">
+<option value="">暂不选择</option>
+@foreach($boats as $boat)
+<option value="{{ $boat->id }}" @selected((string) old('boat_id', $inquiry->boat_id) === (string) $boat->id)>{{ $boat->name }}</option>
+@endforeach
+</select>
+</label>
+<label>产品 / 出航模板
+<select name="trip_template_id">
+<option value="">暂不选择</option>
+@foreach($products as $product)
+<option value="{{ $product->id }}" @selected((string) old('trip_template_id', $inquiry->trip_template_id) === (string) $product->id)>{{ $product->name }}</option>
+@endforeach
+</select>
+</label>
+<label>服务时段
+<select name="slot_offering_id">
+<option value="">暂不选择</option>
+@foreach($slots as $slot)
+<option value="{{ $slot->id }}" @selected((string) old('slot_offering_id', $inquiry->slot_offering_id) === (string) $slot->id)>{{ \App\Support\OperatorUi::slotName($slot->name, $slot->code) }}（{{ \App\Support\OperatorUi::wallClockRange($slot->service_start_time, $slot->service_end_time) }} / {{ \App\Support\OperatorUi::durationMinutes((int) $slot->duration_minutes) }}）</option>
+@endforeach
+</select>
+</label>
+</div>
+<button>保存出航资料</button>
+</section>
+</form>
+@else
+<section class="card">
+<h2>出航执行资料</h2>
+<p class="inquiry-help">预留已关联；日期、船只、产品和服务时段由预留流程锁定。</p>
+</section>
+@endif
 
 <form method="post" action="{{ route('operator.inquiries.dossier.update', $inquiry->id) }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $dossierIdempotencyKey }}">
-<label>联系人姓名
+
+<section class="card">
+<h2>出航需求</h2>
+<div class="inquiry-summary-grid">
+<div class="inquiry-fact"><strong>服务日期</strong>{{ \App\Support\OperatorUi::date($inquiry->service_date) }}</div>
+<div class="inquiry-fact"><strong>船只</strong>{{ $selectedBoat?->name ?: '未选择' }}</div>
+<div class="inquiry-fact"><strong>产品 / 出航模板</strong>{{ $selectedProduct?->name ?: '未选择' }}</div>
+<div class="inquiry-fact"><strong>服务时段</strong>{{ $selectedSlot ? \App\Support\OperatorUi::slotName($selectedSlot->name, $selectedSlot->code) : '未选择' }}</div>
+@if($selectedSlot)
+<div class="inquiry-fact"><strong>船只出发 / 服务时间</strong>{{ \App\Support\OperatorUi::wallClockRange($selectedSlot->service_start_time, $selectedSlot->service_end_time) }}</div>
+<div class="inquiry-fact"><strong>时长（来自所选服务时段）</strong>{{ \App\Support\OperatorUi::durationMinutes((int) $selectedSlot->duration_minutes) }}</div>
+@endif
+<label class="wide">路线 / 目的地
+<textarea name="route_summary" maxlength="2000" placeholder="简要记录实际路线或目的地">{{ old('route_summary', $inquiry->route_summary) }}</textarea>
+<span class="inquiry-help">路线与返程 / 下客地点分开记录；接客时间也不替代船只出发时间。</span>
+</label>
+</div>
+</section>
+
+<section class="card">
+<h2>客人信息</h2>
+<div class="inquiry-form-grid">
+<label>客人 / 联系人姓名
 <input name="contact_name" value="{{ old('contact_name', $inquiry->contact_name) }}" maxlength="255">
 </label>
 <label>联系方式
@@ -36,39 +114,93 @@
 @endforeach
 </select>
 </label>
-<label>联系信息
+<label class="wide">联系信息
 <input name="contact_value" value="{{ old('contact_value', $inquiry->contact_value) }}" maxlength="255">
 </label>
-<label>人数
+<label>总人数
 <input type="number" name="party_size" value="{{ old('party_size', $inquiry->party_size) }}" min="1" max="999" step="1">
 </label>
-<label>集合地点
+<label>成人数
+<input type="number" name="adult_count" value="{{ old('adult_count', $inquiry->adult_count) }}" min="0" max="999" step="1">
+</label>
+<label>儿童数
+<input type="number" name="child_count" value="{{ old('child_count', $inquiry->child_count) }}" min="0" max="999" step="1">
+</label>
+@php($editChildAges = old('child_ages', $childAgesText))
+@php($editChildAges = is_array($editChildAges) ? implode("\n", $editChildAges) : $editChildAges)
+<p class="inquiry-help">儿童年龄可用换行或逗号分隔，系统仍按结构化 JSON 数组保存。</p>
+<label>儿童年龄
+<textarea name="child_ages" inputmode="numeric" placeholder="每行填写一名儿童的年龄">{{ $editChildAges }}</textarea>
+<span class="inquiry-help">可暂不填写；系统不设定统一的成人 / 儿童年龄分界。</span>
+</label>
+</div>
+</section>
+
+<section class="card">
+<h2>接送信息</h2>
+@php($pickupRequiredValue = old('pickup_required', $inquiry->pickup_required === null ? '' : ((bool) $inquiry->pickup_required ? '1' : '0')))
+<div class="inquiry-form-grid">
+<label>需要接送
+<select name="pickup_required">
+<option value="" @selected((string) $pickupRequiredValue === '')>待确认</option>
+<option value="1" @selected((string) $pickupRequiredValue === '1')>需要</option>
+<option value="0" @selected((string) $pickupRequiredValue === '0')>不需要</option>
+</select>
+</label>
+<label>酒店 / 住宿名称
+<input name="hotel_name" value="{{ old('hotel_name', $inquiry->hotel_name) }}" maxlength="255">
+</label>
+<label>房间号
+<input name="room_number" value="{{ old('room_number', $inquiry->room_number) }}" maxlength="255">
+<span class="inquiry-help">可稍后补充，不是创建预留或确认订单的阻断条件。</span>
+</label>
+<label>接客时间（{{ $organization->timezone }}）
+<input type="time" name="pickup_time" value="{{ old('pickup_time', $inquiry->pickup_time ? substr($inquiry->pickup_time, 0, 5) : '') }}" step="60">
+<span class="inquiry-help">接客时间是单独的执行事实，不是船只出发时间。</span>
+</label>
+<label class="wide">接客 / 集合地点
 <textarea name="meeting_point" maxlength="2000">{{ old('meeting_point', $inquiry->meeting_point) }}</textarea>
 </label>
-<label>服务地点 / 下客点
+<label class="wide">返程 / 下客地点（如不同）
 <textarea name="service_location" maxlength="2000">{{ old('service_location', $inquiry->service_location) }}</textarea>
 </label>
+</div>
+</section>
+
+<section class="card">
+<h2>服务要求</h2>
+<label>特殊服务与执行要求
+<textarea name="service_notes" maxlength="5000" placeholder="例如：餐食 / BBQ、中文工作人员、钓鱼、浮潜或其他特殊需求">{{ old('service_notes', $inquiry->service_notes) }}</textarea>
+</label>
+<p class="inquiry-help">这些示例只用于记录需求，不会建立加购目录、包含规则或价格明细。</p>
+</section>
+
+<section class="card">
+<h2>来源与内部资料</h2>
+<div class="inquiry-form-grid">
 <label>销售来源
 <input name="sales_source" value="{{ old('sales_source', $inquiry->sales_source) }}" maxlength="255">
 </label>
 <label>代理 / 合作方参考号
 <input name="agent_reference" value="{{ old('agent_reference', $inquiry->agent_reference) }}" maxlength="255">
 </label>
-<label>客户 / 服务备注
-<textarea name="service_notes" maxlength="5000">{{ old('service_notes', $inquiry->service_notes) }}</textarea>
-</label>
-<label>内部运营备注
+<div class="inquiry-fact wide"><strong>询价初步备注</strong>{{ $inquiry->notes ?: '无' }}</div>
+<label class="wide">内部运营备注
 <textarea name="internal_notes" maxlength="5000">{{ old('internal_notes', $inquiry->internal_notes) }}</textarea>
 </label>
-<label>销售币种
+<label>币种
 <input name="selling_currency" value="{{ old('selling_currency', $inquiry->selling_currency) }}" maxlength="3" pattern="[A-Z]{3}" placeholder="THB">
 </label>
-<label>销售金额（最小货币单位）
-<input type="number" name="selling_amount_minor" value="{{ old('selling_amount_minor', $inquiry->selling_amount_minor) }}" min="0" step="1">
+<label>销售金额
+<input type="number" name="selling_amount" value="{{ old('selling_amount', $sellingAmountDecimal) }}" min="0" step="0.01" inputmode="decimal" placeholder="1234.56">
 </label>
+</div>
+<p class="inquiry-help">销售总额仅作为运营参考，以两位小数确定性存储；不会创建价格明细、税费、佣金、收款或会计记录。</p>
+</section>
+
+<p>创建预留或确认订单后，这些资料仍可编辑；更新资料不会改变库存或订单 / 出航生命周期状态。</p>
 <button>更新运营资料</button>
 </form>
-</section>
 
 <section class="card error">
 <h2>G1 商业边界</h2>
@@ -152,7 +284,7 @@
 <label>服务时段
 <select name="slot_offering_id" required>
 @foreach($slots as $slot)
-<option value="{{ $slot->id }}" @selected($slot->id === $booking->slot_offering_id)>{{ \App\Support\OperatorUi::slotName($slot->name) }}</option>
+<option value="{{ $slot->id }}" @selected($slot->id === $booking->slot_offering_id)>{{ \App\Support\OperatorUi::slotName($slot->name, $slot->code) }}</option>
 @endforeach
 </select>
 </label>
@@ -173,4 +305,5 @@
 @endif
 </section>
 @endif
+</main>
 @endsection

@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -27,20 +28,36 @@ class OperatorInquiryDossierTest extends TestCase
         $dossier = $this->dossier('CREATE');
         $this->actingAs($context['user']);
 
+        $this->assertTrue(Schema::hasColumns('inquiries', [
+            'adult_count',
+            'child_count',
+            'child_ages',
+            'hotel_name',
+            'room_number',
+            'pickup_required',
+            'pickup_time',
+            'route_summary',
+        ]));
         $this->get('/operator/inquiries/create')->assertOk()
             ->assertSee('新建询价')
-            ->assertSee('询价信息')
-            ->assertSee('运营资料')
-            ->assertSee('联系人姓名')
-            ->assertSee('销售金额（最小货币单位）')
+            ->assertSeeInOrder(['出航需求', '客人信息', '接送信息', '服务要求', '来源与内部资料'])
+            ->assertSee('客人 / 联系人姓名')
+            ->assertSee('销售金额')
             ->assertDontSee('Operational Dossier')
             ->assertSee('name="contact_name"', false)
-            ->assertSee('name="selling_amount_minor"', false);
+            ->assertSee('name="adult_count"', false)
+            ->assertSee('name="child_ages"', false)
+            ->assertSee('name="pickup_required"', false)
+            ->assertSee('name="route_summary"', false)
+            ->assertSee('name="selling_amount"', false)
+            ->assertDontSee('name="selling_amount_minor"', false)
+            ->assertSee('08:00–12:00')
+            ->assertSee('4 小时');
 
         $completeId = $this->createInquiry($context, 'FICTIONAL-DOSSIER-COMPLETE', $dossier);
         $this->assertDatabaseHas('inquiries', [
             'id' => $completeId,
-            ...$dossier,
+            ...$this->storedDossier($dossier),
         ]);
         $this->get('/operator/inquiries')->assertOk()
             ->assertSee('询价列表')
@@ -48,11 +65,18 @@ class OperatorInquiryDossierTest extends TestCase
             ->assertSee('询价中')
             ->assertSee('FICTIONAL-DOSSIER-COMPLETE');
         $this->get("/operator/inquiries/{$completeId}")->assertOk()
-            ->assertSee('运营资料')
+            ->assertSeeInOrder(['出航需求', '客人信息', '接送信息', '服务要求', '来源与内部资料'])
             ->assertSee('询价状态：询价中')
+            ->assertSee('核心执行资料已记录')
             ->assertSee($dossier['contact_name'])
             ->assertSee($dossier['contact_value'])
             ->assertSee($dossier['meeting_point'])
+            ->assertSee($dossier['route_summary'])
+            ->assertSee('船只出发 / 服务时间')
+            ->assertSee('08:00–12:00')
+            ->assertSee('时长（来自所选服务时段）')
+            ->assertSee('value="2500.00"', false)
+            ->assertDontSee('最小货币单位')
             ->assertSee('name="idempotency_key"', false)
             ->assertSee(route('operator.inquiries.dossier.update', $completeId), false);
 
@@ -65,16 +89,61 @@ class OperatorInquiryDossierTest extends TestCase
         foreach ($this->dossierFields() as $field) {
             $this->assertNull($partial->{$field}, "{$field} must remain nullable for an early inquiry.");
         }
+        $this->get("/operator/inquiries/{$partial->id}")->assertOk()
+            ->assertSee('执行资料待补充')
+            ->assertSee('路线 / 目的地')
+            ->assertSee('成人 / 儿童人数拆分')
+            ->assertSee('是否需要接送')
+            ->assertSee('房间号可在客人入住后补充')
+            ->assertSee('不会改变现有创建预留或确认订单门槛');
         $this->assertNull($partial->boat_id);
         $this->assertNull($partial->service_date);
         $this->assertDatabaseCount('holds', 0);
         $this->assertDatabaseCount('allocations', 0);
     }
 
-    public function test_validation_enforces_pairing_ranges_currency_amount_and_max_lengths(): void
+    public function test_partial_inquiry_execution_fields_can_be_completed_idempotently_before_hold_without_inventory_writes(): void
     {
         $context = $this->context();
         $this->actingAs($context['user']);
+        $this->post('/operator/inquiries', [
+            'idempotency_key' => (string) Str::uuid(),
+            'reference' => 'FICTIONAL-EXECUTION-COMPLETE',
+        ])->assertStatus(303);
+        $inquiryId = (int) DB::table('inquiries')->where('reference', 'FICTIONAL-EXECUTION-COMPLETE')->value('id');
+        $path = "/operator/inquiries/{$inquiryId}/execution";
+        $payload = [
+            'service_date' => '2026-09-12',
+            'boat_id' => $context['boat_id'],
+            'trip_template_id' => $context['template_id'],
+            'slot_offering_id' => $context['slot_id'],
+        ];
+        $key = (string) Str::uuid();
+        $beforeInventory = $this->inventoryState($context['organization_id']);
+
+        $this->post($path, ['idempotency_key' => $key, ...$payload])->assertStatus(303);
+        $this->assertDatabaseHas('inquiries', ['id' => $inquiryId, ...$payload, 'hold_id' => null]);
+        $this->assertSame($beforeInventory, $this->inventoryState($context['organization_id']));
+        $this->assertDatabaseHas('audit_logs', ['action' => 'INQUIRY_EXECUTION_UPDATED', 'object_id' => $inquiryId]);
+        $this->assertSame(1, DB::table('idempotency_keys')->where('operation', 'operator.inquiries.execution.update:'.$inquiryId)->count());
+
+        $this->post($path, ['idempotency_key' => $key, ...$payload])->assertStatus(303);
+        $this->assertSame(1, DB::table('audit_logs')->where('action', 'INQUIRY_EXECUTION_UPDATED')->where('object_id', $inquiryId)->count());
+        $this->post($path, ['idempotency_key' => $key, ...$payload, 'service_date' => '2026-09-13'])->assertConflict();
+
+        $this->configureHoldPolicy($context['organization_id']);
+        $this->post("/operator/inquiries/{$inquiryId}/hold", ['idempotency_key' => (string) Str::uuid()])->assertStatus(303);
+        $holdId = (int) DB::table('inquiries')->where('id', $inquiryId)->value('hold_id');
+        $this->assertGreaterThan(0, $holdId);
+        $this->post($path, ['idempotency_key' => (string) Str::uuid(), ...$payload, 'service_date' => '2026-09-14'])->assertConflict();
+        $this->assertDatabaseHas('inquiries', ['id' => $inquiryId, 'service_date' => '2026-09-12']);
+    }
+
+    public function test_validation_enforces_pairing_party_age_pickup_currency_and_max_lengths(): void
+    {
+        $context = $this->context();
+        $this->actingAs($context['user']);
+        $overflowAmount = (intdiv(PHP_INT_MAX, 100) + 1).'.00';
         $cases = [
             [['contact_method' => 'PHONE'], ['contact_value']],
             [['contact_value' => 'fictional-contact'], ['contact_method']],
@@ -82,13 +151,30 @@ class OperatorInquiryDossierTest extends TestCase
             [['party_size' => 0], ['party_size']],
             [['party_size' => 1000], ['party_size']],
             [['party_size' => '1.5'], ['party_size']],
-            [['selling_currency' => 'THB'], ['selling_amount_minor']],
-            [['selling_amount_minor' => 0], ['selling_currency']],
-            [['selling_currency' => 'thb', 'selling_amount_minor' => 0], ['selling_currency']],
-            [['selling_currency' => 'THB', 'selling_amount_minor' => -1], ['selling_amount_minor']],
-            [['selling_currency' => 'THB', 'selling_amount_minor' => '1.5'], ['selling_amount_minor']],
+            [['adult_count' => -1], ['adult_count']],
+            [['adult_count' => 1000], ['adult_count']],
+            [['child_count' => -1], ['child_count']],
+            [['party_size' => 3, 'adult_count' => 2, 'child_count' => 2], ['party_size']],
+            [['child_count' => 1, 'child_ages' => ['4', '7']], ['child_ages']],
+            [['child_ages' => ['-1']], ['child_ages.0']],
+            [['child_ages' => ['4.5']], ['child_ages.0']],
+            [['child_count' => 1, 'child_ages' => '4,7'], ['child_ages']],
+            [['pickup_required' => '2'], ['pickup_required']],
+            [['pickup_time' => '25:00'], ['pickup_time']],
+            [['selling_currency' => 'THB'], ['selling_amount']],
+            [['selling_amount' => '0'], ['selling_currency']],
+            [['selling_currency' => 'thb', 'selling_amount' => '0'], ['selling_currency']],
+            [['selling_currency' => 'JPY', 'selling_amount' => '100'], ['selling_currency']],
+            [['selling_currency' => 'THB', 'selling_amount' => '-1'], ['selling_amount']],
+            [['selling_currency' => 'THB', 'selling_amount' => '1.001'], ['selling_amount']],
+            [['selling_currency' => 'THB', 'selling_amount' => '1e2'], ['selling_amount']],
+            [['selling_currency' => 'THB', 'selling_amount' => '1,00'], ['selling_amount']],
+            [['selling_currency' => 'THB', 'selling_amount' => $overflowAmount], ['selling_amount']],
             [['contact_name' => str_repeat('N', 256)], ['contact_name']],
             [['contact_method' => 'PHONE', 'contact_value' => str_repeat('V', 256)], ['contact_value']],
+            [['hotel_name' => str_repeat('H', 256)], ['hotel_name']],
+            [['room_number' => str_repeat('R', 256)], ['room_number']],
+            [['route_summary' => str_repeat('T', 2001)], ['route_summary']],
             [['meeting_point' => str_repeat('M', 2001)], ['meeting_point']],
             [['service_location' => str_repeat('L', 2001)], ['service_location']],
             [['sales_source' => str_repeat('S', 256)], ['sales_source']],
@@ -108,6 +194,73 @@ class OperatorInquiryDossierTest extends TestCase
         $this->assertDatabaseCount('inquiries', 0);
     }
 
+    public function test_party_breakdown_child_ages_and_pickup_tri_state_preserve_optional_early_capture(): void
+    {
+        $context = $this->context();
+        $this->actingAs($context['user']);
+
+        $structuredId = $this->createInquiry($context, 'FICTIONAL-STRUCTURED-AGES', [
+            'party_size' => 4,
+            'adult_count' => 1,
+            'child_count' => 3,
+            'child_ages' => "21,4\n7",
+            'pickup_required' => '',
+        ]);
+        $this->assertDatabaseHas('inquiries', [
+            'id' => $structuredId,
+            'party_size' => 4,
+            'adult_count' => 1,
+            'child_count' => 3,
+            'child_ages' => '[21,4,7]',
+            'pickup_required' => null,
+        ]);
+
+        $missingAgesId = $this->createInquiry($context, 'FICTIONAL-MISSING-AGES', [
+            'party_size' => 2,
+            'adult_count' => 0,
+            'child_count' => 2,
+            'pickup_required' => '0',
+        ]);
+        $this->assertDatabaseHas('inquiries', [
+            'id' => $missingAgesId,
+            'child_ages' => null,
+            'pickup_required' => false,
+        ]);
+
+        $this->updateDossier($missingAgesId, [
+            'pickup_required' => '1',
+        ]);
+        $this->assertDatabaseHas('inquiries', ['id' => $missingAgesId, 'pickup_required' => true]);
+        $this->updateDossier($missingAgesId, []);
+        $this->assertDatabaseHas('inquiries', ['id' => $missingAgesId, 'pickup_required' => null]);
+    }
+
+    public function test_decimal_selling_amount_converts_at_the_form_boundary_and_displays_without_rounding(): void
+    {
+        $context = $this->context();
+        $this->actingAs($context['user']);
+
+        foreach ([
+            '0' => [0, '0.00'],
+            '0.01' => [1, '0.01'],
+            '1234.56' => [123456, '1234.56'],
+        ] as $decimal => [$minor, $display]) {
+            $reference = 'FICTIONAL-AMOUNT-'.str_replace('.', '-', $decimal);
+            $inquiryId = $this->createInquiry($context, $reference, [
+                'selling_currency' => 'THB',
+                'selling_amount' => $decimal,
+            ]);
+            $this->assertDatabaseHas('inquiries', [
+                'id' => $inquiryId,
+                'selling_currency' => 'THB',
+                'selling_amount_minor' => $minor,
+            ]);
+            $this->get("/operator/inquiries/{$inquiryId}")->assertOk()
+                ->assertSee('value="'.$display.'"', false)
+                ->assertDontSee('最小货币单位');
+        }
+    }
+
     public function test_dossier_is_scoped_permissioned_and_editable_before_and_after_confirmation(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-10T00:00:00Z'));
@@ -124,23 +277,42 @@ class OperatorInquiryDossierTest extends TestCase
             'idempotency_key' => (string) Str::uuid(),
             ...$this->dossier('CROSS-ORG'),
         ])->assertNotFound();
+        $this->post("/operator/inquiries/{$foreignId}/execution", [
+            'idempotency_key' => (string) Str::uuid(),
+            'service_date' => '2026-09-11',
+            'boat_id' => $allowed['boat_id'],
+            'trip_template_id' => $allowed['template_id'],
+            'slot_offering_id' => $allowed['slot_id'],
+        ])->assertNotFound();
 
         $early = $this->dossier('EARLY');
         $this->updateDossier($allowedId, $early);
-        $this->assertDatabaseHas('inquiries', ['id' => $allowedId, ...$early]);
+        $this->assertDatabaseHas('inquiries', ['id' => $allowedId, ...$this->storedDossier($early)]);
 
         $this->configureHoldPolicy($allowed['organization_id']);
         $this->post("/operator/inquiries/{$allowedId}/hold", ['idempotency_key' => (string) Str::uuid()])->assertStatus(303);
         $withHold = $this->dossier('HOLD');
         $this->updateDossier($allowedId, $withHold);
-        $this->assertDatabaseHas('inquiries', ['id' => $allowedId, ...$withHold]);
+        $this->assertDatabaseHas('inquiries', ['id' => $allowedId, ...$this->storedDossier($withHold)]);
 
         $holdId = (int) DB::table('inquiries')->where('id', $allowedId)->value('hold_id');
+        $this->assertDatabaseHas('holds', [
+            'id' => $holdId,
+            'organization_id' => $allowed['organization_id'],
+            'external_reference' => 'FICTIONAL-DOSSIER-LIFECYCLE',
+            'status' => 'ACTIVE',
+        ]);
         $this->post("/operator/inquiries/{$allowedId}/holds/{$holdId}/confirm", ['idempotency_key' => (string) Str::uuid()])->assertStatus(303);
         $confirmed = $this->dossier('CONFIRMED');
         $this->updateDossier($allowedId, $confirmed);
-        $this->assertDatabaseHas('inquiries', ['id' => $allowedId, ...$confirmed]);
+        $this->assertDatabaseHas('inquiries', ['id' => $allowedId, ...$this->storedDossier($confirmed)]);
         $this->assertDatabaseHas('bookings', ['hold_id' => $holdId, 'status' => 'CONFIRMED']);
+        $bookingId = (int) DB::table('bookings')->where('hold_id', $holdId)->value('id');
+        $this->assertDatabaseHas('trips', [
+            'organization_id' => $allowed['organization_id'],
+            'booking_id' => $bookingId,
+            'status' => 'PLANNED',
+        ]);
 
         $this->actingAs($denied['user']);
         $this->post("/operator/inquiries/{$deniedId}/dossier", [
@@ -170,7 +342,7 @@ class OperatorInquiryDossierTest extends TestCase
             'contact_name' => 'Fictional Changed Conflict Name',
         ])->assertConflict();
 
-        $this->assertDatabaseHas('inquiries', ['id' => $inquiryId, ...$payload]);
+        $this->assertDatabaseHas('inquiries', ['id' => $inquiryId, ...$this->storedDossier($payload)]);
         $this->assertDatabaseHas('idempotency_keys', [
             'organization_id' => $context['organization_id'],
             'operation' => $operation,
@@ -192,6 +364,11 @@ class OperatorInquiryDossierTest extends TestCase
         $created['contact_value'] = 'fictional-private-create@example.test';
         $created['meeting_point'] = 'Fictional Private Pier Create';
         $created['service_location'] = 'Fictional Private Dropoff Create';
+        $created['hotel_name'] = 'Fictional Private Hotel Create';
+        $created['room_number'] = 'Fictional Private Room Create';
+        $created['route_summary'] = 'Fictional Private Route Create';
+        $created['pickup_time'] = '03:17';
+        $created['child_ages'] = ['987654'];
         $created['service_notes'] = 'Fictional Private Service Notes Create';
         $created['internal_notes'] = 'Fictional Private Internal Notes Create';
         $this->actingAs($context['user']);
@@ -201,6 +378,11 @@ class OperatorInquiryDossierTest extends TestCase
         $updated['contact_value'] = '+66-000-PII-UPDATE';
         $updated['meeting_point'] = 'Fictional Private Pier Update';
         $updated['service_location'] = 'Fictional Private Dropoff Update';
+        $updated['hotel_name'] = 'Fictional Private Hotel Update';
+        $updated['room_number'] = 'Fictional Private Room Update';
+        $updated['route_summary'] = 'Fictional Private Route Update';
+        $updated['pickup_time'] = '04:19';
+        $updated['child_ages'] = ['876543'];
         $updated['service_notes'] = 'Fictional Private Service Notes Update';
         $updated['internal_notes'] = 'Fictional Private Internal Notes Update';
         $this->updateDossier($inquiryId, $updated);
@@ -214,8 +396,10 @@ class OperatorInquiryDossierTest extends TestCase
         $idempotencyJson = json_encode(DB::table('idempotency_keys')->orderBy('id')->get(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         foreach ([
             $created['contact_name'], $created['contact_value'], $created['meeting_point'], $created['service_location'],
+            $created['hotel_name'], $created['room_number'], $created['route_summary'], $created['pickup_time'], (string) $created['child_ages'][0],
             $created['service_notes'], $created['internal_notes'], 'Fictional private legacy note',
             $updated['contact_name'], $updated['contact_value'], $updated['meeting_point'], $updated['service_location'],
+            $updated['hotel_name'], $updated['room_number'], $updated['route_summary'], $updated['pickup_time'], (string) $updated['child_ages'][0],
             $updated['service_notes'], $updated['internal_notes'],
         ] as $rawValue) {
             $this->assertStringNotContainsString($rawValue, $auditJson);
@@ -228,9 +412,21 @@ class OperatorInquiryDossierTest extends TestCase
         $this->assertTrue($createdAudit['contact_name_present']);
         $this->assertTrue($createdAudit['contact_value_present']);
         $this->assertSame('EMAIL', $createdAudit['contact_method']);
+        $this->assertSame(1, $createdAudit['child_ages_count']);
+        $this->assertTrue($createdAudit['hotel_name_present']);
+        $this->assertTrue($createdAudit['room_number_present']);
+        $this->assertTrue($createdAudit['pickup_time_present']);
+        $this->assertTrue($createdAudit['route_summary_present']);
         $this->assertArrayNotHasKey('contact_name', $createdAudit);
         $this->assertArrayNotHasKey('contact_value', $createdAudit);
+        $this->assertArrayNotHasKey('child_ages', $createdAudit);
+        $this->assertArrayNotHasKey('hotel_name', $createdAudit);
+        $this->assertArrayNotHasKey('room_number', $createdAudit);
+        $this->assertArrayNotHasKey('pickup_time', $createdAudit);
+        $this->assertArrayNotHasKey('route_summary', $createdAudit);
         $this->assertContains('contact_name', $updatedAudit['changed_fields']);
+        $this->assertContains('hotel_name', $updatedAudit['changed_fields']);
+        $this->assertContains('route_summary', $updatedAudit['changed_fields']);
         $this->assertContains('service_notes', $updatedAudit['changed_fields']);
     }
 
@@ -264,7 +460,16 @@ class OperatorInquiryDossierTest extends TestCase
             foreach ($this->dossierFields() as $field) {
                 $this->assertStringNotContainsString($field, $responseBody);
             }
-            foreach ([$dossier['contact_name'], $dossier['contact_value'], $dossier['meeting_point'], $dossier['service_notes'], $dossier['internal_notes']] as $rawValue) {
+            foreach ([
+                $dossier['contact_name'],
+                $dossier['contact_value'],
+                $dossier['meeting_point'],
+                $dossier['hotel_name'],
+                $dossier['room_number'],
+                $dossier['route_summary'],
+                $dossier['service_notes'],
+                $dossier['internal_notes'],
+            ] as $rawValue) {
                 $this->assertStringNotContainsString($rawValue, $responseBody);
             }
         }
@@ -291,6 +496,7 @@ class OperatorInquiryDossierTest extends TestCase
     private function directInquiry(array $context, string $reference, array $dossier = []): int
     {
         $nullDossier = array_fill_keys($this->dossierFields(), null);
+        $storedDossier = $this->storedDossier($dossier);
 
         return DB::table('inquiries')->insertGetId([
             'organization_id' => $context['organization_id'],
@@ -302,7 +508,7 @@ class OperatorInquiryDossierTest extends TestCase
             'service_date' => '2026-09-10',
             'notes' => null,
             ...$nullDossier,
-            ...$dossier,
+            ...$storedDossier,
             'created_by_user_id' => $context['user']->id,
             'created_at' => now(),
             'updated_at' => now(),
@@ -420,6 +626,14 @@ class OperatorInquiryDossierTest extends TestCase
             'contact_method' => 'EMAIL',
             'contact_value' => 'fictional-'.strtolower($suffix).'@example.test',
             'party_size' => 7,
+            'adult_count' => 5,
+            'child_count' => 2,
+            'child_ages' => ['6', '21'],
+            'hotel_name' => "Fictional Hotel {$suffix}",
+            'room_number' => "Fictional Room {$suffix}",
+            'pickup_required' => '1',
+            'pickup_time' => '07:15',
+            'route_summary' => "Fictional Route {$suffix}",
             'meeting_point' => "Fictional Meeting Point {$suffix}",
             'service_location' => "Fictional Service Location {$suffix}",
             'sales_source' => 'FICTIONAL_DIRECT',
@@ -427,8 +641,38 @@ class OperatorInquiryDossierTest extends TestCase
             'service_notes' => "Fictional Service Notes {$suffix}",
             'internal_notes' => "Fictional Internal Notes {$suffix}",
             'selling_currency' => 'THB',
-            'selling_amount_minor' => 250000,
+            'selling_amount' => '2500.00',
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function storedDossier(array $input): array
+    {
+        $stored = $input;
+        if (array_key_exists('child_ages', $stored) && $stored['child_ages'] !== null && $stored['child_ages'] !== '') {
+            $ages = is_array($stored['child_ages'])
+                ? $stored['child_ages']
+                : (preg_split('/\R/u', (string) $stored['child_ages']) ?: []);
+            $stored['child_ages'] = json_encode(array_map('intval', array_values(array_filter($ages, static fn (mixed $age): bool => $age !== ''))), JSON_THROW_ON_ERROR);
+        }
+        if (array_key_exists('pickup_required', $stored)) {
+            $stored['pickup_required'] = $stored['pickup_required'] === '' || $stored['pickup_required'] === null
+                ? null
+                : (bool) $stored['pickup_required'];
+        }
+        if (isset($stored['pickup_time'])) {
+            $stored['pickup_time'] .= ':00';
+        }
+        if (array_key_exists('selling_amount', $stored)) {
+            [$whole, $fraction] = array_pad(explode('.', (string) $stored['selling_amount'], 2), 2, '');
+            $stored['selling_amount_minor'] = ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+            unset($stored['selling_amount']);
+        }
+
+        return $stored;
     }
 
     /** @return list<string> */
@@ -439,6 +683,14 @@ class OperatorInquiryDossierTest extends TestCase
             'contact_method',
             'contact_value',
             'party_size',
+            'adult_count',
+            'child_count',
+            'child_ages',
+            'hotel_name',
+            'room_number',
+            'pickup_required',
+            'pickup_time',
+            'route_summary',
             'meeting_point',
             'service_location',
             'sales_source',

@@ -193,6 +193,34 @@ final class OperatorUi
         return $name;
     }
 
+    public static function wallClockRange(?string $start, ?string $end): string
+    {
+        if ($start === null || $start === '' || $end === null || $end === '') {
+            return '未记录';
+        }
+
+        return substr($start, 0, 5).'–'.substr($end, 0, 5);
+    }
+
+    public static function durationMinutes(?int $minutes): string
+    {
+        if ($minutes === null || $minutes <= 0) {
+            return '未记录';
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        if ($hours === 0) {
+            return $remainingMinutes.' 分钟';
+        }
+        if ($remainingMinutes === 0) {
+            return $hours.' 小时';
+        }
+
+        return $hours.' 小时 '.$remainingMinutes.' 分钟';
+    }
+
     public static function auditAction(?string $action): string
     {
         if ($action === null || $action === '') {

@@ -33,6 +33,7 @@ Route::prefix('operator')->middleware(UseChineseOperatorUi::class)->name('operat
     Route::post('/inquiries', [InquiryController::class, 'store'])->middleware('operator.membership:booking_workflow')->name('inquiries.store');
     Route::get('/inquiries/{inquiry}', [InquiryController::class, 'show'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.show');
     Route::post('/inquiries/{inquiry}/dossier', [InquiryController::class, 'updateDossier'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.dossier.update');
+    Route::post('/inquiries/{inquiry}/execution', [InquiryController::class, 'updateExecution'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.execution.update');
     Route::post('/inquiries/{inquiry}/hold', [InquiryController::class, 'createHold'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.hold.create');
     Route::post('/inquiries/{inquiry}/hold/release', [InquiryController::class, 'releaseHold'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.hold.release');
     Route::post('/inquiries/{inquiry}/holds/{hold}/confirm', [BookingWorkflowController::class, 'confirm'])->whereNumber(['inquiry', 'hold'])->middleware('operator.membership:booking_workflow')->name('inquiries.booking.confirm');
