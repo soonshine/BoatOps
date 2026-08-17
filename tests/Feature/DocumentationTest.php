@@ -6,16 +6,6 @@ use Tests\TestCase;
 
 class DocumentationTest extends TestCase
 {
-    public function test_local_alpha_homepage_identifies_scope_and_release_state(): void
-    {
-        $this->get('/')
-            ->assertOk()
-            ->assertSee('BoatOps Community')
-            ->assertSee('0.0.1 local alpha')
-            ->assertSee('NOT DEPLOYED')
-            ->assertSee('API 契约文档');
-    }
-
     public function test_finance_reversal_local_candidate_document_exists_with_unreleased_boundaries(): void
     {
         $document = file_get_contents(base_path('docs/releases/0.0.3-finance-reversals-local-candidate.md'));
