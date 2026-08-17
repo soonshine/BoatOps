@@ -16,7 +16,7 @@ use App\Http\Middleware\ResolveDemoSiteContext;
 use App\Http\Middleware\UseChineseOperatorUi;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'home');
+Route::redirect('/', '/operator/today');
 
 Route::prefix('operator')->middleware(UseChineseOperatorUi::class)->name('operator.')->group(function (): void {
     Route::get('/login', [OperatorSessionController::class, 'create'])->name('login');
