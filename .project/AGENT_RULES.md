@@ -10,126 +10,156 @@ Before doing work, read in this order:
 
 1. `.project/CURRENT_STATE.yaml`
 2. `.project/CURRENT_GATE.md`
-3. the exact task code, diff, and tests in the assigned scope
+3. the exact task / code / diff / runtime evidence in the assigned scope
 
-Read `.project/PROJECT_CHARTER.md` only when a product boundary or invariant is relevant. Read `.project/REVIEW_QUEUE.md` only when triaging blockers or observed pain. Read historical receipts only when validating a concrete historical claim.
+Read `.project/PROJECT_CHARTER.md` whenever product scope, architecture, or an invariant is relevant.
 
-The current state, current gate, exact Git evidence, and newer explicit Owner authorization outrank stale historical receipts. Do not manufacture a governance preamble for routine progress.
+Do not require a Worker to reconstruct project history from old conversations. GitHub + current task evidence must be sufficient.
 
-## 2. Current execution model and hard stops
+## 2. Permanent decision filter
 
-Routine progress follows:
+Before adding any feature, abstraction, service, environment, agent, dashboard, workflow, field group, or governance layer, answer:
+
+> **如果不增加这个东西，下一个真实任务会完成不了吗？**
+
+If not, do not add it by default.
+
+Allowed reasons for current work:
+
+- a real operation cannot be completed;
+- a real operation is likely to be completed incorrectly;
+- repeated real-use friction is wasting meaningful time;
+- current operational truth cannot be trusted or observed;
+- a safety defect threatens real data or execution.
+
+Unproven future convenience is not enough.
+
+## 3. Routine execution model
+
+Routine BoatOps progress follows:
 
 ```text
-real problem
--> smallest task
--> implementation PR
--> test
--> merge
--> TEST / real use
--> observed pain
+real operational task
+-> identify the actual blocker or pain
+-> smallest bounded change
+-> validate
+-> deploy to boatops.ayany.com when authorized by the current task
+-> smoke check
+-> real use
+-> observe result
+-> record durable truth
 -> next minimum change
 ```
 
-`NO_GOVERNANCE_PR_FOR_ROUTINE_PROGRESS`
+Do not invent phases, work packages, readiness matrices, governance PRs, or release trains for routine work.
 
-Do not create a governance-only PR, new Gate, readiness matrix, or work package merely to advance routine implementation. State/document updates should normally travel in the same relevant PR.
+## 4. Single-runtime model
 
-No new feature development is allowed unless it addresses:
+The intended real operating surface is:
 
-- a `REAL_PILOT_BLOCKER`;
-- `OBSERVED_OPERATIONAL_PAIN`;
-- a `UNIVERSAL_CORE_SAFETY_DEFECT`.
+`https://boatops.ayany.com/`
 
-Keep these hard stops:
+A permanent TEST/staging environment is not a required gate.
 
-- no Production deployment without explicit authorization;
-- no Cutover or authority switch without explicit authorization;
-- no Tag or Release without explicit authorization;
-- no real-data import or historical migration outside an explicitly authorized scope;
-- no invented business facts, real credentials, or secrets in Git or reports.
+Temporary isolated databases, synthetic tests, local runtimes, or one-off validation environments may be used when a specific risk justifies them. They are implementation tools only.
 
-## 3. Product portability rule
+Never edit production source manually as a substitute for Git-based deployment.
 
-BoatOps is a reusable organization-scoped product.
+## 5. Source-of-truth contract
 
-- Ayany must not be hard-coded as tenant, vessel owner, operator, or required integration.
-- Vessel ownership and operating rights are not inferred from deployment hostname or demo fixtures.
-- Plan A / Plan B names, schedules, buffers, TTLs, prices, compatibility, weather rules, and operator identities are deployment/configuration data unless a gate explicitly freezes them.
-- Another organization must be able to deploy BoatOps without Ayany-specific code paths.
+- GitHub owns code and durable project state.
+- Production PostgreSQL owns real operational data.
+- The deployed Git SHA identifies running application code.
+- Chat, Worker memory, LINE, spreadsheets, and verbal updates are not competing SSOTs.
+- Do not create a second task system or second operational truth store without a proven blocker.
 
-## 4. Role contract
+## 6. Product architecture
 
-- Owner supplies product direction and real business rules, and grants merge/deployment/data authority.
-- Reviewer checks the bounded diff and exact evidence when review is requested.
-- Executor implements or runs only the authorized bounded task and supplies exact evidence.
-- Delegation or tool choice never changes scope or authority.
+Keep architecture small:
 
-An implementation/execution agent may report verified completion of its task but cannot grant Merge, Deployment, Cutover, or Release authority that the Owner did not provide.
+```text
+Operator Web
+-> Shared Application Actions
+-> PostgreSQL
+-> existing Audit / Idempotency / Outbox only where required
+```
 
-## 5. Evidence contract
+Rules:
 
-Every implementation handoff must include:
+- Web-first.
+- Thin controllers.
+- Reuse business actions across Web/API/jobs/agents.
+- Add public APIs or integrations only for a real consumer.
+- Prefer structured operational fields and stable IDs over important facts hidden in notes/chat.
+- Prefer explicit small state machines over free-text operational status.
 
-- starting commit and final commit;
-- exact files changed;
-- why each change is in scope;
-- complete test commands and exit codes;
-- test counts and assertion counts where applicable;
-- a clean `git status` result;
-- current GitHub CI URL and conclusion after push;
-- explicit `NOT_MERGED / NOT_DEPLOYED / NOT_TAGGED / NOT_RELEASED` status unless separately authorized;
-- any item that remains unverified, written as `NOT_VERIFIED` rather than guessed.
+## 7. Production safety
 
-Deployment handoffs must additionally record, without secrets:
+Direct real-use development does not remove safety controls.
 
-- exact source SHA;
-- release identifier;
-- dataset class;
-- runtime database type;
-- rollback/restore status when required by the gate;
-- integrity/checksum evidence required by the gate;
-- explicit production/real-data status.
+Before a production-affecting change, use controls proportional to the risk:
 
-Static inspection is not runtime proof. A successful local test is not public deployment proof. An executor report is not independent review.
+- run relevant automated checks;
+- inspect migration impact when schema changes;
+- back up production data when meaningful rollback requires it;
+- ensure a rollback/recovery path exists;
+- deploy an exact Git SHA;
+- run a focused smoke check;
+- verify no unexplained data mutation occurred.
 
-## 6. Git discipline
+Hard stops:
 
-- Start from the baseline recorded in `CURRENT_STATE.yaml` unless the gate explicitly changes it.
+- never expose or commit secrets, credentials, customer PII, production backups, or private contracts;
+- never run destructive synthetic tests against production data;
+- never perform an unexplained irreversible data mutation;
+- never bypass organization isolation or transactional inventory authority;
+- stop on failed safety checks, unexplained mutation, scope drift, or unreproducible runtime evidence.
+
+## 8. Operational invariants
+
+- PostgreSQL transaction results are authoritative for Boat occupancy conflicts.
+- HOLD / Confirm / Amend / Cancel / release / expiry / BLOCK remain atomic and auditable.
+- Calendar/availability projections never overrule transactional conflict checks.
+- Booking or Trip completion does not release physical inventory before the required occupied interval ends.
+- Cross-organization data is neither visible nor mutable.
+- UI simulations, spreadsheets, cached availability, ChannelHub, or AI suggestions cannot independently reserve inventory.
+
+## 9. Observability contract
+
+Prefer making operations observable before adding management/reporting features.
+
+A useful change should, where relevant, make it easier to know:
+
+- what must happen today;
+- who/which Boat is assigned or missing;
+- current execution status;
+- current blocker/incident;
+- what changed and who changed it;
+- which Git SHA is deployed;
+- application health, scheduler, backup and rollback state.
+
+## 10. Git discipline
+
+- Start from current `main` unless the task explicitly requires another base.
 - Use a dedicated branch for bounded work.
-- Preserve user changes and stop if the worktree contains unexplained modifications.
 - Keep commits single-purpose and reviewable.
-- Do not rewrite shared branch history.
-- Do not merge, Tag, Release, deploy, migrate data, or enable production while the relevant authorization flag is false.
-- Abandoned/superseded branches are never valid implementation baselines merely because they contain later commits.
+- Preserve unrelated user changes.
+- Do not rewrite shared history.
+- Record exact changed files, validation commands/results, final commit SHA, deploy status, and anything not verified.
 
-## 7. Demo safety rules
+An executor may report that its bounded task passed its evidence checks. It may not invent business facts or silently expand scope.
 
-- `public_read_only` means the whole served public Demo instance is read-only, not merely the `/demo` HTML forms.
-- Public Demo mode must close application API routes and all non-GET application writes before authentication and controllers.
-- Public Demo mode must fail closed unless an explicit isolated-dataset gate is true and the configured data store matches the approved Demo architecture.
-- Database-backed rate limiting, sessions, cache, or queues must not mutate the Demo application database during a public GET.
-- A Demo seeder may write only the explicitly resolved fictional organization. It may not iterate through every organization.
-- Tests must include an unrelated organization and prove zero cross-organization writes where the gate requires seeding/isolation validation.
-- Synthetic times remain `DEMO_DEFAULT_UNVERIFIED` or `FICTIONAL_VALIDATION_SCENARIO` until real rules are separately frozen.
-- A private fictional Operator surface may be used for bounded validation only when access and isolation match the approved deployment evidence.
+## 11. Progressive complexity
 
-## 8. Production inventory rules
+When a real problem appears, prefer modifying the smallest existing concept before introducing a new subsystem.
 
-- PostgreSQL transaction results are authoritative for conflicts in production.
-- Final HOLD and confirmation re-adjudicate the occupied interval.
-- UI simulations, cached availability, spreadsheets, and ChannelHub cannot reserve inventory.
-- Amend, cancel, release, expiry, and block operations require atomic state changes, inventory revision changes, and audit evidence.
-- Never treat Google Sheet availability as authoritative after BoatOps is approved as production truth.
+Examples:
 
-## 9. Security rules
+- use an existing status before creating a workflow engine;
+- use audit before creating analytics;
+- use a simple checklist before creating a task platform;
+- use configuration before creating an Admin UI;
+- use current application actions before creating an API-only duplicate path;
+- use one production runtime before maintaining multiple permanent environments.
 
-- Never paste or print a secret.
-- Use environment references or an approved secret source.
-- Never inspect cookies, passwords, browser storage, or session stores.
-- Do not save real credentials in test fixtures, screenshots, commands, reports, or Git.
-- If a credential appears in a log, stop feature work and run the rotation/revocation/cleanup/Git-scan gate first.
-
-## 10. Scope drift rule
-
-Do not silently expand implementation. Record adjacent work only when it is a proven Real Pilot blocker, observed operational pain, or universal core-safety defect. Routine state updates belong in the same relevant PR; unproven future ideas are not automatically queued and do not justify a governance PR.
+The correct architecture is the smallest architecture that can reliably execute the next real operation.
