@@ -32,15 +32,13 @@ The committed Nginx, scheduler, and queue-worker files already target this layou
 
 `/www/wwwroot/boatops.ayany.com/shared/.env` is server-local and must never be committed.
 
-Required real-use values include:
+Required production safety/runtime values include:
 
 ```dotenv
-APP_NAME=BoatOps
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://boatops.ayany.com
-APP_LOCALE=zh_CN
-APP_FALLBACK_LOCALE=en
+APP_KEY=<preserve the established server-local value>
 
 DB_CONNECTION=pgsql
 DB_HOST=<server-local value>
@@ -49,17 +47,14 @@ DB_DATABASE=<secret/local value>
 DB_USERNAME=<secret/local value>
 DB_PASSWORD=<secret/local value>
 
-SESSION_DRIVER=file
-CACHE_STORE=file
 QUEUE_CONNECTION=database
-
-BOATOPS_DEMO_SITE_ENABLED=false
-BOATOPS_DEMO_SITE_MODE=disabled
-BOATOPS_DEMO_SITE_ISOLATED_DATASET=false
-BOATOPS_DEMO_SITE_ALLOW_PRODUCTION_SEED=false
 ```
 
-Keep `APP_KEY` from the established runtime. Never regenerate it during a normal deploy.
+Keep `APP_KEY` from the established runtime. Never regenerate it during a normal deploy. The deploy script checks that it is present but never prints or replaces it.
+
+The Demo variables are optional in the production `.env`. When they are absent, the application defaults are fail-closed: `enabled=false`, `mode=disabled`, `isolated_dataset=false`, and `allow_production_seed=false`. If `BOATOPS_DEMO_SITE_ENABLED` is present, it must be `false`; the deploy script rejects an explicit attempt to enable the Demo site. Do not seed fictional Demo data in the production database.
+
+`SESSION_DRIVER` and `CACHE_STORE` are runtime-specific and are not pinned by this deployment contract. The deploy script leaves established server-local values untouched and does not fail merely because either key is absent; the selected backends are exercised by the authenticated Operator smoke.
 
 ## 3. One-time server wiring
 
@@ -69,6 +64,8 @@ If not already installed from the earlier BoatOps deployment:
 - Scheduler: `deploy/cron/boatops-scheduler`
 - Queue worker: `deploy/systemd/boatops-queue.service`
 - Certificate renewal: `deploy/cron/boatops-cert-renew`
+
+The scheduler is a required production dependency. Before every deployment, `/etc/cron.d/boatops-scheduler` must be readable and contain a once-per-minute `artisan schedule:run` entry. The deploy script fails before creating a release when that entry is absent or malformed; `routes/console.php` owns the `holds:expire` schedule invoked by it.
 
 Before real use, verify:
 
@@ -104,12 +101,14 @@ The script:
 2. creates a new immutable release directory;
 3. checks out the exact requested Git SHA;
 4. reuses shared `.env` and `storage`;
-5. installs locked Composer/npm dependencies and builds frontend assets;
+5. installs the locked Composer dependencies;
 6. runs production migrations;
 7. atomically switches `current`;
 8. restarts the queue worker;
 9. verifies `/up`, `/ -> /operator/today`, and unauthenticated `/operator/today -> /operator/login`;
 10. restores the previous code symlink automatically if smoke checks fail.
+
+The current real-operation Operator path is Blade-rendered and does not require Node.js/npm or a Vite build. Frontend build checks remain part of repository CI/local validation, but npm is intentionally not a production deployment prerequisite for this exact-SHA vertical slice.
 
 Database migrations are not automatically reversed when code rolls back. Production migrations must therefore be backward-compatible with the immediately previous release.
 

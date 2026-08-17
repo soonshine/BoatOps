@@ -7,10 +7,11 @@
         "build": "vite build",
         "dev": "vite",
         "test:contract:structure": "node tests/Contract/contract-structure.test.mjs",
+        "test:contract:deployment": "node tests/Contract/deploy-production-contract.test.mjs",
         "test:contract:openapi": "redocly lint contracts/inventory-provider/v1/openapi.yaml",
         "test:contract:operations": "redocly lint contracts/operations/v1/openapi.yaml",
         "test:contract:events": "node tests/Contract/validate-event-examples.mjs",
-        "test:contract": "npm run test:contract:structure && npm run test:contract:openapi && npm run test:contract:operations && npm run test:contract:events",
+        "test:contract": "npm run test:contract:structure && npm run test:contract:deployment && npm run test:contract:openapi && npm run test:contract:operations && npm run test:contract:events",
         "test:load:holds": "node tests/load/hold-concurrency.mjs"
     },
     "devDependencies": {

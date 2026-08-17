@@ -36,10 +36,10 @@ ROOT="${BOATOPS_ROOT:-/www/wwwroot/boatops.ayany.com}"
 REPO="${BOATOPS_REPO:-https://github.com/soonshine/BoatOps.git}"
 PHP_BIN="${BOATOPS_PHP:-/www/server/php/84/bin/php}"
 COMPOSER_BIN="${BOATOPS_COMPOSER:-composer}"
-NPM_BIN="${BOATOPS_NPM:-npm}"
 WEB_USER="${BOATOPS_WEB_USER:-www}"
 WEB_GROUP="${BOATOPS_WEB_GROUP:-www}"
 QUEUE_SERVICE="${BOATOPS_QUEUE_SERVICE:-boatops-queue.service}"
+SCHEDULER_CRON_FILE="${BOATOPS_SCHEDULER_CRON_FILE:-/etc/cron.d/boatops-scheduler}"
 SMOKE_BASE="${BOATOPS_SMOKE_BASE:-http://127.0.0.1:18081}"
 HOST_HEADER="${BOATOPS_HOST_HEADER:-boatops.ayany.com}"
 SHARED_ENV="$ROOT/shared/.env"
@@ -47,7 +47,7 @@ SHARED_STORAGE="$ROOT/shared/storage"
 RELEASES="$ROOT/releases"
 CURRENT="$ROOT/current"
 
-for command_name in git curl "$COMPOSER_BIN" "$NPM_BIN" systemctl; do
+for command_name in git curl "$COMPOSER_BIN" systemctl; do
     command -v "$command_name" >/dev/null 2>&1 || fail "missing command: $command_name"
 done
 [[ -x "$PHP_BIN" ]] || fail "PHP binary not executable: $PHP_BIN"
@@ -62,7 +62,25 @@ env_value() {
 [[ "$(env_value APP_DEBUG)" == "false" ]] || fail "APP_DEBUG must be false"
 [[ "$(env_value APP_URL)" == "https://boatops.ayany.com" || "$(env_value APP_URL)" == "https://boatops.ayany.com/" ]] || fail "APP_URL must be https://boatops.ayany.com"
 [[ "$(env_value DB_CONNECTION)" == "pgsql" ]] || fail "DB_CONNECTION must be pgsql"
-[[ "$(env_value BOATOPS_DEMO_SITE_ENABLED)" == "false" ]] || fail "public Demo must be disabled on the real-use runtime"
+[[ -n "$(env_value APP_KEY)" ]] || fail "APP_KEY must be present and preserved"
+
+DEMO_ENABLED="$(env_value BOATOPS_DEMO_SITE_ENABLED)"
+case "$DEMO_ENABLED" in
+    "")
+        echo "[BoatOps deploy] NOTICE: BOATOPS_DEMO_SITE_ENABLED is unset; application defaults keep Demo disabled"
+        ;;
+    false|FALSE|False)
+        ;;
+    *)
+        fail "BOATOPS_DEMO_SITE_ENABLED must be false when configured"
+        ;;
+esac
+
+[[ -r "$SCHEDULER_CRON_FILE" ]] || fail "missing BoatOps scheduler cron entry: $SCHEDULER_CRON_FILE"
+grep -Eq '^[[:space:]]*\*[[:space:]]+\*[[:space:]]+\*[[:space:]]+\*[[:space:]]+\*[[:space:]]+' "$SCHEDULER_CRON_FILE" \
+    || fail "BoatOps scheduler must run every minute: $SCHEDULER_CRON_FILE"
+grep -Eq 'artisan[[:space:]]+schedule:run([[:space:]]|$)' "$SCHEDULER_CRON_FILE" \
+    || fail "BoatOps scheduler cron entry must run artisan schedule:run: $SCHEDULER_CRON_FILE"
 
 mkdir -p "$RELEASES" "$ROOT/shared" "$SHARED_STORAGE"
 
@@ -90,8 +108,6 @@ mkdir -p "$SHARED_STORAGE/framework/cache" "$SHARED_STORAGE/framework/sessions" 
 chown -R "$WEB_USER:$WEB_GROUP" "$SHARED_STORAGE" bootstrap/cache
 
 "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
-"$NPM_BIN" ci --ignore-scripts
-"$NPM_BIN" run build
 
 "$PHP_BIN" artisan optimize:clear
 "$PHP_BIN" artisan migrate --force
