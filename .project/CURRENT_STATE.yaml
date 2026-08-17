@@ -1,6 +1,6 @@
-schema_version: 17
+schema_version: 18
 project: BoatOps
-updated_at: "2026-08-17T10:28:00+07:00"
+updated_at: "2026-08-17T11:05:00+07:00"
 
 current_phase: PRODUCTION_REAL_USE_CUTOVER
 
@@ -31,7 +31,7 @@ product_filter:
 runtime_model:
   mode: SINGLE_PRODUCTION_RUNTIME
   production_url: "https://boatops.ayany.com/"
-  production_status: NOT_YET_VERIFIED_LIVE
+  production_status: CANDIDATE_READY_DEPLOY_PENDING
   permanent_test_environment_required: false
   old_test_runtime:
     url: "http://43.156.151.62:8080"
@@ -117,8 +117,26 @@ production_delivery:
 current_code:
   repository: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  last_pre_architecture_change_main_sha: "46b3d9f4fe239c933f6c2e2e32c0449100b7faf0"
-  architecture_change_branch: "agent/real-use-loop-architecture"
+  production_candidate_sha: "cf49e11376eba356eeff855856d09d11637780c9"
+  production_candidate_pr: 35
+  production_candidate_ci: PASS
+  production_candidate_scope:
+    - ROOT_TO_OPERATOR_TODAY
+    - MINIMAL_EXACT_SHA_PRODUCTION_DEPLOY_SCRIPT
+    - PRODUCTION_RUNBOOK
+    - OBSOLETE_LOCAL_ALPHA_ROOT_ASSERTION_REMOVED
+  deploy_task_issue: 36
+  deployed_to_production: false
+
+validation_evidence:
+  php_tests: PASS
+  formatting: PASS
+  api_contracts: PASS
+  frontend_build: PASS
+  migration_round_trip: PASS
+  dependency_audit: PASS
+  whitespace: PASS
+  postgresql_concurrency: PASS
 
 existing_capability_evidence:
   synthetic_vertical_slice: PASS_HISTORICAL
@@ -135,7 +153,10 @@ owner_decisions_2026_08_17:
   architecture_basis: FIRST_PRINCIPLES_TO_PROGRESSIVE_COMPLEXITY
 
 next:
-  objective: MAKE_BOATOPS_AYANY_COM_THE_REAL_OPERATING_SURFACE
+  task: PROD-CUTOVER-001
+  issue: 36
+  objective: DEPLOY_PRODUCTION_CANDIDATE_AND_RETURN_RUNTIME_EVIDENCE
+  candidate_sha: "cf49e11376eba356eeff855856d09d11637780c9"
   rule: DO_NOT_ADD_NEW_FEATURE_UNLESS_NEEDED_FOR_NEXT_REAL_OPERATION
   production_cutover_verified: false
 
