@@ -26,21 +26,19 @@ Server layout:
     └── storage/
 ```
 
-The committed Nginx, scheduler, and queue-worker files already target this layout.
+The committed Nginx and scheduler files already target this layout.
 
 ## 2. Production `.env`
 
 `/www/wwwroot/boatops.ayany.com/shared/.env` is server-local and must never be committed.
 
-Required real-use values include:
+Required production safety/runtime values include:
 
 ```dotenv
-APP_NAME=BoatOps
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://boatops.ayany.com
-APP_LOCALE=zh_CN
-APP_FALLBACK_LOCALE=en
+APP_KEY=<preserve the established server-local value>
 
 DB_CONNECTION=pgsql
 DB_HOST=<server-local value>
@@ -49,17 +47,13 @@ DB_DATABASE=<secret/local value>
 DB_USERNAME=<secret/local value>
 DB_PASSWORD=<secret/local value>
 
-SESSION_DRIVER=file
-CACHE_STORE=file
-QUEUE_CONNECTION=database
-
-BOATOPS_DEMO_SITE_ENABLED=false
-BOATOPS_DEMO_SITE_MODE=disabled
-BOATOPS_DEMO_SITE_ISOLATED_DATASET=false
-BOATOPS_DEMO_SITE_ALLOW_PRODUCTION_SEED=false
 ```
 
-Keep `APP_KEY` from the established runtime. Never regenerate it during a normal deploy.
+Keep `APP_KEY` from the established runtime. Never regenerate it during a normal deploy. The deploy script checks that it is present but never prints or replaces it.
+
+The Demo variables are optional in the production `.env`. When they are absent, the application defaults are fail-closed: `enabled=false`, `mode=disabled`, `isolated_dataset=false`, and `allow_production_seed=false`. If `BOATOPS_DEMO_SITE_ENABLED` is present, it must be `false`; the deploy script rejects an explicit attempt to enable the Demo site. Do not seed fictional Demo data in the production database.
+
+`SESSION_DRIVER` and `CACHE_STORE` are runtime-specific and are not pinned by this deployment contract. The deploy script leaves established server-local values untouched and does not fail merely because either key is absent; the selected backends are exercised by the authenticated Operator smoke.
 
 ## 3. One-time server wiring
 
@@ -67,13 +61,15 @@ If not already installed from the earlier BoatOps deployment:
 
 - Nginx site: `deploy/nginx/boatops.ayany.com.conf`
 - Scheduler: `deploy/cron/boatops-scheduler`
-- Queue worker: `deploy/systemd/boatops-queue.service`
 - Certificate renewal: `deploy/cron/boatops-cert-renew`
+
+The scheduler is a required production dependency. Before every deployment, `/etc/cron.d/boatops-scheduler` must be readable and contain a once-per-minute `artisan schedule:run` entry. The deploy script fails before creating a release when that entry is absent or malformed; `routes/console.php` owns the `holds:expire` schedule invoked by it.
+
+The queue worker is not a current deployment or live gate. At approved application target `cf49e11376eba356eeff855856d09d11637780c9`, the application has no `ShouldQueue` implementation, queued Job/Listener, `dispatch()` path, or Queue/Bus facade call. The Operator booking path calls `ConfirmBookingAction` synchronously (`app/Http/Controllers/Operator/BookingWorkflowController.php:36`), and the required scheduler calls `ExpireDueHolds` synchronously (`app/Console/Commands/ExpireHolds.php:17`). Application actions insert outbox rows inside their database transactions (for example, `app/Application/Holds/ExpireDueHoldAction.php:64`), but there is no current in-repository queue consumer. `deploy/systemd/boatops-queue.service` remains only as a future wiring reference until a concrete queued workload exists.
 
 Before real use, verify:
 
 ```bash
-systemctl is-active boatops-queue.service
 /www/server/nginx/sbin/nginx -t
 curl -fsS -H 'Host: boatops.ayany.com' http://127.0.0.1:18081/up
 ```
@@ -104,12 +100,16 @@ The script:
 2. creates a new immutable release directory;
 3. checks out the exact requested Git SHA;
 4. reuses shared `.env` and `storage`;
-5. installs locked Composer/npm dependencies and builds frontend assets;
-6. runs production migrations;
-7. atomically switches `current`;
-8. restarts the queue worker;
+5. installs the locked Composer dependencies;
+6. inspects the checked-out release and builds locked frontend dependencies only when Vite/Mix assets are required;
+7. runs production migrations;
+8. atomically switches `current`;
 9. verifies `/up`, `/ -> /operator/today`, and unauthenticated `/operator/today -> /operator/login`;
 10. restores the previous code symlink automatically if smoke checks fail.
+
+The release-content check treats `public/build/manifest.json`, `public/mix-manifest.json`, an unguarded Blade `@vite`/`Vite::asset`, or a Blade `mix()` call as requiring frontend assets. In that case npm, `package.json`, and `package-lock.json` are mandatory; the deploy runs `npm ci --ignore-scripts`, `npm run build`, and fails closed unless a Vite/Mix manifest exists afterward.
+
+The approved target `cf49e11376eba356eeff855856d09d11637780c9` remains Blade-only for the real Operator path. Its only `@vite` is in the unused framework welcome template and is explicitly guarded by the presence of `public/build/manifest.json` or `public/hot`, with an inline fallback; the root route redirects directly to `/operator/today`. The deterministic check recognizes that exact optional guard, so this target skips npm. Any unguarded/future Vite or Mix reference fails closed when npm/build capability is unavailable.
 
 Database migrations are not automatically reversed when code rolls back. Production migrations must therefore be backward-compatible with the immediately previous release.
 
@@ -130,7 +130,7 @@ Then verify with the real Operator account:
 - Calendar loads;
 - Inquiry create/show loads;
 - no unexpected cross-organization data appears;
-- no unexplained application/queue error appears.
+- no unexplained application or scheduler error appears.
 
 Do not create fake production orders for acceptance. Use the next genuine operation or read-only checks until a real order exists.
 
@@ -142,7 +142,6 @@ BoatOps is `LIVE` only when all are true:
 public HTTPS works
 + exact deployed Git SHA known
 + PostgreSQL production connection confirmed
-+ queue active
 + scheduler active
 + backup exists
 + /up PASS
