@@ -1,10 +1,8 @@
 # BoatOps Current Guardrail
 
-Updated: 2026-08-17 10:28 Asia/Bangkok
+Updated: 2026-08-17 11:05 Asia/Bangkok
 
-This file is intentionally small.
-
-It is **not** a phase engine, readiness matrix, or release bureaucracy. It records only the immediate operating boundary for the next real task.
+This file is intentionally small. It is not a phase engine or readiness bureaucracy; it records only the immediate boundary for the next real task.
 
 ## Current decision
 
@@ -14,6 +12,10 @@ PRODUCTION_SURFACE = https://boatops.ayany.com/
 PERMANENT_TEST_GATE = NOT_REQUIRED
 DEVELOPMENT_MODEL = REAL_USE_LOOP
 NEW_FEATURE_DEFAULT = STOP_UNLESS_NEXT_REAL_OPERATION_NEEDS_IT
+PRODUCTION_CANDIDATE = cf49e11376eba356eeff855856d09d11637780c9
+CANDIDATE_CI = PASS
+PRODUCTION_DEPLOYMENT = PENDING_RUNTIME_EXECUTION
+DEPLOY_TASK = PROD-CUTOVER-001 / Issue #36
 ```
 
 ## Permanent question
@@ -26,63 +28,53 @@ If no, do not build it now.
 
 ## Allowed now
 
-- make the smallest change needed to put the existing BoatOps vertical slice into real operation;
-- configure and deploy `boatops.ayany.com` from an exact Git SHA;
-- make production deployment safe enough for the actual change: validation, migration check, backup/recovery, smoke check;
-- fix a blocker found during real operation;
-- fix observed operator pain;
-- improve SSOT or observability when real operations cannot be trusted or understood without it;
-- fix universal safety defects;
-- use temporary isolated tests only when a specific risk needs them.
+Only work required to complete the current production cutover or a proven safety blocker:
 
-## Not justified by default
+- create and verify the production PostgreSQL backup;
+- verify the server-local production `.env` without exposing secrets;
+- deploy the exact candidate SHA above using `deploy/scripts/deploy-production.sh`;
+- verify queue, scheduler, `/up`, root redirect, login boundary, and authenticated Operator access;
+- verify Today Operations, Calendar, and Inquiry create/show;
+- fix only a concrete blocker discovered during this cutover.
 
-- maintaining a permanent TEST/staging environment;
-- CAL-UX-004 or another feature sequence simply because the previous numbered item is finished;
-- new ERP modules;
-- generic CRM / finance / reporting platforms;
+## Not justified now
+
+- new BoatOps product features;
+- permanent TEST/staging environment;
+- CAL-UX-004 or another numbered feature sequence;
+- ERP / CRM / finance / reporting expansion;
 - second workflow engine or second task system;
-- broad Admin UI before repeated configuration pain exists;
+- broad Admin UI;
 - API / OTA / ChannelHub work without a real consumer;
-- dashboards that do not help current operations;
-- governance-only PRs, readiness matrices, or work packages for routine progress;
-- architecture abstraction for hypothetical future users.
+- dashboards unrelated to current operations;
+- governance-only work packages or readiness matrices.
 
 ## Hard safety boundaries
 
-The simplified model does not permit unsafe production shortcuts.
+Stop if the task would require:
 
-Stop if a task would require:
-
-- committing or exposing secrets / credentials / PII / production backups;
+- exposing or committing secrets, credentials, PII, or production backups;
 - destructive synthetic testing against production data;
 - unexplained irreversible production data mutation;
-- bypassing organization isolation;
-- bypassing transactional Boat occupancy conflict checks;
-- manual production source edits that are not represented in Git;
-- deploying code whose exact SHA cannot be identified;
-- proceeding after a failed relevant safety check without resolving or explicitly containing the risk.
+- bypassing organization isolation or transactional Boat occupancy checks;
+- manual production source edits not represented in Git;
+- deploying an unidentified or different Git SHA;
+- claiming LIVE without runtime evidence.
 
 ## Current next action
 
 ```text
-MAKE https://boatops.ayany.com/ THE REAL BOATOPS OPERATING SURFACE
+PROD-CUTOVER-001
+backup production PostgreSQL
+-> verify production env
+-> deploy cf49e11376eba356eeff855856d09d11637780c9
+-> smoke
+-> authenticated Operator check
+-> record deployed SHA and runtime evidence
+-> mark LIVE only after proof
 ```
 
-Minimum path:
-
-```text
-current usable BoatOps code
--> verify only deployment-critical configuration
--> backup / recovery path
--> deploy exact Git SHA
--> health + login + core workflow smoke
--> start real use
--> observe actual pain
--> next smallest change
-```
-
-Do not add unrelated features before this loop is running.
+No unrelated feature work before this loop is complete.
 
 ## Current SSOT boundary
 
@@ -93,4 +85,4 @@ boatops.ayany.com = real operator surface
 Git history = historical TEST / Gate evidence
 ```
 
-Old TEST evidence remains valid historical evidence, but it is no longer a mandatory step or active project gate.
+Old TEST evidence remains historical evidence only; it is not a mandatory step or active gate.
