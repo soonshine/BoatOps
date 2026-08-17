@@ -2,192 +2,229 @@
 
 Status: `ACTIVE`
 
-Charter version: `2.0`
+Charter version: `3.0`
 
-Effective: `2026-08-10` (when merged to `main`)
+Effective: `2026-08-17` after merge to `main`
 
 ## 1. Mission
 
-> **BoatOps exists to give real vessel operators one safe, simple source of truth for whole-vessel availability, bookings, and trip execution.**
+> **BoatOps exists to make real boat operations reliable, visible, and less dependent on human memory.**
 
-第一目标：让真实 Operator 每天安全、简单地管理整船库存、订单和出航。
-
-第二目标：在不牺牲第一目标的前提下，保持 organization-scoped、可复用、可自托管，不硬编码 Ayany、船只、时段、价格或渠道规则。
+第一目标不是建设完整船务 ERP，而是让下一笔真实船务任务能够更安全、更清楚地完成。
 
 永久优先级：
 
 > **Safety / Operational Truth > Time-to-Real-Use > Feature Completeness**
 
-## 2. Current product boundary
+## 2. Permanent development model
 
-Authoritative inventory model:
-
-`Organization + Boat + Occupied Interval`
-
-Current scope:
-
-- whole-vessel charter, yacht, speedboat, private excursion/tour;
-- Availability, HOLD, Booking, BLOCK, Trip, Audit;
-- organization-scoped operations.
-
-Not currently promised:
-
-- seat/ticket/shared-capacity inventory;
-- seats remaining, cabins, or passenger allocation;
-- generic local-activity capacity management.
-
-This is a deliberate boundary, not a missing seat-inventory feature.
-
-## 3. Primary surface and architecture
-
-Primary product surface: **Operator Web**
-
-```text
-Booking:   Availability -> Inquiry -> HOLD -> Confirm -> Amend / Cancel
-Trip:      Confirmed Booking -> Today's Trips -> Prepare -> Depart -> Return -> Complete
-Inventory: BLOCK -> Release
-Audit:     cross-cutting
-```
-
-Internal APIs, jobs, outbox, and events are secondary integration surfaces. Public API expansion requires a real consumer.
-
-```mermaid
-flowchart LR
-    Web["Operator Web"] --> Actions["Shared Application Actions"]
-    API["Internal API"] --> Actions
-    Jobs["Jobs"] --> Actions
-    Actions --> DB["Transactional PostgreSQL"]
-    Actions --> Support["Audit / Idempotency / Outbox"]
-```
-
-Web-first is a product priority, not a Web-owned business-rule path. Controllers remain thin authorization/validation/transport adapters.
-
-Four product layers:
-
-1. **Core Operational Truth** — Organization, Boat, Slot, Allocation, HOLD, Booking, BLOCK, Trip, Audit, Idempotency.
-2. **Operator Web** — the daily work surface; Blade + small JS until real use proves otherwise.
-3. **Integration Surface** — APIs/jobs/events; maintenance-first and contract-stable.
-4. **Candidate Foundations** — Finance/Fuel/Expense/Stock/Cash/Reversal/Rate; `FOUNDATION / NOT_CURRENT_PRODUCT_PRIORITY`.
-
-## 4. Permanent invariants
-
-1. PostgreSQL becomes final inventory-conflict authority only after explicit cutover.
-2. Final HOLD/Confirm/Amend/Cancel/release/expiry/BLOCK decisions are transactional and auditable.
-3. Calendar and availability are projections; commands re-adjudicate authority.
-4. Web/API/jobs use the same Application Actions.
-5. Service time, buffers, and occupied interval are distinct facts.
-6. **Booking or Trip completion must not end physical inventory authority before `occupied_end`.**
-7. **A completed Booking retains its required same-service-date slot-compatibility effect.**
-8. Trip/Booking lifecycle and inventory authority are related but not identical state machines.
-9. Cross-organization data is neither visible nor mutable.
-10. Demo and production data/runtime remain isolated.
-
-A green test or earlier review does not override a newly proven invariant violation. Implementation details belong to a bounded CODE Gate, not this Charter.
-
-## 5. Development model
+BoatOps 的默认顺序只有这一条：
 
 ```text
 FIRST PRINCIPLES
+-> define the real operational problem
 -> MINIMUM IMPLEMENTATION PATH
+-> choose the shortest path that can solve it
 -> VERTICAL SLICE
+-> complete the real end-to-end workflow
 -> TIME TO REAL USE
+-> put it into real use quickly
 -> FEEDBACK LOOP
--> SSOT
+-> let real use expose the next problem
+-> SINGLE SOURCE OF TRUTH
+-> keep operational facts trustworthy
 -> OBSERVABILITY
+-> know what is happening now
 -> PROGRESSIVE COMPLEXITY
+-> add complexity only when proven necessary
 ```
 
-There is no preplanned WP4/WP5/WP6.
+Every proposed feature, abstraction, service, workflow, environment, dashboard, automation, or governance layer must first answer:
 
-Every change must be the smallest observable, reversible vertical slice that protects a universal invariant or resolves demonstrated real-use pain.
+> **如果不增加这个东西，下一个真实任务会完成不了吗？**
 
-Permanent rule:
+If the answer is no, it is not current priority by default.
+
+## 3. First-principles operational questions
+
+BoatOps should progressively make these questions easy to answer:
+
+1. 今天有哪些订单要执行？
+2. 每个订单使用哪条船？
+3. 谁负责？
+4. 客人在哪里、几点接？
+5. 几点出航？
+6. 航线是什么？
+7. 有多少客人？
+8. 需要准备什么？
+9. 船当前是否可用？
+10. 是否有维修、天气或人员问题？
+11. 当前订单处于什么状态？
+12. 有异常时谁需要处理？
+13. 完成后留下什么记录？
+
+A feature that does not materially improve one of these questions needs explicit justification.
+
+## 4. Minimum real-use vertical slice
+
+The primary product surface is **Operator Web**.
+
+The minimum operational loop is:
 
 ```text
-NO NEW FEATURE DEVELOPMENT
-unless:
-  - REAL_PILOT_BLOCKER
-  - OBSERVED_OPERATIONAL_PAIN
-  - UNIVERSAL_CORE_SAFETY_DEFECT
+Order / Inquiry
+-> assign Boat
+-> assign responsible people
+-> confirm pickup / pier / departure / route / passenger count
+-> prepare required items
+-> pickup / boarding
+-> depart
+-> return
+-> complete
+-> retain audit / incident evidence
 ```
 
-Routine progress uses the real-use feedback loop. It does not require a separate governance PR or traversal through historical Gates.
+Inventory remains whole-vessel interval authority:
 
-Issue classes:
+```text
+Organization + Boat + Occupied Interval
+```
 
-- `core-safety` — incorrect operational truth;
-- `real-use-blocker` — Operator cannot finish the workflow;
-- `observed-pain` — repeated friction from real use;
-- `future` — unproven idea, not scheduled by default.
+Existing HOLD / Booking / BLOCK / Trip primitives are implementation tools for this loop, not reasons to expand product scope by themselves.
 
-## 6. Sources of truth and observability
+## 5. Architecture
+
+Keep the application architecture deliberately small:
+
+```text
+Operator Web
+    -> Shared Application Actions
+        -> PostgreSQL
+        -> Audit / Idempotency / Outbox where already required
+```
+
+Rules:
+
+- Web is the primary operating surface.
+- Controllers remain thin transport / authorization adapters.
+- Web, APIs, jobs, and agents must reuse the same business actions when they exist.
+- PostgreSQL is the operational data authority once BoatOps is used for the real workflow.
+- APIs, events, jobs, and integrations are added only for a demonstrated consumer.
+- Do not create a second workflow engine, second task system, or second operational SSOT.
+
+## 6. Single production runtime
+
+The intended real operating surface is:
+
+```text
+https://boatops.ayany.com/
+```
+
+BoatOps does **not** require a permanent TEST or staging environment as a routine development gate.
+
+Default delivery path:
+
+```text
+small bounded change
+-> automated/local validation
+-> backup / migration safety check when relevant
+-> deploy to boatops.ayany.com
+-> smoke check
+-> real operational use
+-> observe pain / error
+-> next minimum change
+```
+
+A temporary isolated test database or synthetic runtime may still be used when a specific risky change requires it, but it is a tool, not a mandatory project phase.
+
+Direct production development never means editing production source manually. GitHub remains the code and durable project-state authority.
+
+## 7. Sources of truth
 
 | Fact | Authority |
 | --- | --- |
-| Mission, scope, invariants, safety checkpoints | this Charter |
-| Current machine state | `.project/CURRENT_STATE.yaml` |
-| Allowed/forbidden/next action | `.project/CURRENT_GATE.md` |
-| Review blockers and evidence ledger | `.project/REVIEW_QUEUE.md` |
-| Code and tests | exact Git SHA/diff and reproducible CI |
-| Deployment | immutable manifest and receipt |
-| Operations after cutover | production PostgreSQL |
-| History | existing closure/release receipts and Git/PR history |
+| Mission, scope, principles, invariants | `.project/PROJECT_CHARTER.md` |
+| Current project/runtime state | `.project/CURRENT_STATE.yaml` |
+| Immediate allowed / forbidden / next action | `.project/CURRENT_GATE.md` |
+| Code and tests | Git commit + reproducible checks |
+| Deployed code identity | production deployment receipt / exact Git SHA |
+| Real operational data | production PostgreSQL |
+| Historical decisions and prior states | Git / PR history |
 
-Before cutover, BoatOps must not be described as live operational authority. Chat or executor self-report is not proof.
+Chat history, Worker self-report, spreadsheets, LINE messages, and employee memory are not competing operational authorities.
 
-Minimum Pilot observability must answer:
+## 8. Observability before analytics
 
-- who changed which object, when, and with what result;
-- why inventory blocked/released and which revision resulted;
-- idempotency replay/conflict and outbox failure status;
-- deployed source/config identity;
-- scheduler, health, backup/restore, and rollback status;
-- where an Operator left BoatOps to finish work and why.
+BoatOps must first make current operations visible.
 
-Reuse audit, idempotency, revision, outbox, constraints, health, and receipts before building analytics.
+Minimum useful observability:
 
-## 7. Progressive complexity and non-goals
+- today's orders and current status;
+- unassigned Boat / Captain / Crew / Driver when relevant;
+- Boat unavailable / blocked / maintenance condition;
+- pickup, boarding, departed, returned, completed status;
+- current incidents / blockers;
+- incomplete preparation tasks when they become necessary for execution;
+- who changed an operational fact, when, and what changed;
+- deployed source SHA, health, scheduler, backup and rollback status.
 
-Add only the smallest proven need:
+Reuse existing audit, status, health, revision, idempotency and database constraints before building a reporting platform.
 
-- capacity field only for real vessel-limit risk;
-- Product/Slot mapping only after repeated wrong combinations;
-- Admin Web only when repeat provisioning is error-prone;
-- Finance/CRM/reporting/maintenance only for a real blocker or repeated pain;
-- API/ChannelHub/OTA only for a real consumer.
+## 9. Safety invariants
 
-Current non-goals:
+Safety is a boundary, not a separate product bureaucracy.
 
+Permanent invariants:
+
+1. Cross-organization data is neither visible nor mutable.
+2. Boat occupancy conflicts are transactionally adjudicated in PostgreSQL.
+3. HOLD / Confirm / Amend / Cancel / BLOCK decisions remain auditable and fail closed on conflict.
+4. Booking or Trip completion must not release physical inventory before the required occupied interval ends.
+5. Service time, buffers, occupied interval, Trip lifecycle and inventory authority remain distinct facts.
+6. Real credentials, secrets, customer PII and production backups never enter public Git, fixtures, screenshots or reports.
+7. Before a risky production mutation, there must be a proportionate recovery path: backup, rollback, reversible migration, or an explicit reason it is unnecessary.
+
+Do not create a new Gate document, readiness matrix, or approval layer unless a real risk cannot be controlled without it.
+
+## 10. Progressive complexity
+
+Add only after real use proves the need. Examples:
+
+- capacity fields only when real vessel-limit handling needs them;
+- detailed preparation task models only when checklist omissions repeatedly cause execution errors;
+- maintenance module only when Boat availability cannot be managed reliably without structured maintenance state;
+- Admin UI only when repeated configuration work is error-prone;
+- Finance / fuel / stock / expense only when they block or materially degrade real operations;
+- API / ChannelHub / OTA only when a real consumer exists;
+- AI Agent autonomy only after the underlying operational state and human responsibility are clear.
+
+Current default non-goals:
+
+- complete ERP;
 - SPA rewrite;
-- ChannelHub/OTA/WordPress inventory integration;
-- payment gateway/full accounting/CRM/reporting platform;
-- broad Stock/Fuel UI, maintenance/documents, complex manifest;
-- full-history automation, SaaS super-admin, second-company onboarding;
-- public semantic-version Release.
+- generic workflow engine;
+- generic CRM / accounting / reporting platform;
+- multi-environment release bureaucracy;
+- features justified only by future possibility.
 
-## 8. Deployment boundaries
+## 11. Product portability
 
-Organization, vessel ownership/rights, schedules, buffers, HOLD TTL, compatibility, pricing, weather, and Operator identity are reviewed deployment facts.
+BoatOps remains organization-scoped and reusable.
 
-Future controlled provisioning should first use an idempotent reviewed manifest/one-time command with validation and rollback; a general Admin UI is not required until repeated deployment proves the need.
+Ayany, Plan C, vessel names, staff identities, schedules, prices and operating rules are configuration / operational facts, not hard-coded product assumptions.
 
-ChannelHub remains separate, never writes BoatOps tables, and cannot confirm from cache while BoatOps is unavailable. WordPress is not inventory authority. A spreadsheet may be an authorized migration/reconciliation source but cannot overrule BoatOps after cutover.
+Reusability must not delay real use. Build the smallest organization-scoped implementation that works now; generalize only when a second real case proves the need.
 
-## 9. Safety checkpoints
+## 12. Definition of progress
 
-These checkpoints are triggered only when the corresponding action occurs. They are not mandatory project phases before every implementation iteration.
+Progress is not the number of features, documents, PRs, tables, services, or agents.
 
-1. **CODE / MERGE** — exact diff, invariants, tests, CI, independent review; never deploys.
-2. **DEPLOYMENT** — exact source/config, PostgreSQL, secrets, scheduler, monitoring, backup/restore, rollback; never admits real data.
-3. **REAL DATA / CUTOVER** — admitted scope, reconciliation, rollback, prior-system boundary, authority-switch moment; never creates a public Release.
-4. **RELEASE** — license, version, Tag, GitHub Release, install/upgrade commitments.
+BoatOps progresses when a real operation becomes:
 
-`merge != deploy != cutover != release`
+- easier to execute;
+- harder to execute incorrectly;
+- easier to observe;
+- easier to recover;
+- less dependent on one person's memory.
 
-Passing tests or a Draft PR never advances another Gate.
-
-Owner grants product and Gate authority. Reviewer classifies scope/evidence. Executor performs only the bounded task and never self-approves.
-
-Secrets, cookies/browser storage, customer PII, real contracts/quotes/finance, and production backups are forbidden in public Git, reports, screenshots, and fixtures.
-
-Stop on scope drift, failed safety, unexplained mutation, unreproducible evidence, or any false authorization in `CURRENT_STATE.yaml`.
+The default next step is always the smallest change that improves the next real operation.
