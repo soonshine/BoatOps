@@ -222,15 +222,15 @@ ROOT_HEADERS="$(curl --silent --show-error --max-time 10 -I -H "Host: $HOST_HEAD
     rollback_code
     fail "root smoke request failed"
 }
-echo "$ROOT_HEADERS" | grep -Eqi '^HTTP/[^ ]+ 30[12378]' || { rollback_code; fail "root did not redirect"; }
-echo "$ROOT_HEADERS" | grep -Eqi '^Location: /operator/today\r?$' || { rollback_code; fail "root did not redirect to /operator/today"; }
+echo "$ROOT_HEADERS" | tr -d '\r' | grep -Eqi '^HTTP/[^ ]+ 30[12378]' || { rollback_code; fail "root did not redirect"; }
+echo "$ROOT_HEADERS" | tr -d '\r' | grep -Eqi '^Location: /operator/today$' || { rollback_code; fail "root did not redirect to /operator/today"; }
 
 TODAY_HEADERS="$(curl --silent --show-error --max-time 10 -I -H "Host: $HOST_HEADER" "$SMOKE_BASE/operator/today")" || {
     rollback_code
     fail "operator today smoke request failed"
 }
-echo "$TODAY_HEADERS" | grep -Eqi '^HTTP/[^ ]+ 30[12378]' || { rollback_code; fail "unauthenticated /operator/today did not redirect"; }
-echo "$TODAY_HEADERS" | grep -Eqi '^Location: .*/operator/login\r?$' || { rollback_code; fail "unauthenticated /operator/today did not redirect to login"; }
+echo "$TODAY_HEADERS" | tr -d '\r' | grep -Eqi '^HTTP/[^ ]+ 30[12378]' || { rollback_code; fail "unauthenticated /operator/today did not redirect"; }
+echo "$TODAY_HEADERS" | tr -d '\r' | grep -Eqi '^Location: .*/operator/login$' || { rollback_code; fail "unauthenticated /operator/today did not redirect to login"; }
 
 CURRENT_SHA="$(git -C "$CURRENT" rev-parse HEAD)"
 [[ "$CURRENT_SHA" == "$SHA" ]] || { rollback_code; fail "current symlink does not resolve to requested SHA"; }

@@ -67,6 +67,42 @@ assert.match(deployScript, /operator\/today/, 'Operator redirect smoke checks mu
 assert.match(deployScript, /rollback_code/, 'rollback path must remain');
 assert.match(deployScript, /CURRENT_SHA=\"\$\(git -C \"\$CURRENT\" rev-parse HEAD\)/, 'current release SHA must be verified');
 
+const redirectAssertionLines = deployScript
+  .split(/\r?\n/)
+  .filter((line) => /^echo \"\$(ROOT|TODAY)_HEADERS\" .*grep -Eqi /.test(line));
+assert.equal(redirectAssertionLines.length, 4, 'both redirect checks must retain status and Location assertions');
+assert.ok(
+  redirectAssertionLines.every((line) => line.includes("tr -d '\\r'")),
+  'all redirect header assertions must normalize CRLF before matching',
+);
+assert.ok(
+  redirectAssertionLines.every((line) => !line.includes('\\r?')),
+  'redirect assertions must not use the non-portable CRLF ERE marker',
+);
+
+const redirectPipelines = redirectAssertionLines.map((line) => line.split(' || ', 1)[0].trim());
+const redirectSmoke = [
+  'set -Eeuo pipefail',
+  'grep() {',
+  '  for argument in "$@"; do',
+  "    if [[ \"$argument\" == *'\\r'* ]]; then",
+  "      printf '%s\\n' 'grep: stray backslash before r' >&2",
+  '      return 2',
+  '    fi',
+  '  done',
+  '  command grep "$@"',
+  '}',
+  "ROOT_HEADERS=$'HTTP/1.1 302 Found\\r\\nLocation: /operator/today\\r\\n'",
+  "TODAY_HEADERS=$'HTTP/1.1 302 Found\\r\\nLocation: https://boatops.ayany.com/operator/login\\r\\n'",
+  ...redirectPipelines,
+].join('\n');
+const redirectSmokeResult = spawnSync('bash', ['-c', redirectSmoke], { encoding: 'utf8' });
+assert.equal(
+  redirectSmokeResult.status,
+  0,
+  redirectSmokeResult.stderr || 'CRLF redirect headers must pass the portable smoke assertions',
+);
+
 assert.match(deployScript, /release_requires_frontend_build/, 'release content must control frontend builds');
 assert.match(deployScript, /command -v \"\$NPM_BIN\"/, 'npm capability must fail closed when frontend assets are required');
 assert.match(deployScript, /\"\$NPM_BIN\" ci --ignore-scripts/, 'required frontend assets must use the lockfile install');
