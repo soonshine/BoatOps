@@ -1,8 +1,8 @@
-schema_version: 19
+schema_version: 20
 project: BoatOps
-updated_at: "2026-08-18T12:24:00+07:00"
+updated_at: "2026-08-18T12:32:00+07:00"
 
-current_phase: REAL_OPERATOR_USE
+current_phase: REAL_OPERATOR_USE_BLOCKED
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -31,7 +31,7 @@ product_filter:
 runtime_model:
   mode: SINGLE_PRODUCTION_RUNTIME
   production_url: "https://boatops.ayany.com/"
-  production_status: VERIFIED_LIVE
+  production_status: LIVE_OPERATOR_LOGIN_BLOCKED
   permanent_test_environment_required: false
   old_test_runtime:
     url: "http://43.156.151.62:8080"
@@ -134,20 +134,20 @@ validation_evidence:
   postgresql_concurrency: PASS
   production_deploy: PASS
   production_smoke: PASS
-  real_operator_login: PASS
-  today_operations: PASS
-  calendar: PASS
-  inquiry_surface: PASS
+  real_operator_login: REGRESSION_REPORTED_BY_OWNER
+  today_operations: PASS_PRIOR_SESSION
+  calendar: PASS_PRIOR_SESSION
+  inquiry_surface: PASS_PRIOR_SESSION
   existing_real_inquiry_show: AWAITING_FIRST_REAL_INQUIRY
-  organization_isolation: PASS
+  organization_isolation: PASS_PRIOR_SESSION
   production_data_changed_by_acceptance: false
 
 existing_capability_evidence:
   synthetic_vertical_slice: PASS_HISTORICAL
-  authenticated_operator_access: PASS_PRODUCTION
+  authenticated_operator_access: BLOCKED_REPORTED_BY_OWNER
   postgresql_backup_restore_rollback: PASS
-  today_operations_v1: VERIFIED_PRODUCTION
-  fleet_inventory_calendar: VERIFIED_PRODUCTION
+  today_operations_v1: VERIFIED_PRODUCTION_PRIOR_SESSION
+  fleet_inventory_calendar: VERIFIED_PRODUCTION_PRIOR_SESSION
   inquiry_hold_booking_trip_block_audit: IMPLEMENTED
 
 owner_decisions_2026_08_17:
@@ -157,10 +157,10 @@ owner_decisions_2026_08_17:
   architecture_basis: FIRST_PRINCIPLES_TO_PROGRESSIVE_COMPLEXITY
 
 next:
-  task: REAL_OPERATOR_USE
-  objective: EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
-  rule: DO_NOT_ADD_NEW_FEATURE_UNLESS_NEEDED_FOR_NEXT_REAL_OPERATION
-  production_cutover_verified: true
+  task: REPAIR_OPERATOR_LOGIN
+  objective: RESTORE_REAL_OPERATOR_LOGIN_AND_REVERIFY_FROM_FRESH_SESSION
+  rule: NO_CODE_CHANGE_UNLESS_RUNTIME_EVIDENCE_SHOWS_CODE_DEFECT
+  production_cutover_verified: false
 
 history_policy:
   detailed_test_gate_history: GIT_HISTORY
