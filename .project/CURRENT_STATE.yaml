@@ -1,8 +1,8 @@
-schema_version: 20
+schema_version: 21
 project: BoatOps
-updated_at: "2026-08-18T12:32:00+07:00"
+updated_at: "2026-08-18T12:43:00+07:00"
 
-current_phase: REAL_OPERATOR_USE_BLOCKED
+current_phase: REAL_OPERATOR_USE_BROWSER_RETRY
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -31,7 +31,7 @@ product_filter:
 runtime_model:
   mode: SINGLE_PRODUCTION_RUNTIME
   production_url: "https://boatops.ayany.com/"
-  production_status: LIVE_OPERATOR_LOGIN_BLOCKED
+  production_status: LIVE_BROWSER_RETRY_REQUIRED
   permanent_test_environment_required: false
   old_test_runtime:
     url: "http://43.156.151.62:8080"
@@ -134,20 +134,22 @@ validation_evidence:
   postgresql_concurrency: PASS
   production_deploy: PASS
   production_smoke: PASS
-  real_operator_login: REGRESSION_REPORTED_BY_OWNER
-  today_operations: PASS_PRIOR_SESSION
-  calendar: PASS_PRIOR_SESSION
-  inquiry_surface: PASS_PRIOR_SESSION
+  server_side_fresh_session_login: PASS
+  operator_user_unique: PASS
+  operator_membership_active: PASS
+  intended_password_hash_match: PASS
+  password_reset_performed: false
+  owner_browser_login: RETRY_REQUIRED
+  calendar_after_fresh_login: PASS
   existing_real_inquiry_show: AWAITING_FIRST_REAL_INQUIRY
-  organization_isolation: PASS_PRIOR_SESSION
-  production_data_changed_by_acceptance: false
+  production_data_changed_by_login_repair: false
 
 existing_capability_evidence:
   synthetic_vertical_slice: PASS_HISTORICAL
-  authenticated_operator_access: BLOCKED_REPORTED_BY_OWNER
+  authenticated_operator_access: SERVER_VERIFIED_OWNER_BROWSER_RETRY_REQUIRED
   postgresql_backup_restore_rollback: PASS
   today_operations_v1: VERIFIED_PRODUCTION_PRIOR_SESSION
-  fleet_inventory_calendar: VERIFIED_PRODUCTION_PRIOR_SESSION
+  fleet_inventory_calendar: VERIFIED_PRODUCTION
   inquiry_hold_booking_trip_block_audit: IMPLEMENTED
 
 owner_decisions_2026_08_17:
@@ -157,9 +159,9 @@ owner_decisions_2026_08_17:
   architecture_basis: FIRST_PRINCIPLES_TO_PROGRESSIVE_COMPLEXITY
 
 next:
-  task: REPAIR_OPERATOR_LOGIN
-  objective: RESTORE_REAL_OPERATOR_LOGIN_AND_REVERIFY_FROM_FRESH_SESSION
-  rule: NO_CODE_CHANGE_UNLESS_RUNTIME_EVIDENCE_SHOWS_CODE_DEFECT
+  task: OWNER_BROWSER_LOGIN_RETRY
+  objective: CONFIRM_REAL_OWNER_BROWSER_LOGIN_FROM_CLEAN_SESSION
+  rule: NO_SERVER_OR_CODE_CHANGE_UNLESS_CLEAN_BROWSER_RETRY_STILL_FAILS
   production_cutover_verified: false
 
 history_policy:
