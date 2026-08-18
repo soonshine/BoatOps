@@ -174,7 +174,7 @@ final class TripDeskController extends Controller
         }
 
         $nextActionLabel = match ($record->status) {
-            'PLANNED' => $ready ? '登记出航' : '完成出航准备',
+            'PLANNED' => $ready ? '登记出航' : '完成准备',
             'DEPARTED' => '登记返航',
             'RETURNED' => '完成任务',
             'COMPLETED' => '已完成',
