@@ -22,7 +22,7 @@ class OperatorAuditTest extends TestCase
         $this->audit($foreign, 'FOREIGN_SECRET_ACTION');
         $this->audit($denied, 'DENIED_ORGANIZATION_ACTION');
         $this->actingAs($allowed['user'])->get('/operator/audit')->assertOk()->assertSee('操作记录')->assertSee('只读')->assertSee('2026年9月1日 07:00')->assertSee('VISIBLE_FICTIONAL_ACTION')->assertDontSee('FOREIGN_SECRET_ACTION')->assertDontSee('DENIED_ORGANIZATION_ACTION');
-        $this->get('/operator/calendar?from=2026-09-01')->assertOk()->assertSee('/operator/audit', false);
+        $this->get('/operator/calendar?from=2026-09-01')->assertOk()->assertDontSee('/operator/audit', false);
         $this->actingAs($denied['user'])->get('/operator/audit')->assertForbidden();
     }
 
