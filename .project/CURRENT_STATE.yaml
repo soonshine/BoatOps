@@ -1,8 +1,8 @@
-schema_version: 21
+schema_version: 22
 project: BoatOps
-updated_at: "2026-08-18T12:43:00+07:00"
+updated_at: "2026-08-18T13:03:00+07:00"
 
-current_phase: REAL_OPERATOR_USE_BROWSER_RETRY
+current_phase: REAL_OPERATOR_USE
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -31,7 +31,7 @@ product_filter:
 runtime_model:
   mode: SINGLE_PRODUCTION_RUNTIME
   production_url: "https://boatops.ayany.com/"
-  production_status: LIVE_BROWSER_RETRY_REQUIRED
+  production_status: VERIFIED_LIVE
   permanent_test_environment_required: false
   old_test_runtime:
     url: "http://43.156.151.62:8080"
@@ -135,18 +135,18 @@ validation_evidence:
   production_deploy: PASS
   production_smoke: PASS
   server_side_fresh_session_login: PASS
+  owner_browser_clean_session_login: PASS
   operator_user_unique: PASS
   operator_membership_active: PASS
   intended_password_hash_match: PASS
   password_reset_performed: false
-  owner_browser_login: RETRY_REQUIRED
   calendar_after_fresh_login: PASS
   existing_real_inquiry_show: AWAITING_FIRST_REAL_INQUIRY
   production_data_changed_by_login_repair: false
 
 existing_capability_evidence:
   synthetic_vertical_slice: PASS_HISTORICAL
-  authenticated_operator_access: SERVER_VERIFIED_OWNER_BROWSER_RETRY_REQUIRED
+  authenticated_operator_access: PASS_PRODUCTION
   postgresql_backup_restore_rollback: PASS
   today_operations_v1: VERIFIED_PRODUCTION_PRIOR_SESSION
   fleet_inventory_calendar: VERIFIED_PRODUCTION
@@ -159,10 +159,10 @@ owner_decisions_2026_08_17:
   architecture_basis: FIRST_PRINCIPLES_TO_PROGRESSIVE_COMPLEXITY
 
 next:
-  task: OWNER_BROWSER_LOGIN_RETRY
-  objective: CONFIRM_REAL_OWNER_BROWSER_LOGIN_FROM_CLEAN_SESSION
-  rule: NO_SERVER_OR_CODE_CHANGE_UNLESS_CLEAN_BROWSER_RETRY_STILL_FAILS
-  production_cutover_verified: false
+  task: REAL_OPERATOR_USE
+  objective: EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
+  rule: DO_NOT_ADD_NEW_FEATURE_UNLESS_NEEDED_FOR_NEXT_REAL_OPERATION
+  production_cutover_verified: true
 
 history_policy:
   detailed_test_gate_history: GIT_HISTORY
