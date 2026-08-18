@@ -1,157 +1,183 @@
 @extends('operator.layout')
 
-@section('title', '出航 '.$trip->id)
+@section('title', '执行任务 '.$trip->id)
+
+@section('head')
+<style>
+.trip-page { width: min(100%, 1080px); margin: 0 auto; }
+.trip-back { display: inline-block; margin-bottom: .75rem; color: #526b82; font-size: .82rem; font-weight: 760; text-decoration: none; }
+.trip-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.trip-header h1 { margin: 0; font-size: clamp(1.5rem, 4vw, 2.2rem); }
+.trip-header p { margin: .3rem 0 0; color: #627d98; }
+.trip-next { align-self: start; padding: .35rem .6rem; border-radius: 999px; background: #e0f2fe; color: #075985; font-size: .75rem; font-weight: 850; }
+.trip-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; margin: 0 0 1rem; }
+.trip-fact { padding: .8rem; border: 1px solid #d7e1eb; border-radius: .7rem; background: #fff; }
+.trip-fact.wide { grid-column: span 2; }
+.trip-fact dt { color: #627d98; font-size: .68rem; font-weight: 820; }
+.trip-fact dd { margin: .12rem 0 0; color: #17324d; font-size: .88rem; font-weight: 720; overflow-wrap: anywhere; }
+.trip-section { margin: 1rem 0; padding: 1rem; border: 1px solid #d7e1eb; border-radius: .8rem; background: #fff; }
+.trip-section h2 { margin: 0 0 .7rem; font-size: 1.08rem; }
+.trip-section h3 { margin: 1rem 0 .55rem; font-size: .95rem; }
+.trip-note { padding: .7rem .8rem; border-radius: .6rem; background: #f8fafc; color: #526b82; white-space: pre-line; }
+.trip-warning { padding: .65rem .75rem; border: 1px solid #fed7aa; border-radius: .6rem; background: #fff7ed; color: #9a3412; }
+.trip-progress { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .7rem; }
+.trip-chip { padding: .28rem .52rem; border-radius: 999px; background: #f1f5f9; color: #40566d; font-size: .74rem; font-weight: 800; }
+.trip-chip.ready { background: #ecfdf3; color: #166534; }
+.trip-chip.pending { background: #fff7ed; color: #9a3412; }
+.trip-prep-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.trip-prep-grid input { width: 100%; }
+.trip-remove, .trip-add { border-color: #94a3b8; background: #fff; color: #334155; }
+.trip-add { margin: .4rem 0; }
+.trip-action { border-color: #bae6fd; background: #f8fdff; }
+.internal-meta { display: block; color: #71879b; font-size: .7rem; }
+@media (max-width: 760px) {
+    .trip-facts, .trip-prep-grid { grid-template-columns: 1fr; }
+    .trip-fact.wide { grid-column: auto; }
+}
+</style>
+@endsection
 
 @section('content')
-<h1>出航 #{{ $trip->id }}</h1>
-<p>组织时区：{{ $organization->timezone }}</p>
+<main class="trip-page">
+<a class="trip-back" href="{{ route('operator.today') }}">← 返回今日运营</a>
+<header class="trip-header">
+<div>
+<h1>{{ $trip->booking_reference ?: '任务 #'.$trip->id }}@if($trip->contact_name) · {{ $trip->contact_name }}@endif</h1>
+<p>{{ \App\Support\OperatorUi::dateTimeRange($trip->planned_start, $trip->planned_end, $organization->timezone) }} · {{ \App\Support\OperatorUi::status($trip->status) }}</p>
+</div>
+<span class="trip-next">下一步：{{ $nextActionLabel }}</span>
+</header>
 
-<section class="card">
-<h2>出航信息</h2>
-<div>出航状态：{{ \App\Support\OperatorUi::status($trip->status) }}</div>
-<div>计划时间：{{ \App\Support\OperatorUi::dateTimeRange($trip->planned_start, $trip->planned_end, $organization->timezone) }}</div>
-<div>实际出航：{{ \App\Support\OperatorUi::dateTime($trip->actual_departed_at, $organization->timezone) }}</div>
-<div>实际返航：{{ \App\Support\OperatorUi::dateTime($trip->actual_returned_at, $organization->timezone) }}</div>
-<div>完成时间：{{ \App\Support\OperatorUi::dateTime($trip->completed_at, $organization->timezone) }}</div>
-<div>船只：{{ $trip->boat_name }}</div>
-<div>产品 / 出航模板：{{ $trip->product_name }}</div>
-<div>准备状态：{{ $ready ? '已就绪，可出航' : '待准备' }}</div>
-<div>船员：{{ $crew->count() }} 人；必检项：{{ $completedRequiredCount }}/{{ $requiredCount }} 已完成。</div>
+<dl class="trip-facts">
+<div class="trip-fact"><dt>船只</dt><dd>{{ $trip->boat_name }}</dd></div>
+<div class="trip-fact"><dt>客人人数</dt><dd>{{ $trip->party_size !== null ? $trip->party_size.' 人' : '待补充' }}</dd></div>
+<div class="trip-fact"><dt>准备状态</dt><dd>{{ $ready ? '已就绪，可出航' : '待准备' }} · {{ $completedRequiredCount }}/{{ $requiredCount }} 必检完成</dd></div>
+<div class="trip-fact wide"><dt>路线</dt><dd>{{ $trip->route_summary ?: ($trip->product_name ?: '待补充') }}@if($trip->route_summary && $trip->product_name)<span class="internal-meta">任务模板：{{ $trip->product_name }}</span>@endif</dd></div>
+<div class="trip-fact"><dt>负责人 / 船员</dt><dd>@forelse($crew as $assignment){{ $assignment->display_name }}@if($assignment->duty)（{{ $assignment->duty }}）@endif{{ !$loop->last ? '、' : '' }}@empty待安排@endforelse</dd></div>
+<div class="trip-fact wide"><dt>接客 / 集合</dt><dd>@if($trip->pickup_required === null)待确认是否需要接送@elseif((bool) $trip->pickup_required){{ $trip->pickup_time ? substr((string) $trip->pickup_time, 0, 5) : '时间待补充' }} · {{ $trip->meeting_point ?: ($trip->hotel_name ?: '地点待补充') }}@if($trip->room_number) · 房间 {{ $trip->room_number }}@endif @else无需接送；{{ $trip->meeting_point ?: '集合地点待补充' }}@endif</dd></div>
+<div class="trip-fact"><dt>服务地点</dt><dd>{{ $trip->service_location ?: '待补充' }}</dd></div>
+</dl>
+
+@if($trip->service_notes || $trip->internal_notes)
+<section class="trip-section">
+<h2>执行备注</h2>
+@if($trip->service_notes)<p class="trip-note"><strong>服务要求：</strong> {{ $trip->service_notes }}</p>@endif
+@if($trip->internal_notes)<p class="trip-note"><strong>内部备注：</strong> {{ $trip->internal_notes }}</p>@endif
 </section>
-
-<section class="card">
-<h2>订单</h2>
-<div>订单号：{{ $trip->booking_reference }}</div>
-<div>订单状态：{{ \App\Support\OperatorUi::status($trip->booking_status) }}</div>
-<p><a href="{{ route('operator.bookings.show', $trip->booking_id) }}">打开订单</a></p>
-</section>
-
-<section class="card">
-<h2>运营资料</h2>
-@if($trip->inquiry_id)
-<div>联系人：{{ $trip->contact_name ?: '未提供' }}</div>
-<div>联系方式：{{ \App\Support\OperatorUi::contactMethod($trip->contact_method) }}{{ $trip->contact_value ? ' / '.$trip->contact_value : '' }}</div>
-<div>人数：{{ $trip->party_size ?: '未提供' }}</div>
-<div>集合地点：{{ $trip->meeting_point ?: '未提供' }}</div>
-<div>服务地点 / 下客点：{{ $trip->service_location ?: '未提供' }}</div>
-<div>客户 / 服务备注：{{ $trip->service_notes ?: '无' }}</div>
-<div>内部运营备注：{{ $trip->internal_notes ?: '无' }}</div>
-<div>销售来源：{{ $trip->sales_source ?: '未提供' }}</div>
-@else
-<p>未关联操作员询价资料。</p>
 @endif
-</section>
 
-<section class="card">
-<h2>船员安排</h2>
-<table><thead><tr><th>外部参考号</th><th>显示名称</th><th>角色</th><th>职责</th></tr></thead><tbody>
-@forelse($crew as $assignment)
-<tr><td>{{ $assignment->external_reference }}</td><td>{{ $assignment->display_name }}</td><td>{{ $assignment->role }}</td><td>{{ $assignment->duty }}</td></tr>
-@empty
-<tr><td colspan="4">尚未安排船员。</td></tr>
-@endforelse
+<section class="trip-section">
+<h2>人员与准备状态</h2>
+<div class="trip-progress">
+<span class="trip-chip {{ $crew->isNotEmpty() ? 'ready' : 'pending' }}">船员 {{ $crew->count() }} 人</span>
+<span class="trip-chip {{ $requiredCount > 0 && $requiredCount === $completedRequiredCount ? 'ready' : 'pending' }}">必检 {{ $completedRequiredCount }}/{{ $requiredCount }}</span>
+</div>
+@if($crew->isNotEmpty())
+<table><thead><tr><th>人员</th><th>角色</th><th>本次职责</th></tr></thead><tbody>
+@foreach($crew as $assignment)<tr><td>{{ $assignment->display_name }}<span class="internal-meta">{{ $assignment->external_reference }}</span></td><td>{{ $assignment->role }}</td><td>{{ $assignment->duty }}</td></tr>@endforeach
 </tbody></table>
-</section>
+@else
+<p class="trip-warning">尚未安排负责人 / 船员。</p>
+@endif
 
-<section class="card">
-<h2>检查清单</h2>
-<table><thead><tr><th>代码</th><th>检查项</th><th>必检</th><th>已完成</th><th>完成时间</th></tr></thead><tbody>
-@forelse($checklist as $item)
-<tr><td>{{ $item->code }}</td><td>{{ $item->label }}</td><td>{{ $item->required ? '是' : '否' }}</td><td>{{ $item->completed ? '是' : '否' }}</td><td>{{ $item->completed_at ? \App\Support\OperatorUi::dateTime($item->completed_at, $organization->timezone) : '未完成' }}</td></tr>
-@empty
-<tr><td colspan="5">暂无检查项。</td></tr>
-@endforelse
+@if($checklist->isNotEmpty())
+<h3>必检与准备项</h3>
+<table><thead><tr><th>检查项</th><th>必检</th><th>状态</th></tr></thead><tbody>
+@foreach($checklist as $item)<tr><td>{{ $item->label }}<span class="internal-meta">{{ $item->code }}</span></td><td>{{ $item->required ? '是' : '否' }}</td><td>{{ $item->completed ? '已完成' : '待完成' }}</td></tr>@endforeach
 </tbody></table>
+@else
+<p class="trip-warning">尚未建立出航检查清单。</p>
+@endif
 </section>
 
 @if($trip->status === 'PLANNED')
 @php($formCrewRows = old('crew', $crewRows))
 @php($formChecklistRows = old('checklist', $checklistRows))
-<section class="card">
-<h2>准备 / 重新准备</h2>
-<p>保存后将替换当前出航的船员安排和检查清单准备状态。</p>
-<p>登记出航前，必须至少安排一名船员并完成全部必检项目。</p>
+<section class="trip-section">
+<h2>出航准备</h2>
 <form method="post" action="{{ route('operator.trips.prepare', $trip->id) }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $prepareIdempotencyKey }}">
-<h3>船员安排</h3>
+<h3>负责人 / 船员</h3>
 <div data-rows="crew">
 @foreach($formCrewRows as $index => $row)
 <fieldset data-row>
-<label>外部参考号 <input name="crew[{{ $index }}][external_reference]" value="{{ $row['external_reference'] ?? '' }}" maxlength="255" required></label>
-<label>显示名称 <input name="crew[{{ $index }}][display_name]" value="{{ $row['display_name'] ?? '' }}" maxlength="255" required></label>
+<div class="trip-prep-grid">
+<label>员工编号（内部） <input name="crew[{{ $index }}][external_reference]" value="{{ $row['external_reference'] ?? '' }}" maxlength="255" required></label>
+<label>姓名 <input name="crew[{{ $index }}][display_name]" value="{{ $row['display_name'] ?? '' }}" maxlength="255" required></label>
 <label>角色 <input name="crew[{{ $index }}][role]" value="{{ $row['role'] ?? '' }}" maxlength="100" required></label>
-<label>职责 <input name="crew[{{ $index }}][duty]" value="{{ $row['duty'] ?? '' }}" maxlength="100" required></label>
-<button type="button" data-remove-row>删除该船员</button>
+<label>本次职责 <input name="crew[{{ $index }}][duty]" value="{{ $row['duty'] ?? '' }}" maxlength="100" required></label>
+</div>
+<button class="trip-remove" type="button" data-remove-row>删除该人员</button>
 </fieldset>
 @endforeach
 </div>
-<button type="button" data-add-row="crew">添加船员</button>
-
-<h3>检查清单</h3>
+<button class="trip-add" type="button" data-add-row="crew">添加人员</button>
+<h3>出航检查</h3>
 <div data-rows="checklist">
 @foreach($formChecklistRows as $index => $row)
 <fieldset data-row>
+<div class="trip-prep-grid">
 <label>代码 <input name="checklist[{{ $index }}][code]" value="{{ $row['code'] ?? '' }}" maxlength="100" pattern="[A-Z0-9_-]+" required></label>
 <label>检查项 <input name="checklist[{{ $index }}][label]" value="{{ $row['label'] ?? '' }}" maxlength="255" required></label>
+</div>
 <input type="hidden" name="checklist[{{ $index }}][required]" value="0"><label><input type="checkbox" name="checklist[{{ $index }}][required]" value="1" @checked((bool) ($row['required'] ?? false))> 必检</label>
 <input type="hidden" name="checklist[{{ $index }}][completed]" value="0"><label><input type="checkbox" name="checklist[{{ $index }}][completed]" value="1" @checked((bool) ($row['completed'] ?? false))> 已完成</label>
-<button type="button" data-remove-row>删除该检查项</button>
+<button class="trip-remove" type="button" data-remove-row>删除该检查项</button>
 </fieldset>
 @endforeach
 </div>
-<button type="button" data-add-row="checklist">添加检查项</button>
-<p><button>保存出航准备</button></p>
+<button class="trip-add" type="button" data-add-row="checklist">添加检查项</button>
+<p><button type="submit">保存出航准备</button></p>
 </form>
 </section>
 
-<section class="card">
-<h2>登记出航</h2>
-<p>{{ $ready ? '出航准备已完成。' : '船员或检查清单尚未完成；权威操作将拒绝出航。' }}</p>
+<section class="trip-section trip-action">
+<h2>下一步：登记出航</h2>
+@if(!$ready)<p class="trip-warning">必须至少安排一名船员，并完成全部必检项目后才能登记出航。</p>@endif
 <form method="post" action="{{ route('operator.trips.depart', $trip->id) }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $departIdempotencyKey }}">
 <label>实际出航时间（{{ $organization->timezone }}） <input type="datetime-local" name="departed_at" value="{{ $localNow }}" required></label>
-<button>登记出航</button>
+<button type="submit">登记出航</button>
 </form>
 </section>
 @elseif($trip->status === 'DEPARTED')
-<section class="card">
-<h2>登记返航</h2>
+<section class="trip-section trip-action">
+<h2>下一步：登记返航</h2>
 <form method="post" action="{{ route('operator.trips.return', $trip->id) }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $returnIdempotencyKey }}">
 <label>实际返航时间（{{ $organization->timezone }}） <input type="datetime-local" name="returned_at" value="{{ $localNow }}" required></label>
-<button>登记返航</button>
+<button type="submit">登记返航</button>
 </form>
 </section>
 @elseif($trip->status === 'RETURNED')
-<section class="card">
+<section class="trip-section trip-action">
 <h2>完成出航</h2>
-<p>完成时间使用当前服务器时间。</p>
+<p>确认已经返航并完成必要收尾后结束本次任务。</p>
 <form method="post" action="{{ route('operator.trips.complete', $trip->id) }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $completeIdempotencyKey }}">
-<button>完成出航</button>
+<button type="submit">完成任务</button>
 </form>
 </section>
 @endif
 
+<section class="trip-section">
+<h2>订单与联系方式</h2>
+<p>订单：<a href="{{ route('operator.bookings.show', $trip->booking_id) }}">打开订单：{{ $trip->booking_reference }}</a> · {{ \App\Support\OperatorUi::status($trip->booking_status) }}</p>
+@if($trip->inquiry_id)
+<p>联系人：{{ $trip->contact_name ?: '待补充' }}</p>
+<p>联系方式：{{ \App\Support\OperatorUi::contactMethod($trip->contact_method) }}{{ $trip->contact_value ? ' / '.$trip->contact_value : '' }}</p>
+<p>销售来源：{{ $trip->sales_source ?: '未记录' }}</p>
+@endif
+</section>
+</main>
+
 @if($trip->status === 'PLANNED')
-<template data-template="crew"><fieldset data-row>
-<label>外部参考号 <input name="crew[__INDEX__][external_reference]" maxlength="255" required></label>
-<label>显示名称 <input name="crew[__INDEX__][display_name]" maxlength="255" required></label>
-<label>角色 <input name="crew[__INDEX__][role]" maxlength="100" required></label>
-<label>职责 <input name="crew[__INDEX__][duty]" maxlength="100" required></label>
-<button type="button" data-remove-row>删除该船员</button>
-</fieldset></template>
-<template data-template="checklist"><fieldset data-row>
-<label>代码 <input name="checklist[__INDEX__][code]" maxlength="100" pattern="[A-Z0-9_-]+" required></label>
-<label>检查项 <input name="checklist[__INDEX__][label]" maxlength="255" required></label>
-<input type="hidden" name="checklist[__INDEX__][required]" value="0"><label><input type="checkbox" name="checklist[__INDEX__][required]" value="1" checked> 必检</label>
-<input type="hidden" name="checklist[__INDEX__][completed]" value="0"><label><input type="checkbox" name="checklist[__INDEX__][completed]" value="1"> 已完成</label>
-<button type="button" data-remove-row>删除该检查项</button>
-</fieldset></template>
+<template data-template="crew"><fieldset data-row><div class="trip-prep-grid"><label>员工编号（内部） <input name="crew[__INDEX__][external_reference]" maxlength="255" required></label><label>姓名 <input name="crew[__INDEX__][display_name]" maxlength="255" required></label><label>角色 <input name="crew[__INDEX__][role]" maxlength="100" required></label><label>本次职责 <input name="crew[__INDEX__][duty]" maxlength="100" required></label></div><button class="trip-remove" type="button" data-remove-row>删除该人员</button></fieldset></template>
+<template data-template="checklist"><fieldset data-row><div class="trip-prep-grid"><label>代码 <input name="checklist[__INDEX__][code]" maxlength="100" pattern="[A-Z0-9_-]+" required></label><label>检查项 <input name="checklist[__INDEX__][label]" maxlength="255" required></label></div><input type="hidden" name="checklist[__INDEX__][required]" value="0"><label><input type="checkbox" name="checklist[__INDEX__][required]" value="1" checked> 必检</label><input type="hidden" name="checklist[__INDEX__][completed]" value="0"><label><input type="checkbox" name="checklist[__INDEX__][completed]" value="1"> 已完成</label><button class="trip-remove" type="button" data-remove-row>删除该检查项</button></fieldset></template>
 <script>
 function nextRowIndex(type) {
     const container = document.querySelector('[data-rows="' + type + '"]');
@@ -160,18 +186,10 @@ function nextRowIndex(type) {
             const match = input.name.match(new RegExp('^' + type + '\\[(\\d+)\\]'));
             return match ? Number(match[1]) : null;
         })
-        .filter(function (index) {
-            return Number.isInteger(index);
-        });
-
+        .filter(function (index) { return Number.isInteger(index); });
     return indexes.length === 0 ? 0 : Math.max(...indexes) + 1;
 }
-
-const nextRowIndexes = {
-    crew: nextRowIndex('crew'),
-    checklist: nextRowIndex('checklist'),
-};
-
+const nextRowIndexes = { crew: nextRowIndex('crew'), checklist: nextRowIndex('checklist') };
 document.addEventListener('click', function (event) {
     const addButton = event.target.closest('[data-add-row]');
     if (addButton) {
@@ -183,9 +201,7 @@ document.addEventListener('click', function (event) {
         container.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', String(index)));
     }
     const removeButton = event.target.closest('[data-remove-row]');
-    if (removeButton) {
-        removeButton.closest('[data-row]').remove();
-    }
+    if (removeButton) removeButton.closest('[data-row]').remove();
 });
 </script>
 @endif

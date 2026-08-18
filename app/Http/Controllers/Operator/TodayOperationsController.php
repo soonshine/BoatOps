@@ -13,9 +13,11 @@ final class TodayOperationsController extends Controller
     public function index(Request $request): View
     {
         $organization = $request->attributes->get('organization');
+        $organizationId = (int) $organization->id;
         $today = CarbonImmutable::now((string) $organization->timezone)->startOfDay();
         $utcStart = $today->utc();
         $utcEnd = $today->addDay()->utc();
+
         $trips = DB::table('trips as trip')
             ->leftJoin('bookings as booking', function ($join): void {
                 $join->on('booking.id', '=', 'trip.booking_id')
@@ -45,7 +47,7 @@ final class TodayOperationsController extends Controller
                 $join->on('inquiry.hold_id', '=', 'booking.hold_id')
                     ->on('inquiry.organization_id', '=', 'trip.organization_id');
             })
-            ->where('trip.organization_id', (int) $organization->id)
+            ->where('trip.organization_id', $organizationId)
             ->where('trip.planned_start', '>=', $utcStart)
             ->where('trip.planned_start', '<', $utcEnd)
             ->select([
@@ -76,7 +78,17 @@ final class TodayOperationsController extends Controller
                 'boat.status as boat_status',
                 'product.id as related_product_id',
                 'product.name as product_name',
+                'inquiry.contact_name',
                 'inquiry.party_size',
+                'inquiry.pickup_required',
+                'inquiry.pickup_time',
+                'inquiry.meeting_point',
+                'inquiry.hotel_name',
+                'inquiry.room_number',
+                'inquiry.route_summary',
+                'inquiry.service_location',
+                'inquiry.service_notes',
+                'inquiry.internal_notes',
             ])
             ->selectSub(function ($query): void {
                 $query->from('blocks as active_block')
@@ -87,21 +99,72 @@ final class TodayOperationsController extends Controller
                     ->whereColumn('active_block.occupied_start', '<', 'allocation.occupied_end')
                     ->whereColumn('active_block.occupied_end', '>', 'allocation.occupied_start');
             }, 'active_block_count')
+            ->selectSub(function ($query): void {
+                $query->from('crew_assignments as crew_assignment')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('crew_assignment.organization_id', 'trip.organization_id')
+                    ->whereColumn('crew_assignment.trip_id', 'trip.id');
+            }, 'crew_count')
+            ->selectSub(function ($query): void {
+                $query->from('trip_checklists as checklist')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('checklist.organization_id', 'trip.organization_id')
+                    ->whereColumn('checklist.trip_id', 'trip.id')
+                    ->where('checklist.required', true);
+            }, 'required_checklist_count')
+            ->selectSub(function ($query): void {
+                $query->from('trip_checklists as checklist')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('checklist.organization_id', 'trip.organization_id')
+                    ->whereColumn('checklist.trip_id', 'trip.id')
+                    ->where('checklist.required', true)
+                    ->where('checklist.completed', true);
+            }, 'completed_required_count')
             ->orderBy('trip.planned_start')
             ->orderBy('trip.id')
-            ->get()
-            ->map(function (object $trip): object {
-                $trip->trip_detail_available = $trip->related_booking_id !== null
-                    && $trip->related_boat_id !== null
-                    && $trip->related_product_id !== null;
-                $trip->booking_detail_available = $trip->related_booking_id !== null
-                    && $trip->related_booking_boat_id !== null
-                    && $trip->related_booking_product_id !== null;
-                $trip->attention_reasons = $this->attentionReasons($trip);
-                $trip->needs_attention = $trip->attention_reasons !== [];
+            ->get();
 
-                return $trip;
-            });
+        $tripIds = $trips->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $crewByTrip = collect();
+        if ($tripIds !== []) {
+            $crewByTrip = DB::table('crew_assignments as assignment')
+                ->join('crew_members as crew', function ($join): void {
+                    $join->on('crew.id', '=', 'assignment.crew_member_id')
+                        ->on('crew.organization_id', '=', 'assignment.organization_id');
+                })
+                ->where('assignment.organization_id', $organizationId)
+                ->whereIn('assignment.trip_id', $tripIds)
+                ->select([
+                    'assignment.trip_id',
+                    'assignment.duty',
+                    'crew.display_name',
+                    'crew.role',
+                ])
+                ->orderBy('assignment.trip_id')
+                ->orderBy('assignment.id')
+                ->get()
+                ->groupBy('trip_id');
+        }
+
+        $trips = $trips->map(function (object $trip) use ($crewByTrip): object {
+            $trip->trip_detail_available = $trip->related_booking_id !== null
+                && $trip->related_boat_id !== null
+                && $trip->related_product_id !== null;
+            $trip->booking_detail_available = $trip->related_booking_id !== null
+                && $trip->related_booking_boat_id !== null
+                && $trip->related_booking_product_id !== null;
+            $trip->crew = $crewByTrip->get($trip->id, collect());
+            $trip->ready = (int) $trip->crew_count > 0
+                && (int) $trip->required_checklist_count > 0
+                && (int) $trip->required_checklist_count === (int) $trip->completed_required_count;
+            $trip->attention_reasons = $this->attentionReasons($trip);
+            $trip->needs_attention = $trip->attention_reasons !== [];
+            $trip->execution_gaps = $this->executionGaps($trip);
+            $trip->next_action_label = $this->nextActionLabel($trip);
+
+            return $trip;
+        });
+
         $attentionTrips = $trips->where('needs_attention', true)->values();
         $summary = [
             'total' => $trips->count(),
@@ -111,12 +174,22 @@ final class TodayOperationsController extends Controller
             'completed' => $trips->where('status', 'COMPLETED')->count(),
             'attention' => $attentionTrips->count(),
         ];
+        $workflowSummary = [
+            'preparing' => $trips->where('status', 'PLANNED')->where('ready', false)->count(),
+            'ready' => $trips->where('status', 'PLANNED')->where('ready', true)->count(),
+            'departed' => $summary['departed'],
+            'returned' => $summary['returned'],
+            'completed' => $summary['completed'],
+            'attention' => $summary['attention'],
+        ];
 
         return view('operator.today', [
             'organization' => $organization,
             'date' => $today->format('Y-m-d'),
             'dateLabel' => $today->format('Y年n月j日'),
+            'total' => $summary['total'],
             'summary' => $summary,
+            'workflowSummary' => $workflowSummary,
             'attentionTrips' => $attentionTrips,
             'trips' => $trips,
         ]);
@@ -181,5 +254,61 @@ final class TodayOperationsController extends Controller
         }
 
         return array_values(array_unique($reasons));
+    }
+
+    /** @return list<string> */
+    private function executionGaps(object $trip): array
+    {
+        if (! in_array($trip->status, ['PLANNED', 'DEPARTED', 'RETURNED'], true)) {
+            return [];
+        }
+
+        $gaps = [];
+        if ($trip->status === 'PLANNED') {
+            if ((int) $trip->crew_count === 0) {
+                $gaps[] = '未安排负责人 / 船员';
+            }
+            if ((int) $trip->required_checklist_count === 0) {
+                $gaps[] = '尚未建立必检清单';
+            } elseif ((int) $trip->completed_required_count < (int) $trip->required_checklist_count) {
+                $remaining = (int) $trip->required_checklist_count - (int) $trip->completed_required_count;
+                $gaps[] = '还有 '.$remaining.' 项必检未完成';
+            }
+        }
+        if ($trip->party_size === null) {
+            $gaps[] = '客人人数未记录';
+        }
+        if ($this->blank($trip->route_summary)) {
+            $gaps[] = '路线未记录';
+        }
+        if ($trip->pickup_required === null) {
+            $gaps[] = '接送需求待确认';
+        } elseif ((bool) $trip->pickup_required) {
+            if ($this->blank($trip->pickup_time)) {
+                $gaps[] = '接客时间未记录';
+            }
+            if ($this->blank($trip->meeting_point)) {
+                $gaps[] = '接客地点未记录';
+            }
+        }
+
+        return $gaps;
+    }
+
+    private function nextActionLabel(object $trip): string
+    {
+        return match ($trip->status) {
+            'PLANNED' => $trip->ready ? '登记出航' : '完成出航准备',
+            'DEPARTED' => '登记返航',
+            'RETURNED' => '完成任务',
+            'COMPLETED' => '已完成',
+            'CANCELLED' => '已取消',
+            default => '核对任务状态',
+        };
+    }
+
+    private function blank(mixed $value): bool
+    {
+        return $value === null || trim((string) $value) === '';
     }
 }
