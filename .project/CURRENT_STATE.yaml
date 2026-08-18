@@ -1,8 +1,8 @@
-schema_version: 18
+schema_version: 19
 project: BoatOps
-updated_at: "2026-08-17T11:05:00+07:00"
+updated_at: "2026-08-18T12:24:00+07:00"
 
-current_phase: PRODUCTION_REAL_USE_CUTOVER
+current_phase: REAL_OPERATOR_USE
 
 north_star:
   primary_user: REAL_VESSEL_OPERATOR
@@ -31,7 +31,7 @@ product_filter:
 runtime_model:
   mode: SINGLE_PRODUCTION_RUNTIME
   production_url: "https://boatops.ayany.com/"
-  production_status: CANDIDATE_READY_DEPLOY_PENDING
+  production_status: VERIFIED_LIVE
   permanent_test_environment_required: false
   old_test_runtime:
     url: "http://43.156.151.62:8080"
@@ -41,7 +41,7 @@ runtime_model:
 
 source_of_truth:
   code_and_project_state: GITHUB
-  operational_data: PRODUCTION_POSTGRESQL_AFTER_REAL_USE_CUTOVER
+  operational_data: PRODUCTION_POSTGRESQL
   deployed_code_identity: EXACT_GIT_SHA
   chat_is_authority: false
   spreadsheets_are_operational_authority: false
@@ -117,16 +117,11 @@ production_delivery:
 current_code:
   repository: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  production_candidate_sha: "cf49e11376eba356eeff855856d09d11637780c9"
+  production_sha: "cf49e11376eba356eeff855856d09d11637780c9"
   production_candidate_pr: 35
   production_candidate_ci: PASS
-  production_candidate_scope:
-    - ROOT_TO_OPERATOR_TODAY
-    - MINIMAL_EXACT_SHA_PRODUCTION_DEPLOY_SCRIPT
-    - PRODUCTION_RUNBOOK
-    - OBSOLETE_LOCAL_ALPHA_ROOT_ASSERTION_REMOVED
   deploy_task_issue: 36
-  deployed_to_production: false
+  deployed_to_production: true
 
 validation_evidence:
   php_tests: PASS
@@ -137,13 +132,22 @@ validation_evidence:
   dependency_audit: PASS
   whitespace: PASS
   postgresql_concurrency: PASS
+  production_deploy: PASS
+  production_smoke: PASS
+  real_operator_login: PASS
+  today_operations: PASS
+  calendar: PASS
+  inquiry_surface: PASS
+  existing_real_inquiry_show: AWAITING_FIRST_REAL_INQUIRY
+  organization_isolation: PASS
+  production_data_changed_by_acceptance: false
 
 existing_capability_evidence:
   synthetic_vertical_slice: PASS_HISTORICAL
-  authenticated_operator_access: PASS_HISTORICAL
-  postgresql_backup_restore_rollback: PASS_HISTORICAL
-  today_operations_v1: IMPLEMENTED_AND_PREVIOUSLY_RUNTIME_VERIFIED
-  fleet_inventory_calendar: IMPLEMENTED_AND_PREVIOUSLY_RUNTIME_VERIFIED
+  authenticated_operator_access: PASS_PRODUCTION
+  postgresql_backup_restore_rollback: PASS
+  today_operations_v1: VERIFIED_PRODUCTION
+  fleet_inventory_calendar: VERIFIED_PRODUCTION
   inquiry_hold_booking_trip_block_audit: IMPLEMENTED
 
 owner_decisions_2026_08_17:
@@ -153,12 +157,10 @@ owner_decisions_2026_08_17:
   architecture_basis: FIRST_PRINCIPLES_TO_PROGRESSIVE_COMPLEXITY
 
 next:
-  task: PROD-CUTOVER-001
-  issue: 36
-  objective: DEPLOY_PRODUCTION_CANDIDATE_AND_RETURN_RUNTIME_EVIDENCE
-  candidate_sha: "cf49e11376eba356eeff855856d09d11637780c9"
+  task: REAL_OPERATOR_USE
+  objective: EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
   rule: DO_NOT_ADD_NEW_FEATURE_UNLESS_NEEDED_FOR_NEXT_REAL_OPERATION
-  production_cutover_verified: false
+  production_cutover_verified: true
 
 history_policy:
   detailed_test_gate_history: GIT_HISTORY
