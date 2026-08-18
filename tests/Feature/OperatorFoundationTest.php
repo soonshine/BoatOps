@@ -14,7 +14,7 @@ class OperatorFoundationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_login_invalid_inactive_regeneration_and_logout(): void
+    public function test_login_invalid_persistent_regeneration_and_logout(): void
     {
         $c = $this->context();
         $this->get('/operator/login')->assertOk()
@@ -25,8 +25,10 @@ class OperatorFoundationTest extends TestCase
         $old = session()->getId();
         $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'wrong'])
             ->assertSessionHasErrors(['email' => '操作员账号或密码不正确。']);
-        $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'fictional-password'])->assertRedirect('/operator/calendar');
+        $this->post('/operator/login', ['email' => $c['user']->email, 'password' => 'fictional-password'])
+            ->assertRedirect('/operator/today');
         $this->assertNotSame($old, session()->getId());
+        $this->assertNotEmpty(DB::table('users')->where('id', $c['user']->id)->value('remember_token'));
         $this->post('/operator/logout')->assertRedirect('/operator/login');
         $this->assertGuest();
         DB::table('operator_memberships')->where('user_id', $c['user']->id)->update(['status' => 'INACTIVE']);
@@ -57,12 +59,24 @@ class OperatorFoundationTest extends TestCase
         $this->get('/locale-probe')->assertOk()->assertContent((string) config('app.locale'));
     }
 
-    public function test_login_landing_and_navigation_follow_first_granted_permission_and_fail_closed(): void
+    public function test_login_landing_and_navigation_follow_operational_home_and_permissions(): void
     {
         $matrix = [
-            'read-only' => [true, false, false, '/operator/calendar', ['/operator/calendar', '/operator/audit'], ['/operator/inquiries', '/operator/bookings', '/operator/trips', '/operator/blocks']],
-            'booking-only' => [false, true, false, '/operator/inquiries', ['/operator/inquiries', '/operator/bookings', '/operator/trips'], ['/operator/calendar', '/operator/audit', '/operator/blocks']],
-            'block-only' => [false, false, true, '/operator/blocks', ['/operator/blocks'], ['/operator/calendar', '/operator/audit', '/operator/inquiries', '/operator/bookings', '/operator/trips']],
+            'read-only' => [
+                true, false, false, '/operator/calendar',
+                ['/operator/calendar'],
+                ['/operator/today', '/operator/audit', '/operator/inquiries/create', '/operator/inquiries', '/operator/bookings', '/operator/trips', '/operator/blocks'],
+            ],
+            'booking-only' => [
+                false, true, false, '/operator/today',
+                ['/operator/today', '/operator/inquiries/create', '/operator/inquiries', '/operator/bookings'],
+                ['/operator/calendar', '/operator/audit', '/operator/trips', '/operator/blocks'],
+            ],
+            'block-only' => [
+                false, false, true, '/operator/blocks',
+                ['/operator/blocks'],
+                ['/operator/today', '/operator/calendar', '/operator/audit', '/operator/inquiries/create', '/operator/inquiries', '/operator/bookings', '/operator/trips'],
+            ],
         ];
 
         foreach ($matrix as $label => [$read, $booking, $block, $landing, $visible, $hidden]) {
@@ -94,7 +108,7 @@ class OperatorFoundationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_login_ignores_unauthorized_intended_route_and_uses_permission_priority(): void
+    public function test_login_ignores_unauthorized_intended_route_and_prefers_dashboard(): void
     {
         $bookingAndBlock = $this->context(false, true, true);
 
@@ -102,14 +116,14 @@ class OperatorFoundationTest extends TestCase
         $this->post('/operator/login', [
             'email' => $bookingAndBlock['user']->email,
             'password' => 'fictional-password',
-        ])->assertRedirect('/operator/inquiries');
+        ])->assertRedirect('/operator/today');
 
         $this->post('/operator/logout');
         $all = $this->context(true, true, true);
         $this->post('/operator/login', [
             'email' => $all['user']->email,
             'password' => 'fictional-password',
-        ])->assertRedirect('/operator/calendar');
+        ])->assertRedirect('/operator/today');
     }
 
     public function test_login_is_rate_limited_and_valid_login_still_succeeds(): void
@@ -127,7 +141,7 @@ class OperatorFoundationTest extends TestCase
 
         $valid = $this->context();
         $this->post('/operator/login', ['email' => $valid['user']->email, 'password' => 'fictional-password'])
-            ->assertRedirect('/operator/calendar');
+            ->assertRedirect('/operator/today');
         $this->assertAuthenticatedAs($valid['user']);
     }
 
@@ -143,7 +157,7 @@ class OperatorFoundationTest extends TestCase
 
         DB::table('operator_memberships')->where('user_id', $loginRecovery['user']->id)->update(['status' => 'ACTIVE']);
         $this->post('/operator/login', ['email' => $loginRecovery['user']->email, 'password' => 'fictional-password'])
-            ->assertRedirect('/operator/calendar');
+            ->assertRedirect('/operator/today');
 
         $logoutRecovery = $this->context();
         $this->actingAs($logoutRecovery['user'])->withSession(['_token' => 'fictional-inactive-logout-token']);
@@ -274,7 +288,7 @@ class OperatorFoundationTest extends TestCase
         try {
             $this->app->detectEnvironment(fn () => 'production');
             config(['demo_site.mode' => 'public_read_only', 'demo_site.isolated_dataset' => true, 'database.default' => 'sqlite', 'database.connections.sqlite.url' => null, 'cache.default' => 'file', 'cache.limiter' => 'file', 'session.driver' => 'file', 'queue.default' => 'sync']);
-            foreach (['/operator/login', '/operator/calendar', '/operator/blocks', '/operator/blocks/9/release', '/operator/inquiries', '/operator/inquiries/create', '/operator/inquiries/9', '/operator/inquiries/9/dossier', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release', '/operator/inquiries/9/holds/8/confirm', '/operator/inquiries/9/bookings/7/amend', '/operator/inquiries/9/bookings/7/cancel', '/operator/bookings', '/operator/bookings/7', '/operator/bookings/7/amend', '/operator/bookings/7/cancel', '/operator/trips', '/operator/trips/7', '/operator/trips/7/prepare', '/operator/trips/7/depart', '/operator/trips/7/return', '/operator/trips/7/complete'] as $p) {
+            foreach (['/operator/login', '/operator/today', '/operator/calendar', '/operator/audit', '/operator/blocks', '/operator/blocks/9/release', '/operator/inquiries', '/operator/inquiries/create', '/operator/inquiries/9', '/operator/inquiries/9/dossier', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release', '/operator/inquiries/9/holds/8/confirm', '/operator/inquiries/9/bookings/7/amend', '/operator/inquiries/9/bookings/7/cancel', '/operator/bookings', '/operator/bookings/7', '/operator/bookings/7/amend', '/operator/bookings/7/cancel', '/operator/trips', '/operator/trips/7', '/operator/trips/7/prepare', '/operator/trips/7/depart', '/operator/trips/7/return', '/operator/trips/7/complete'] as $p) {
                 $this->get($p)->assertNotFound();
             }$this->get('/api/v1/inventory/revision')->assertNotFound();
             foreach (['/operator/login', '/operator/blocks', '/operator/blocks/9/release', '/operator/inquiries/9/dossier', '/operator/inquiries/9/hold', '/operator/inquiries/9/hold/release', '/operator/inquiries/9/holds/8/confirm', '/operator/inquiries/9/bookings/7/amend', '/operator/inquiries/9/bookings/7/cancel', '/operator/bookings/7/amend', '/operator/bookings/7/cancel', '/operator/trips/7/prepare', '/operator/trips/7/depart', '/operator/trips/7/return', '/operator/trips/7/complete'] as $path) {
