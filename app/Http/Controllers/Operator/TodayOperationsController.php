@@ -167,20 +167,29 @@ final class TodayOperationsController extends Controller
 
         $attentionTrips = $trips->where('needs_attention', true)->values();
         $summary = [
-            'preparing' => $trips->where('status', 'PLANNED')->where('ready', false)->count(),
-            'ready' => $trips->where('status', 'PLANNED')->where('ready', true)->count(),
+            'total' => $trips->count(),
+            'planned' => $trips->where('status', 'PLANNED')->count(),
             'departed' => $trips->where('status', 'DEPARTED')->count(),
             'returned' => $trips->where('status', 'RETURNED')->count(),
             'completed' => $trips->where('status', 'COMPLETED')->count(),
             'attention' => $attentionTrips->count(),
+        ];
+        $workflowSummary = [
+            'preparing' => $trips->where('status', 'PLANNED')->where('ready', false)->count(),
+            'ready' => $trips->where('status', 'PLANNED')->where('ready', true)->count(),
+            'departed' => $summary['departed'],
+            'returned' => $summary['returned'],
+            'completed' => $summary['completed'],
+            'attention' => $summary['attention'],
         ];
 
         return view('operator.today', [
             'organization' => $organization,
             'date' => $today->format('Y-m-d'),
             'dateLabel' => $today->format('Y年n月j日'),
-            'total' => $trips->count(),
+            'total' => $summary['total'],
             'summary' => $summary,
+            'workflowSummary' => $workflowSummary,
             'attentionTrips' => $attentionTrips,
             'trips' => $trips,
         ]);
@@ -205,7 +214,7 @@ final class TodayOperationsController extends Controller
             $reasons[] = '船只关联缺失或不属于当前组织';
         }
         if ($trip->related_product_id === null) {
-            $reasons[] = '路线关联缺失或不属于当前组织';
+            $reasons[] = '产品 / 航线关联缺失或不属于当前组织';
         }
         if ($trip->related_booking_id !== null
             && ((int) $trip->booking_boat_id !== (int) $trip->boat_id
@@ -227,21 +236,21 @@ final class TodayOperationsController extends Controller
         if (in_array($trip->status, $activeStatuses, true)
             && $trip->related_boat_id !== null
             && $trip->boat_status !== 'ACTIVE') {
-            $reasons[] = '任务船只当前不可用';
+            $reasons[] = '任务船只当前不是生效状态';
         }
         if (in_array($trip->status, $activeStatuses, true) && (int) $trip->active_block_count > 0) {
-            $reasons[] = '船只在任务时段存在停用记录';
+            $reasons[] = '船只在任务时段存在生效中的停用记录';
         }
         if ($trip->status === 'DEPARTED' && $trip->actual_departed_at === null) {
-            $reasons[] = '已出航但缺少实际出航时间';
+            $reasons[] = '已出航任务缺少实际出航时间';
         }
         if ($trip->status === 'RETURNED'
             && ($trip->actual_departed_at === null || $trip->actual_returned_at === null)) {
-            $reasons[] = '已返航但缺少实际出航或返航时间';
+            $reasons[] = '已返航任务缺少实际出航或返航时间';
         }
         if ($trip->status === 'COMPLETED'
             && ($trip->actual_departed_at === null || $trip->actual_returned_at === null || $trip->completed_at === null)) {
-            $reasons[] = '已完成但执行时间记录不完整';
+            $reasons[] = '已完成任务缺少执行时间记录';
         }
 
         return array_values(array_unique($reasons));
