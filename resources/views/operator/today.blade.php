@@ -101,12 +101,12 @@
 <section aria-labelledby="today-summary-heading">
 <h2 id="today-summary-heading" class="sr-only">今日状态</h2>
 <dl class="today-summary-grid">
-<div class="today-summary-card summary-preparing"><dt>待准备</dt><dd>{{ $summary['preparing'] }}</dd></div>
-<div class="today-summary-card summary-ready"><dt>准备完成 / 待出航</dt><dd>{{ $summary['ready'] }}</dd></div>
-<div class="today-summary-card summary-departed"><dt>执行中</dt><dd>{{ $summary['departed'] }}</dd></div>
-<div class="today-summary-card summary-returned"><dt>已返航 / 待完成</dt><dd>{{ $summary['returned'] }}</dd></div>
-<div class="today-summary-card summary-completed"><dt>已完成</dt><dd>{{ $summary['completed'] }}</dd></div>
-<div class="today-summary-card summary-attention"><dt>异常需处理</dt><dd>{{ $summary['attention'] }}</dd></div>
+<div class="today-summary-card summary-preparing"><dt>待准备</dt><dd>{{ $workflowSummary['preparing'] }}</dd></div>
+<div class="today-summary-card summary-ready"><dt>准备完成 / 待出航</dt><dd>{{ $workflowSummary['ready'] }}</dd></div>
+<div class="today-summary-card summary-departed"><dt>执行中</dt><dd>{{ $workflowSummary['departed'] }}</dd></div>
+<div class="today-summary-card summary-returned"><dt>已返航 / 待完成</dt><dd>{{ $workflowSummary['returned'] }}</dd></div>
+<div class="today-summary-card summary-completed"><dt>已完成</dt><dd>{{ $workflowSummary['completed'] }}</dd></div>
+<div class="today-summary-card summary-attention"><dt>异常需处理</dt><dd>{{ $workflowSummary['attention'] }}</dd></div>
 </dl>
 </section>
 
@@ -132,8 +132,8 @@
 <p>{{ \App\Support\OperatorUi::dateTimeRange($trip->planned_start, $trip->planned_end, $organization->timezone) }} · {{ $trip->boat_name ?: '船只关联异常' }}</p>
 <ul>@foreach($trip->attention_reasons as $reason)<li>{{ $reason }}</li>@endforeach</ul>
 <div class="attention-actions">
-@if($trip->trip_detail_available)<a class="today-action" href="{{ route('operator.trips.show', $trip->id) }}">进入任务处理</a>@else<span class="action-unavailable">任务关联异常，详情暂不可打开</span>@endif
-@if($trip->booking_detail_available)<a class="today-action secondary" href="{{ route('operator.bookings.show', $trip->related_booking_id) }}">查看订单</a>@endif
+@if($trip->trip_detail_available)<a class="today-action" href="{{ route('operator.trips.show', $trip->id) }}">进入任务处理</a>@else<span class="action-unavailable">出航详情因关联异常暂不可打开</span>@endif
+@if($trip->booking_detail_available)<a class="today-action secondary" href="{{ route('operator.bookings.show', $trip->related_booking_id) }}">查看订单</a>@else<span class="action-unavailable">订单详情因关联异常暂不可打开</span>@endif
 </div>
 </article>
 @endforeach
@@ -175,7 +175,7 @@
 
 <dl class="task-details">
 <div><dt>船只</dt><dd>{{ $trip->boat_name ?: '未分配 / 关联异常' }}</dd></div>
-<div><dt>客人人数</dt><dd>{{ $trip->party_size !== null ? $trip->party_size.' 人' : '待补充' }}</dd></div>
+<div><dt>客人人数</dt><dd>{{ $trip->party_size !== null ? '人数：'.$trip->party_size : '待补充' }}</dd></div>
 <div class="wide"><dt>路线</dt><dd>{{ $trip->route_summary ?: ($trip->product_name ?: '待补充') }}</dd></div>
 <div class="wide"><dt>接客 / 集合</dt><dd>
 @if($trip->pickup_required === null)
@@ -222,9 +222,9 @@
 @if($trip->trip_detail_available)
 <a class="today-action" href="{{ route('operator.trips.show', $trip->id) }}">{{ $trip->next_action_label }}</a>
 @else
-<span class="action-unavailable">任务关联异常，暂不可执行</span>
+<span class="action-unavailable">出航详情因关联异常暂不可打开</span>
 @endif
-@if($trip->booking_detail_available)<a class="today-action secondary" href="{{ route('operator.bookings.show', $trip->related_booking_id) }}">订单详情</a>@endif
+@if($trip->booking_detail_available)<a class="today-action secondary" href="{{ route('operator.bookings.show', $trip->related_booking_id) }}">订单详情</a>@else<span class="action-unavailable">订单详情因关联异常暂不可打开</span>@endif
 </footer>
 </article>
 @endforeach
