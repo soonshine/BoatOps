@@ -18,6 +18,7 @@
 .trip-fact.wide { grid-column: span 2; }
 .trip-fact dt { color: #627d98; font-size: .68rem; font-weight: 820; }
 .trip-fact dd { margin: .12rem 0 0; color: #17324d; font-size: .88rem; font-weight: 730; overflow-wrap: anywhere; }
+.trip-fact small, .internal-meta { display: block; margin-top: .08rem; color: #71879b; font-size: .72rem; font-weight: 600; }
 .trip-section { margin: 1rem 0; padding: 1rem; border: 1px solid #d7e1eb; border-radius: .82rem; background: #fff; }
 .trip-section h2 { margin: 0 0 .7rem; font-size: 1.08rem; }
 .trip-section h3 { margin: 1rem 0 .55rem; font-size: .95rem; }
@@ -64,7 +65,7 @@
 <div class="trip-fact"><dt>船只</dt><dd>{{ $trip->boat_name }}</dd></div>
 <div class="trip-fact"><dt>客人人数</dt><dd>{{ $trip->party_size !== null ? $trip->party_size.' 人' : '待补充' }}</dd></div>
 <div class="trip-fact"><dt>准备状态</dt><dd>{{ $ready ? '已就绪，可出航' : '待准备' }} · {{ $completedRequiredCount }}/{{ $requiredCount }} 必检完成</dd></div>
-<div class="trip-fact wide"><dt>路线</dt><dd>{{ $trip->route_summary ?: ($trip->product_name ?: '待补充') }}</dd></div>
+<div class="trip-fact wide"><dt>路线</dt><dd>{{ $trip->route_summary ?: ($trip->product_name ?: '待补充') }}@if($trip->route_summary && $trip->product_name)<small>任务模板：{{ $trip->product_name }}</small>@endif</dd></div>
 <div class="trip-fact"><dt>负责人 / 船员</dt><dd>@forelse($crew as $assignment){{ $assignment->display_name }}@if($assignment->duty)（{{ $assignment->duty }}）@endif{{ !$loop->last ? '、' : '' }}@empty待安排@endforelse</dd></div>
 <div class="trip-fact wide"><dt>接客 / 集合</dt><dd>
 @if($trip->pickup_required === null)
@@ -95,7 +96,7 @@
 @if($crew->isNotEmpty())
 <table><thead><tr><th>人员</th><th>角色</th><th>本次职责</th></tr></thead><tbody>
 @foreach($crew as $assignment)
-<tr><td>{{ $assignment->display_name }}</td><td>{{ $assignment->role }}</td><td>{{ $assignment->duty }}</td></tr>
+<tr><td>{{ $assignment->display_name }}<small class="internal-meta">{{ $assignment->external_reference }}</small></td><td>{{ $assignment->role }}</td><td>{{ $assignment->duty }}</td></tr>
 @endforeach
 </tbody></table>
 @else
@@ -106,7 +107,7 @@
 <h3>必检与准备项</h3>
 <table><thead><tr><th>检查项</th><th>必检</th><th>状态</th></tr></thead><tbody>
 @foreach($checklist as $item)
-<tr><td>{{ $item->label }}</td><td>{{ $item->required ? '是' : '否' }}</td><td>{{ $item->completed ? '已完成' : '待完成' }}</td></tr>
+<tr><td>{{ $item->label }}<small class="internal-meta">{{ $item->code }}</small></td><td>{{ $item->required ? '是' : '否' }}</td><td>{{ $item->completed ? '已完成' : '待完成' }}</td></tr>
 @endforeach
 </tbody></table>
 @else
@@ -180,7 +181,7 @@
 </section>
 @elseif($trip->status === 'RETURNED')
 <section class="trip-section trip-action-panel">
-<h2>下一步：完成任务</h2>
+<h2>下一步：完成出航</h2>
 <p>确认任务已经返航并完成必要收尾后结束本次执行。</p>
 <form method="post" action="{{ route('operator.trips.complete', $trip->id) }}">
 @csrf
@@ -192,7 +193,7 @@
 
 <section class="trip-section">
 <h2>订单与联系方式</h2>
-<div>订单：<a href="{{ route('operator.bookings.show', $trip->booking_id) }}">{{ $trip->booking_reference }}</a> · {{ \App\Support\OperatorUi::status($trip->booking_status) }}</div>
+<div>订单：<a href="{{ route('operator.bookings.show', $trip->booking_id) }}">打开订单：{{ $trip->booking_reference }}</a> · {{ \App\Support\OperatorUi::status($trip->booking_status) }}</div>
 @if($trip->inquiry_id)
 <div>联系人：{{ $trip->contact_name ?: '待补充' }}</div>
 <div>联系方式：{{ \App\Support\OperatorUi::contactMethod($trip->contact_method) }}{{ $trip->contact_value ? ' / '.$trip->contact_value : '' }}</div>
