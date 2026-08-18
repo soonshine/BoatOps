@@ -32,7 +32,7 @@ final class OperatorSessionController extends Controller
     public function store(Request $r): RedirectResponse
     {
         $c = $r->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
-        if (! Auth::attempt($c, false)) {
+        if (! Auth::attempt($c, true)) {
             $this->clearSession($r);
             throw ValidationException::withMessages(['email' => ['操作员账号或密码不正确。']]);
         }
@@ -64,8 +64,8 @@ final class OperatorSessionController extends Controller
     private function firstGrantedRoute(?object $membership): ?string
     {
         return match (true) {
+            (bool) ($membership?->can_booking_workflow ?? false) => 'operator.today',
             (bool) ($membership?->can_calendar_read ?? false) => 'operator.calendar',
-            (bool) ($membership?->can_booking_workflow ?? false) => 'operator.inquiries.index',
             (bool) ($membership?->can_block ?? false) => 'operator.blocks.index',
             default => null,
         };
