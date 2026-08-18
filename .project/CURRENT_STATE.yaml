@@ -1,6 +1,6 @@
 schema_version: 22
 project: BoatOps
-updated_at: "2026-08-18T13:03:00+07:00"
+updated_at: "2026-08-18T21:18:53+07:00"
 
 current_phase: REAL_OPERATOR_USE
 
@@ -117,10 +117,10 @@ production_delivery:
 current_code:
   repository: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  production_sha: "cf49e11376eba356eeff855856d09d11637780c9"
-  production_candidate_pr: 35
+  production_sha: "17dc0adf8209d58cfa3912b91ed9c541f856fb41"
+  production_candidate_pr: 40
   production_candidate_ci: PASS
-  deploy_task_issue: 36
+  deploy_task_issue: 39
   deployed_to_production: true
 
 validation_evidence:
