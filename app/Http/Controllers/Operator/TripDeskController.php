@@ -117,6 +117,11 @@ final class TripDeskController extends Controller
                 'inquiries.contact_method',
                 'inquiries.contact_value',
                 'inquiries.party_size',
+                'inquiries.route_summary',
+                'inquiries.pickup_required',
+                'inquiries.hotel_name',
+                'inquiries.room_number',
+                'inquiries.pickup_time',
                 'inquiries.meeting_point',
                 'inquiries.service_location',
                 'inquiries.service_notes',
@@ -168,6 +173,15 @@ final class TripDeskController extends Controller
             $checklistRows[] = ['code' => '', 'label' => '', 'required' => true, 'completed' => false];
         }
 
+        $nextActionLabel = match ($record->status) {
+            'PLANNED' => $ready ? '登记出航' : '完成出航准备',
+            'DEPARTED' => '登记返航',
+            'RETURNED' => '完成任务',
+            'COMPLETED' => '已完成',
+            'CANCELLED' => '已取消',
+            default => '核对任务状态',
+        };
+
         return view('operator.trips.show', [
             'organization' => $organization,
             'trip' => $record,
@@ -178,6 +192,7 @@ final class TripDeskController extends Controller
             'requiredCount' => $requiredCount,
             'completedRequiredCount' => $completedRequiredCount,
             'ready' => $ready,
+            'nextActionLabel' => $nextActionLabel,
             'localNow' => CarbonImmutable::now((string) $organization->timezone)->format('Y-m-d\TH:i'),
             'prepareIdempotencyKey' => (string) Str::uuid(),
             'departIdempotencyKey' => (string) Str::uuid(),
