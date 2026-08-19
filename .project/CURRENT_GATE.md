@@ -1,22 +1,23 @@
 # BoatOps Current Guardrail
 
-Updated: 2026-08-17 11:05 Asia/Bangkok
+Updated: 2026-08-19 Asia/Bangkok
 
-This file is intentionally small. It is not a phase engine or readiness bureaucracy; it records only the immediate boundary for the next real task.
+This file is intentionally small. It records only the immediate boundary for the next real task; it is not a phase engine or second task system.
 
 ## Current decision
 
 ```text
-PRIMARY_GOAL = REAL_OPERATION_USE
+PRIMARY_GOAL = REAL_OPERATOR_USE
 PRODUCTION_SURFACE = https://boatops.ayany.com/
-PERMANENT_TEST_GATE = NOT_REQUIRED
+PRODUCTION_SHA = 17dc0adf8209d58cfa3912b91ed9c541f856fb41
+PRODUCTION_DEPLOYMENT = VERIFIED_LIVE
 DEVELOPMENT_MODEL = REAL_USE_LOOP
+NEXT_PROJECT_OBJECTIVE = EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
+ACTIVE_DSH_MISSION = NONE
 NEW_FEATURE_DEFAULT = STOP_UNLESS_NEXT_REAL_OPERATION_NEEDS_IT
-PRODUCTION_CANDIDATE = cf49e11376eba356eeff855856d09d11637780c9
-CANDIDATE_CI = PASS
-PRODUCTION_DEPLOYMENT = PENDING_RUNTIME_EXECUTION
-DEPLOY_TASK = PROD-CUTOVER-001 / Issue #36
 ```
+
+The prior dashboard deployment Mission is complete; its durable task record is Issue #39 with `dsh:done`.
 
 ## Permanent question
 
@@ -28,26 +29,24 @@ If no, do not build it now.
 
 ## Allowed now
 
-Only work required to complete the current production cutover or a proven safety blocker:
+- run the next real boat operation through the production Operator Dashboard;
+- capture concrete missing facts, friction, safety blockers, or observability gaps from real use;
+- fix a small bounded blocker that real use proves is necessary;
+- prepare a bounded GitHub Issue Mission with explicit `GOAL / ACCEPTANCE / ALLOWED / STOP-ESCALATE`;
+- arm that Mission for DSH only by adding `dsh:ready`.
 
-- create and verify the production PostgreSQL backup;
-- verify the server-local production `.env` without exposing secrets;
-- deploy the exact candidate SHA above using `deploy/scripts/deploy-production.sh`;
-- verify queue, scheduler, `/up`, root redirect, login boundary, and authenticated Operator access;
-- verify Today Operations, Calendar, and Inquiry create/show;
-- fix only a concrete blocker discovered during this cutover.
+An open Issue without a DSH execution label is not automatically the current executable Mission.
 
 ## Not justified now
 
-- new BoatOps product features;
+- speculative BoatOps features;
 - permanent TEST/staging environment;
-- CAL-UX-004 or another numbered feature sequence;
 - ERP / CRM / finance / reporting expansion;
-- second workflow engine or second task system;
+- second workflow engine, second task system, or Mission database;
+- project-local watcher or scheduler;
 - broad Admin UI;
 - API / OTA / ChannelHub work without a real consumer;
-- dashboards unrelated to current operations;
-- governance-only work packages or readiness matrices.
+- governance-only expansion unrelated to the next real operation.
 
 ## Hard safety boundaries
 
@@ -59,30 +58,39 @@ Stop if the task would require:
 - bypassing organization isolation or transactional Boat occupancy checks;
 - manual production source edits not represented in Git;
 - deploying an unidentified or different Git SHA;
-- claiming LIVE without runtime evidence.
+- changing product intent, Acceptance Criteria, or Mission scope without Control Plane approval;
+- claiming runtime success without evidence.
 
 ## Current next action
 
 ```text
-PROD-CUTOVER-001
-backup production PostgreSQL
--> verify production env
--> deploy cf49e11376eba356eeff855856d09d11637780c9
--> smoke
--> authenticated Operator check
--> record deployed SHA and runtime evidence
--> mark LIVE only after proof
+NEXT REAL OPERATION
+-> use existing Dashboard and operational records
+-> observe what staff cannot see or execute reliably
+-> record the smallest proven gap
+-> create one bounded Mission if a change is required
+-> validate
+-> deploy only when explicitly authorized
+-> observe again
 ```
 
-No unrelated feature work before this loop is complete.
+## DSH handoff pointer
+
+```text
+Entrypoint: AGENTS.md
+Project authority: .project/PROJECT_CHARTER.md + .project/CURRENT_STATE.yaml + this file
+Mission authority: owning GitHub Issue
+Verification: task-specific checks + scripts/check.sh where code changes exist
+Durable writeback: same Issue + commit / PR / tests / deployment evidence
+Execution labels: dsh:ready / dsh:running / dsh:done / dsh:blocked
+```
 
 ## Current SSOT boundary
 
 ```text
-GitHub = code + durable project state
-production PostgreSQL = real operational data after cutover
+GitHub = code + durable project/task state
+production PostgreSQL = real operational data
 boatops.ayany.com = real operator surface
-Git history = historical TEST / Gate evidence
+Git history / PR / CI / deployment receipt = implementation and deployment evidence
+DSH labels = handoff interface only
 ```
-
-Old TEST evidence remains historical evidence only; it is not a mandatory step or active gate.
