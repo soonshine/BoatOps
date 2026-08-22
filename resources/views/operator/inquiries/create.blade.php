@@ -13,9 +13,22 @@
 <h1>新建询价</h1>
 <p>先记录真实出航、客人和接送事实；询价本身不会占用库存，资料可稍后补充。</p>
 
-<form method="post" action="{{ route('operator.inquiries.store') }}">
+<form id="inquiry-create-form" method="post" action="{{ route('operator.inquiries.store') }}">
 @csrf
 <input type="hidden" name="idempotency_key" value="{{ $idempotencyKey }}">
+
+<section class="card" aria-labelledby="quick-paste-title">
+<h2 id="quick-paste-title">快速粘贴</h2>
+<p class="inquiry-help">把 LINE、微信、表格或聊天里的零碎订单文字整段粘贴。系统只填能明确识别的字段，识别不到的保持为空；创建前仍由操作员检查。</p>
+<label>订单原文
+<textarea id="quick-paste-input" maxlength="10000" placeholder="例如：8月22日 4小时收入 14450 THB；Plan C；4人；10:30 接客；酒店……"></textarea>
+</label>
+<div>
+<button type="button" id="quick-paste-clipboard">一键粘贴并识别</button>
+<button type="button" id="quick-paste-parse">识别并填充</button>
+</div>
+<p class="inquiry-help" id="quick-paste-status" role="status" aria-live="polite">不会自动提交，也不会覆盖你已经填写的字段。</p>
+</section>
 
 <section class="card">
 <h2>出航需求</h2>
@@ -161,5 +174,206 @@
 
 <button>创建询价</button>
 </form>
+
+<script>
+(() => {
+    const form = document.getElementById('inquiry-create-form');
+    const input = document.getElementById('quick-paste-input');
+    const parseButton = document.getElementById('quick-paste-parse');
+    const clipboardButton = document.getElementById('quick-paste-clipboard');
+    const status = document.getElementById('quick-paste-status');
+    if (!form || !input || !parseButton || !clipboardButton || !status) return;
+
+    const normalize = (value) => value.toLowerCase().replace(/\s+/g, '');
+    const field = (name) => form.elements.namedItem(name);
+    const filled = [];
+
+    function setField(name, value, label) {
+        const element = field(name);
+        if (!element || value === null || value === undefined || value === '' || element.value !== '') return false;
+        element.value = String(value);
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        filled.push(label);
+        return true;
+    }
+
+    function validDate(year, month, day) {
+        const candidate = new Date(year, month - 1, day);
+        return candidate.getFullYear() === year && candidate.getMonth() === month - 1 && candidate.getDate() === day;
+    }
+
+    function parseDate(text) {
+        let match = text.match(/\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
+        let year;
+        let month;
+        let day;
+        if (match) {
+            [, year, month, day] = match;
+        } else {
+            match = text.match(/(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日?/);
+            if (match) {
+                year = match[1] || String(new Date().getFullYear());
+                month = match[2];
+                day = match[3];
+            } else {
+                match = text.match(/(?:^|[^\d])(\d{1,2})[/.](\d{1,2})(?:[^\d]|$)/);
+                if (!match) return null;
+                year = String(new Date().getFullYear());
+                month = match[1];
+                day = match[2];
+            }
+        }
+        const numericYear = Number(year);
+        const numericMonth = Number(month);
+        const numericDay = Number(day);
+        if (!validDate(numericYear, numericMonth, numericDay)) return null;
+        return `${numericYear}-${String(numericMonth).padStart(2, '0')}-${String(numericDay).padStart(2, '0')}`;
+    }
+
+    function labelledValue(text, labels) {
+        const pattern = new RegExp(`(?:${labels.join('|')})\\s*[:：]\\s*([^\\n,，;；]+)`, 'i');
+        const match = text.match(pattern);
+        return match ? match[1].trim() : null;
+    }
+
+    function matchNamedOption(name, text, label) {
+        const select = field(name);
+        if (!select || select.value !== '') return;
+        const haystack = normalize(text);
+        const matches = Array.from(select.options).filter((option) => option.value && normalize(option.textContent).length >= 3 && haystack.includes(normalize(option.textContent)));
+        if (matches.length === 1) setField(name, matches[0].value, label);
+    }
+
+    function matchDurationSlot(hours) {
+        const select = field('slot_offering_id');
+        if (!select || select.value !== '' || !hours) return;
+        const needle = `${hours}小时`;
+        const matches = Array.from(select.options).filter((option) => option.value && normalize(option.textContent).includes(needle));
+        if (matches.length === 1) setField('slot_offering_id', matches[0].value, '服务时段');
+    }
+
+    function parse(text) {
+        filled.length = 0;
+        const source = text.trim();
+        if (!source) {
+            status.textContent = '没有可识别的内容。';
+            return;
+        }
+
+        const serviceDate = parseDate(source);
+        if (serviceDate) setField('service_date', serviceDate, '服务日期');
+
+        const explicitReference = source.match(/(?:订单号|订单编号|参考号|reference|ref)\s*[:：#]?\s*([A-Za-z0-9][A-Za-z0-9._-]{0,99})/i);
+        if (explicitReference) {
+            setField('reference', explicitReference[1], '参考号');
+        } else if (field('reference') && field('reference').value === '') {
+            const datePart = (serviceDate || new Date().toISOString().slice(0, 10)).replaceAll('-', '');
+            const now = new Date();
+            const timePart = [now.getHours(), now.getMinutes(), now.getSeconds()].map((part) => String(part).padStart(2, '0')).join('');
+            const suffix = Math.random().toString(36).slice(2, 5).toUpperCase();
+            setField('reference', `REAL-${datePart}-${timePart}-${suffix}`, '参考号');
+        }
+
+        const duration = source.match(/(\d+(?:\.\d+)?)\s*(?:小时|小時|hours?|hrs?)/i);
+        if (duration) {
+            setField('service_notes', `${duration[1]}小时`, '服务时长');
+            matchDurationSlot(duration[1]);
+        }
+
+        let currency = null;
+        if (/(?:\bTHB\b|泰铢|泰銖|บาท|฿)/i.test(source)) currency = 'THB';
+        if (/(?:\bCNY\b|\bRMB\b|人民币|人民幣)/i.test(source)) currency = 'CNY';
+        const amountMatch = source.match(/(?:收入|销售金额|售卖金额|金额|总价|价格|price|amount)\s*[:：]?\s*(?:THB|CNY|RMB|฿|泰铢|泰銖|บาท)?\s*([\d,]+(?:\.\d{1,2})?)/i)
+            || source.match(/(?:THB|CNY|RMB|฿|泰铢|泰銖|บาท)\s*([\d,]+(?:\.\d{1,2})?)/i)
+            || source.match(/([\d,]+(?:\.\d{1,2})?)\s*(?:THB|CNY|RMB|฿|泰铢|泰銖|บาท)/i);
+        if (!currency && amountMatch && /(?:收入|销售|售卖|总价|价格)/.test(source)) currency = 'THB';
+        if (amountMatch && currency) {
+            setField('selling_currency', currency, '币种');
+            setField('selling_amount', amountMatch[1].replaceAll(',', ''), '销售金额');
+        }
+
+        const adultMatch = source.match(/(?:成人|大人|adult)\s*[:：]?\s*(\d{1,3})/i);
+        const childMatch = source.match(/(?:儿童|小孩|孩子|child)\s*[:：]?\s*(\d{1,3})/i);
+        if (adultMatch) setField('adult_count', adultMatch[1], '成人数');
+        if (childMatch) setField('child_count', childMatch[1], '儿童数');
+        const partyMatch = source.match(/(?:总人数|人数|pax)\s*[:：]?\s*(\d{1,3})/i) || source.match(/(?:^|[^\d])(\d{1,3})\s*(?:人|位|pax)(?:[^\d]|$)/i);
+        if (partyMatch) {
+            setField('party_size', partyMatch[1], '总人数');
+        } else if (adultMatch && childMatch) {
+            setField('party_size', Number(adultMatch[1]) + Number(childMatch[1]), '总人数');
+        }
+
+        const contactName = labelledValue(source, ['客人', '联系人', '姓名', 'guest', 'name']);
+        if (contactName && !/^\d/.test(contactName)) setField('contact_name', contactName, '联系人');
+
+        const email = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+        const phone = source.match(/(?:\+?66[\s-]?)?0?\d(?:[\s-]?\d){8,9}/);
+        const whatsapp = labelledValue(source, ['WhatsApp', 'WA']);
+        const wechat = labelledValue(source, ['微信', 'WeChat']);
+        const line = labelledValue(source, ['LINE']);
+        if (email) {
+            setField('contact_method', 'EMAIL', '联系方式');
+            setField('contact_value', email[0], '联系信息');
+        } else if (whatsapp) {
+            setField('contact_method', 'WHATSAPP', '联系方式');
+            setField('contact_value', whatsapp, '联系信息');
+        } else if (wechat) {
+            setField('contact_method', 'WECHAT', '联系方式');
+            setField('contact_value', wechat, '联系信息');
+        } else if (line) {
+            setField('contact_method', 'LINE', '联系方式');
+            setField('contact_value', line, '联系信息');
+        } else if (phone) {
+            setField('contact_method', 'PHONE', '联系方式');
+            setField('contact_value', phone[0].trim(), '联系信息');
+        }
+
+        const hotel = labelledValue(source, ['酒店', '住宿', 'hotel']);
+        if (hotel) setField('hotel_name', hotel, '酒店');
+        const meetingPoint = labelledValue(source, ['接客地点', '集合地点', '集合', '接送地点', 'meeting point']);
+        if (meetingPoint) setField('meeting_point', meetingPoint, '集合地点');
+        const route = labelledValue(source, ['路线', '行程', '目的地', 'route']);
+        if (route) setField('route_summary', route, '路线');
+        const serviceLocation = labelledValue(source, ['下客地点', '返程地点', '送回', 'dropoff', 'drop-off']);
+        if (serviceLocation) setField('service_location', serviceLocation, '下客地点');
+
+        let pickupTime = source.match(/(?:接客|接送|pickup|接)\D{0,8}([01]?\d|2[0-3])[:：.]([0-5]\d)/i);
+        if (!pickupTime) pickupTime = source.match(/([01]?\d|2[0-3])[:：.]([0-5]\d)\s*(?:接客|接送|pickup|接)/i);
+        if (/(?:不接送|无需接送|不需要接送|no pickup)/i.test(source)) {
+            setField('pickup_required', '0', '接送');
+        } else if (pickupTime || meetingPoint || /(?:接客|接送|pickup)/i.test(source)) {
+            setField('pickup_required', '1', '接送');
+        }
+        if (pickupTime) setField('pickup_time', `${String(Number(pickupTime[1])).padStart(2, '0')}:${pickupTime[2]}`, '接客时间');
+
+        matchNamedOption('boat_id', source, '船只');
+        matchNamedOption('trip_template_id', source, '产品');
+
+        if (field('notes') && field('notes').value === '') {
+            setField('notes', `原始粘贴：\n${source}`.slice(0, 1000), '原始记录');
+        }
+
+        if (filled.length === 0) {
+            status.textContent = '没有明确识别到字段；原文仍保留在上方，现有表单不会被改动。';
+            return;
+        }
+        status.textContent = `已填入 ${filled.length} 项：${filled.join('、')}。未识别内容保持为空，请检查后再创建。`;
+    }
+
+    parseButton.addEventListener('click', () => parse(input.value));
+    input.addEventListener('paste', () => window.setTimeout(() => parse(input.value), 0));
+    clipboardButton.addEventListener('click', async () => {
+        try {
+            if (!navigator.clipboard?.readText) throw new Error('clipboard unavailable');
+            input.value = await navigator.clipboard.readText();
+            parse(input.value);
+        } catch (error) {
+            status.textContent = '浏览器未允许直接读取剪贴板。请在上方粘贴内容，再点「识别并填充」。';
+            input.focus();
+        }
+    });
+})();
+</script>
 </main>
 @endsection
