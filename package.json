@@ -11,7 +11,8 @@
         "test:contract:openapi": "redocly lint contracts/inventory-provider/v1/openapi.yaml",
         "test:contract:operations": "redocly lint contracts/operations/v1/openapi.yaml",
         "test:contract:events": "node tests/Contract/validate-event-examples.mjs",
-        "test:contract": "npm run test:contract:structure && npm run test:contract:deployment && npm run test:contract:openapi && npm run test:contract:operations && npm run test:contract:events",
+        "test:quickpaste": "node tests/QuickPaste/quick-paste-parser.test.mjs",
+        "test:contract": "npm run test:contract:structure && npm run test:contract:deployment && npm run test:contract:openapi && npm run test:contract:operations && npm run test:contract:events && npm run test:quickpaste",
         "test:load:holds": "node tests/load/hold-concurrency.mjs"
     },
     "devDependencies": {
