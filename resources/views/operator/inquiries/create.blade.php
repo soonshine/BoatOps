@@ -308,7 +308,8 @@
         if (contactName && !/^\d/.test(contactName)) setField('contact_name', contactName, '联系人');
 
         const email = source.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-        const phone = source.match(/(?:\+?66[\s-]?)?0?\d(?:[\s-]?\d){8,9}/);
+        const phoneCandidates = source.match(/(?:\+?66[\s-]?)?(?:\d{9,10}|0\d{2}[\s-]?\d{3}[\s-]?\d{3,4})/gi) || [];
+        const phone = phoneCandidates.map((candidate) => candidate.trim()).find((candidate) => !/^\d{4}[-/.]\d{1,2}[-/.]/.test(candidate));
         const whatsapp = labelledValue(source, ['WhatsApp', 'WA']);
         const wechat = labelledValue(source, ['微信', 'WeChat']);
         const line = labelledValue(source, ['LINE']);
@@ -326,7 +327,7 @@
             setField('contact_value', line, '联系信息');
         } else if (phone) {
             setField('contact_method', 'PHONE', '联系方式');
-            setField('contact_value', phone[0].trim(), '联系信息');
+            setField('contact_value', phone, '联系信息');
         }
 
         const hotel = labelledValue(source, ['酒店', '住宿', 'hotel']);
