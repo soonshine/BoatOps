@@ -2,7 +2,7 @@
 
 Repository: [`soonshine/ai-collaboration`](https://github.com/soonshine/ai-collaboration)
 
-Approved ref: 3dd570cb6b5fab05f47d1c511b6b11489d04bd96
+Approved ref: 250a18f0542f5d6f87f29083965d9489da943472
 
 This immutable commit is the approved cross-project Worker / Task / Handoff / execution-process contract for BoatOps. A moving branch, later commit, copied chat, or Worker memory is not a substitute.
 
@@ -124,14 +124,14 @@ BoatOps does not add its own watcher, scheduler, Mission DB, runtime registry, w
 
 Read these files from the approved ref, in addition to that repository's `AGENTS.md` and `README.md`:
 
-1. [`EXECUTION_DOCTRINE.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/EXECUTION_DOCTRINE.md)
-2. [`ENVIRONMENT_CONTRACT.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/ENVIRONMENT_CONTRACT.md)
-3. [`RUNTIME_PROFILES.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/RUNTIME_PROFILES.md)
-4. [`WORKER_PROTOCOL.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/WORKER_PROTOCOL.md)
-5. [`TASK_CONTRACT.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/TASK_CONTRACT.md)
-6. [`HANDOFF_PROTOCOL.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/HANDOFF_PROTOCOL.md)
-7. [`COURIER_PROTOCOL.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/COURIER_PROTOCOL.md) when acting as Courier
-8. [`PROJECT_ONBOARDING.md`](https://github.com/soonshine/ai-collaboration/blob/3dd570cb6b5fab05f47d1c511b6b11489d04bd96/PROJECT_ONBOARDING.md) when onboarding or maintaining protocol integration
+1. [`EXECUTION_DOCTRINE.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/EXECUTION_DOCTRINE.md)
+2. [`ENVIRONMENT_CONTRACT.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/ENVIRONMENT_CONTRACT.md)
+3. [`RUNTIME_PROFILES.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/RUNTIME_PROFILES.md)
+4. [`WORKER_PROTOCOL.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/WORKER_PROTOCOL.md)
+5. [`TASK_CONTRACT.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/TASK_CONTRACT.md)
+6. [`HANDOFF_PROTOCOL.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/HANDOFF_PROTOCOL.md)
+7. [`COURIER_PROTOCOL.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/COURIER_PROTOCOL.md) when acting as Courier
+8. [`PROJECT_ONBOARDING.md`](https://github.com/soonshine/ai-collaboration/blob/250a18f0542f5d6f87f29083965d9489da943472/PROJECT_ONBOARDING.md) when onboarding or maintaining protocol integration
 
 Verify the checkout before relying on it:
 
@@ -142,7 +142,7 @@ git -C <ai-collaboration-workspace> rev-parse HEAD
 Expected result:
 
 ```text
-3dd570cb6b5fab05f47d1c511b6b11489d04bd96
+250a18f0542f5d6f87f29083965d9489da943472
 ```
 
 Keep the protocol checkout outside BoatOps. Do not vendor, fork, or duplicate the shared protocol into this repository.

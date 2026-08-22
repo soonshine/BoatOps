@@ -15,7 +15,7 @@
 
 - **项目事实/决策/状态**：以 `.project/**` 的对应权威文件为准；不要从聊天历史恢复项目事实。
 - **当前可执行 DSH Mission**：以 owning GitHub Issue 为准。只有带 `dsh:ready` 或 `dsh:running` 的 Issue 才是当前 DSH 执行交接；普通开放 Issue 不自动等于当前任务。
-- **AI 协同协议**：approved AI-collaboration ref = `3dd570cb6b5fab05f47d1c511b6b11489d04bd96`（soonshine/ai-collaboration）。
+- **AI 协同协议**：approved AI-collaboration ref = `250a18f0542f5d6f87f29083965d9489da943472`（soonshine/ai-collaboration）。
 - **环境与校验**：见 `AI_COLLABORATION.md`、`ENVIRONMENT.md`、`scripts/check.sh`。
 
 ## 对 Agent 的要求
