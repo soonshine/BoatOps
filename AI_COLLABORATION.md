@@ -18,6 +18,21 @@ ai-collaboration approved ref
 
 BoatOps project-local authority wins on BoatOps domain, safety, operations, schema, data, deployment, and authorization. Stop and report ambiguity rather than inventing an override or expanding scope. The shared protocol grants no Merge, Deployment, TEST/Production access, real-data, Cutover, Tag, or Release authority.
 
+## Runtime / Adapter terminology
+
+For BoatOps handoff discussions, use these terms strictly:
+
+```text
+Harness
+= the live local DeepSeek Harness execution runtime
+
+DSH
+= `soonshine/dsh`, the GitHub ↔ Harness adapter project
+= watcher / Mission claim / routing gate / Courier dispatch / durable GitHub return
+```
+
+DSH is not a synonym for Harness. Live Harness version/profile/provider/model/adapter/session facts are runtime evidence and must not be inferred from the DSH repository or old conversations.
+
 ## Project Control Plane / Dynamic Worker Routing
 
 BoatOps 的日常用户入口是 BoatOps 项目 ChatGPT 会话；该会话承担当前任务的 Control Plane 角色。
@@ -26,7 +41,8 @@ BoatOps 的日常用户入口是 BoatOps 项目 ChatGPT 会话；该会话承担
 User
 → BoatOps ChatGPT Session / Control Plane
 → Project GitHub Issue / bounded Mission
-→ Authorized Courier / Execution Runtime
+→ Authorized Courier / Execution Adapter
+→ Harness / authorized Execution Runtime
 → Selected Worker
 → BoatOps Repository
 → Result + Evidence written back to the owning Issue
@@ -35,7 +51,7 @@ User
 
 BoatOps 不定义项目级默认 Worker，也不固定绑定 Hermes、DeepSeek、Codex、Antigravity 或其他 Worker。
 
-Control Plane 按 approved `ai-collaboration` Task Contract，根据任务类型、复杂度、成本、可靠性和所需能力选择 Worker；Courier / Execution Runtime 按 Task Contract 执行路由、连续性协调和结果运输。
+Control Plane 按 approved `ai-collaboration` Task Contract，根据任务类型、复杂度、成本、可靠性和所需能力定义 Worker 要求与约束；Courier / Execution Runtime 按 Task Contract 执行路由、连续性协调和结果运输。
 
 具体 Worker 能力、recommended worker、fallback worker、official Codex required 等路由规则，以 approved `ai-collaboration` ref 为准。
 
@@ -43,7 +59,7 @@ Control Plane 按 approved `ai-collaboration` Task Contract，根据任务类型
 
 ## BoatOps GitHub / DSH handoff adapter
 
-This section only maps the shared execution contract onto BoatOps GitHub. It does not implement DSH runtime behavior and does not create another project state system.
+This section only maps the shared execution contract onto BoatOps GitHub. It does not implement Harness runtime behavior and does not create another project state system. DSH is the external adapter implementation, not the runtime itself.
 
 ### Owning task record
 
@@ -73,15 +89,15 @@ They are **not** BoatOps business lifecycle states and are not a second SSOT.
 
 - no `dsh:*` label: not armed for DSH execution;
 - `dsh:ready`: Control Plane has authorized the bounded Mission for pickup;
-- `dsh:running`: execution runtime has claimed it and is executing;
-- `dsh:done`: runtime has written completion evidence;
-- `dsh:blocked`: runtime needs Control Plane judgment before continuing.
+- `dsh:running`: the DSH/Harness execution path has claimed it and is executing;
+- `dsh:done`: execution has written completion evidence;
+- `dsh:blocked`: execution needs Control Plane judgment before continuing.
 
 For a live DSH handoff, keep one current `dsh:*` status label on the owning Issue.
 
 ### Durable writeback
 
-The runtime writes its result back to the **same owning Issue**. The result comment should contain only the evidence needed for Control Plane judgment:
+The DSH-managed execution path writes its result back to the **same owning Issue**. The result comment should contain only the evidence needed for Control Plane judgment:
 
 ```text
 STATUS
@@ -102,7 +118,7 @@ Issue text/comments are the durable handoff index. Repository code, commits, PRs
 
 ### Project-side non-goals
 
-BoatOps does not add its own watcher, scheduler, Mission DB, runtime registry, workflow engine, or second execution state system for this integration. DSH runtime implementation belongs outside this repository.
+BoatOps does not add its own watcher, scheduler, Mission DB, runtime registry, workflow engine, or second execution state system for this integration. DSH adapter implementation and Harness runtime state belong outside this repository.
 
 ## Approved read set
 
