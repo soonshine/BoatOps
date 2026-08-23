@@ -1,6 +1,6 @@
-schema_version: 22
+schema_version: 23
 project: BoatOps
-updated_at: "2026-08-22T21:20:00+07:00"
+updated_at: "2026-08-23T11:31:00+07:00"
 
 current_phase: REAL_OPERATOR_USE
 
@@ -118,9 +118,7 @@ current_code:
   repository: "https://github.com/soonshine/BoatOps"
   default_branch: main
   production_sha: "4bdd541cb739b257153dc9fb45a7eb7ba97bd40e"
-  production_candidate_pr: 40
-  production_candidate_ci: PASS
-  deploy_task_issue: 39
+  production_verification_issue: 41
   deployed_to_production: true
 
 validation_evidence:
@@ -134,15 +132,10 @@ validation_evidence:
   postgresql_concurrency: PASS
   production_deploy: PASS
   production_smoke: PASS
-  server_side_fresh_session_login: PASS
-  owner_browser_clean_session_login: PASS
-  operator_user_unique: PASS
-  operator_membership_active: PASS
-  intended_password_hash_match: PASS
-  password_reset_performed: false
-  calendar_after_fresh_login: PASS
+  authenticated_operator_access: PASS
+  quick_paste_production: PASS
+  quick_paste_unknown_fact_guard: PASS
   existing_real_inquiry_show: AWAITING_FIRST_REAL_INQUIRY
-  production_data_changed_by_login_repair: false
 
 existing_capability_evidence:
   synthetic_vertical_slice: PASS_HISTORICAL
@@ -151,6 +144,7 @@ existing_capability_evidence:
   today_operations_v1: VERIFIED_PRODUCTION_PRIOR_SESSION
   fleet_inventory_calendar: VERIFIED_PRODUCTION
   inquiry_hold_booking_trip_block_audit: IMPLEMENTED
+  quick_paste_inquiry_capture: VERIFIED_PRODUCTION
 
 owner_decisions_2026_08_17:
   production_domain: "https://boatops.ayany.com/"
@@ -159,11 +153,13 @@ owner_decisions_2026_08_17:
   architecture_basis: FIRST_PRINCIPLES_TO_PROGRESSIVE_COMPLEXITY
 
 next:
-  task: REAL_OPERATOR_USE
-  objective: EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
-  rule: DO_NOT_ADD_NEW_FEATURE_UNLESS_NEEDED_FOR_NEXT_REAL_OPERATION
+  operational_task: WAIT_FOR_NEXT_GENUINE_OPERATION
+  operational_objective: EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
+  engineering_default: STOP_UNLESS_NEXT_REAL_OPERATION_NEEDS_IT
+  current_safety_exception: ISSUE_4_MAIN_PROTECTION
   production_cutover_verified: true
 
 history_policy:
-  detailed_test_gate_history: GIT_HISTORY
+  detailed_test_gate_history: GIT_PR_ISSUE_HISTORY
   current_state_should_remain_small: true
+  review_queue_is_current_authority: false
