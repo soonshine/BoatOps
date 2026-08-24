@@ -11,6 +11,7 @@ This runbook intentionally stays small. It exists only to make a production chan
 - GitHub `main` is the code source of truth.
 - Production PostgreSQL is the operational-data source of truth.
 - Deploy an exact 40-character Git SHA, never an unpinned branch working tree.
+- No historical Git SHA is a permanent approved target: every deployment re-verifies the candidate exact SHA, the checked-out release content, and the resulting runtime capability.
 - Do not edit application source directly on the server.
 - A permanent TEST/staging environment is not required.
 - Synthetic/destructive tests must never target production data.
@@ -65,7 +66,7 @@ If not already installed from the earlier BoatOps deployment:
 
 The scheduler is a required production dependency. Before every deployment, `/etc/cron.d/boatops-scheduler` must be readable and contain a once-per-minute `artisan schedule:run` entry. The deploy script fails before creating a release when that entry is absent or malformed; `routes/console.php` owns the `holds:expire` schedule invoked by it.
 
-The queue worker is not a current deployment or live gate. At approved application target `cf49e11376eba356eeff855856d09d11637780c9`, the application has no `ShouldQueue` implementation, queued Job/Listener, `dispatch()` path, or Queue/Bus facade call. The Operator booking path calls `ConfirmBookingAction` synchronously (`app/Http/Controllers/Operator/BookingWorkflowController.php:36`), and the required scheduler calls `ExpireDueHolds` synchronously (`app/Console/Commands/ExpireHolds.php:17`). Application actions insert outbox rows inside their database transactions (for example, `app/Application/Holds/ExpireDueHoldAction.php:64`), but there is no current in-repository queue consumer. `deploy/systemd/boatops-queue.service` remains only as a future wiring reference until a concrete queued workload exists.
+The queue worker is not a current deployment or live gate. The deploy verifies the candidate release's own content rather than trusting a pinned historical target: a release whose checked-out content contains no `ShouldQueue` implementation, queued Job/Listener, `dispatch()` path, or Queue/Bus facade call does not need the queue worker. The Operator booking path calls `ConfirmBookingAction` synchronously (`app/Http/Controllers/Operator/BookingWorkflowController.php:36`), and the required scheduler calls `ExpireDueHolds` synchronously (`app/Console/Commands/ExpireHolds.php:17`). Application actions insert outbox rows inside their database transactions (for example, `app/Application/Holds/ExpireDueHoldAction.php:64`), but there is no current in-repository queue consumer. `deploy/systemd/boatops-queue.service` remains only as a future wiring reference until a concrete queued workload exists in a candidate release.
 
 Before real use, verify:
 
@@ -109,7 +110,7 @@ The script:
 
 The release-content check treats `public/build/manifest.json`, `public/mix-manifest.json`, an unguarded Blade `@vite`/`Vite::asset`, or a Blade `mix()` call as requiring frontend assets. In that case npm, `package.json`, and `package-lock.json` are mandatory; the deploy runs `npm ci --ignore-scripts`, `npm run build`, and fails closed unless a Vite/Mix manifest exists afterward.
 
-The approved target `cf49e11376eba356eeff855856d09d11637780c9` remains Blade-only for the real Operator path. Its only `@vite` is in the unused framework welcome template and is explicitly guarded by the presence of `public/build/manifest.json` or `public/hot`, with an inline fallback; the root route redirects directly to `/operator/today`. The deterministic check recognizes that exact optional guard, so this target skips npm. Any unguarded/future Vite or Mix reference fails closed when npm/build capability is unavailable.
+The frontend decision is deterministic from the candidate release's own content, never from a pinned historical SHA. The current production release is Blade-only for the real Operator path: its only `@vite` is in the unused framework welcome template and is explicitly guarded by the presence of `public/build/manifest.json` or `public/hot`, with an inline fallback; the root route redirects directly to `/operator/today`. The deterministic check recognizes that exact optional guard, so a release with that content skips npm. Any unguarded/future Vite or Mix reference fails closed when npm/build capability is unavailable. Every deployment re-verifies the candidate exact SHA, the checked-out release content, and the resulting runtime capability; no historical Git SHA is a permanent approved target.
 
 Database migrations are not automatically reversed when code rolls back. Production migrations must therefore be backward-compatible with the immediately previous release.
 

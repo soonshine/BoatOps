@@ -115,7 +115,9 @@ assert.match(scheduler, /\* \* \* \* \* .*artisan schedule:run/, 'committed sche
 assert.match(runbook, /Demo variables are optional/, 'runbook must document safe Demo defaults');
 assert.match(runbook, /SESSION_DRIVER.*CACHE_STORE.*not pinned/s, 'session/cache backends must not be hard blockers');
 assert.match(runbook, /release-content check.*public\/build\/manifest\.json/s, 'runbook must document conditional frontend detection');
-assert.match(runbook, /cf49e11376eba356eeff855856d09d11637780c9.*skips npm/s, 'approved target must remain npm-free');
+assert.match(runbook, /release with that content skips npm/, 'runbook must document content-based npm skip');
+assert.doesNotMatch(runbook, /approved target `[0-9a-f]{40}`/, 'runbook must not pin a historical SHA as a permanent approved target');
+assert.match(runbook, /re-verifies the candidate exact SHA, the checked-out release content, and the resulting runtime capability/, 'runbook must document capability verification from the candidate release');
 assert.match(runbook, /queue worker is not a current deployment or live gate/i, 'runbook must document the queue decision');
 assert.match(runbook, /scheduler.*required production dependency/i, 'runbook must retain the scheduler blocker');
 

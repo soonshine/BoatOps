@@ -55,7 +55,7 @@ Do not infer current authorization from this README. Use the deliberately separa
 - [Charter](.project/PROJECT_CHARTER.md)
 - [machine-readable current state](.project/CURRENT_STATE.yaml)
 - [allowed, forbidden, acceptance, and next decision](.project/CURRENT_GATE.md)
-- [active review blockers and immutable evidence](.project/REVIEW_QUEUE.md)
+- [historical review ledger (HISTORICAL_ONLY, not an active queue)](.project/REVIEW_QUEUE.md)
 - [Real Operations path](docs/product/REAL_OPERATIONS_PILOT_MVP.md)
 
 ## Development path
