@@ -1,6 +1,6 @@
 # BoatOps Current Guardrail
 
-Updated: 2026-08-23 Asia/Bangkok
+Updated: 2026-08-24 Asia/Bangkok
 
 This file records only the immediate boundary for the next real task. It is not a phase engine or second task system.
 
@@ -13,13 +13,13 @@ PRODUCTION_SHA = 4bdd541cb739b257153dc9fb45a7eb7ba97bd40e
 PRODUCTION_DEPLOYMENT = VERIFIED_LIVE
 NEXT_OPERATION = WAIT_FOR_NEXT_GENUINE_OPERATION
 ENGINEERING_DEFAULT = STOP_UNLESS_NEXT_REAL_OPERATION_NEEDS_IT
-CURRENT_SAFETY_EXCEPTION = ISSUE_4_MAIN_PROTECTION
+CURRENT_SAFETY_EXCEPTION = ISSUE_49_DEPLOYMENT_PRIVILEGE_BOUNDARY
 DSH_MISSION_AUTHORITY = OWNING_GITHUB_ISSUE_LABELS
 ```
 
 REAL-OPS-001 / Issue #41 is complete and accepted. Quick Paste is verified in production, including the unknown-fact guard. No real Inquiry has been created yet.
 
-Issue #4 is the only current repository-safety exception: `main` protection is still not enabled. It does not authorize product, schema, deployment, or production-data changes.
+Issue #4 is complete: `main` protection is live (PR-before-merge, required checks `Quality and contracts` + `PostgreSQL concurrency`, force-push and deletion blocked). The only current repository-safety gate is Issue #49 (non-root deployment privilege boundary + deployment mutex), which blocks the NEXT production code deployment but does not block the first real operation.
 
 ## Permanent question
 
@@ -31,7 +31,7 @@ If no, do not build it now.
 
 ## Allowed now
 
-- complete the bounded minimum `main` protection in Issue #4 and verify the live GitHub settings;
+- Issue #4 `main` protection is complete and verified live; no further repository-safety change is authorized by it;
 - wait for the next genuine boat operation rather than inventing production data;
 - when a genuine operation arrives, run it through the existing production Operator surface;
 - capture concrete missing facts, friction, safety blockers, or observability gaps from real use;
@@ -68,9 +68,8 @@ Stop if the task would require:
 ## Current next action
 
 ```text
-ISSUE #4 MINIMUM MAIN PROTECTION
--> verify live GitHub settings
--> close the repository-safety gap
+ISSUE #4 MAIN PROTECTION COMPLETE (verified live)
+-> WAIT_FOR_NEXT_GENUINE_OPERATION
 -> STOP DEVELOPMENT
 -> wait for the next genuine operation
 -> use existing Dashboard and operational records
