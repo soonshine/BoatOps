@@ -6,10 +6,14 @@ use App\Application\Holds\CreateInquiryHoldAction;
 use App\Application\Holds\HoldActor;
 use App\Application\Holds\OrganizationHoldTtlPolicy;
 use App\Application\Holds\ReleaseHoldAction;
+use App\Application\InquiryAi\InquiryAiExtractor;
+use App\Application\InquiryAi\InquiryExtractionException;
+use App\Application\InquiryAi\InquirySuggestionResolver;
 use App\Http\Controllers\Controller;
 use App\Support\MinorUnitAmount;
 use App\Support\OperatorUi;
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +70,8 @@ final class InquiryController extends Controller
         private readonly CreateInquiryHoldAction $createInquiryHold,
         private readonly ReleaseHoldAction $releaseHoldAction,
         private readonly OrganizationHoldTtlPolicy $ttlPolicy,
+        private readonly InquiryAiExtractor $inquiryAiExtractor,
+        private readonly InquirySuggestionResolver $inquirySuggestionResolver,
     ) {}
 
     public function index(Request $r): View
@@ -151,6 +157,61 @@ final class InquiryController extends Controller
 
         return redirect()->route('operator.inquiries.show', $result['body']['inquiry_id'], $result['status'])
             ->with('status', '询价已创建。');
+    }
+
+    /**
+     * #51C: server-side AI suggestion-only parse for the Inquiry create form.
+     *
+     * Operator paste -> this endpoint -> safe suggestion payload -> the browser
+     * fills only EMPTY form fields -> operator reviews -> existing Create
+     * Inquiry action. Guarantees:
+     * - browser never calls the provider directly; credentials stay server-side;
+     * - read-only: no Inquiry/Booking/Trip/audit/idempotency write and no
+     *   inventory/state mutation happens here;
+     * - provider failure / timeout / 429 / malformed output / disabled AI all
+     *   return a clear manual-entry fallback (ok=false) without touching the form;
+     * - the raw pasted text is never logged and never reflected in the response.
+     */
+    public function aiSuggest(Request $r): JsonResponse
+    {
+        // This endpoint is consumed by the operator page via fetch(); it stays
+        // JSON for every outcome. Web-route exception rendering redirects by
+        // project contract (see bootstrap/app.php), so validation failures are
+        // converted into the same JSON shape here instead of relying on the
+        // global exception renderer.
+        try {
+            $input = $r->validate([
+                'raw_text' => ['required', 'string', 'max:10000'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'code' => 'VALIDATION_FAILED',
+                'message' => '请先在订单原文框粘贴 1–10000 字符的文字。未修改任何字段，请直接手工填写表单并点击「创建询价」。',
+            ]);
+        }
+
+        $organization = $r->attributes->get('organization');
+
+        try {
+            $extracted = $this->inquiryAiExtractor->extract($input['raw_text']);
+            $suggestion = $this->inquirySuggestionResolver->resolveForOrganization(
+                $extracted,
+                (int) $organization->id,
+            );
+        } catch (InquiryExtractionException $e) {
+            return response()->json([
+                'ok' => false,
+                'code' => $e->kind,
+                'message' => 'AI 智能识别暂不可用（'.$e->kind.'）。未修改任何字段，请直接手工填写表单并点击「创建询价」。',
+            ]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'suggestion' => $suggestion->toArray(),
+            'message' => 'AI 识别完成，结果仅为建议：仅空字段会被填充，不自动提交；请操作员核对后点击「创建询价」。',
+        ]);
     }
 
     public function show(Request $r, int $inquiry): View

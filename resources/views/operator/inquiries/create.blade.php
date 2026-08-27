@@ -27,6 +27,10 @@
 <button type="button" id="quick-paste-clipboard">一键粘贴并识别</button>
 <button type="button" id="quick-paste-parse">识别并填充</button>
 </div>
+<div>
+<button type="button" id="quick-paste-ai" data-endpoint="{{ route('operator.inquiries.ai_suggest') }}">AI 智能识别（建议）</button>
+</div>
+<p class="inquiry-help">AI 识别仅为建议：解析、校验和船只匹配都在服务端完成，浏览器不会直接调用 AI 服务。结果不会自动提交，也不会占用库存或确认订单；只有空字段会被填充，请操作员核对后再点击「创建询价」。</p>
 <p class="inquiry-help" id="quick-paste-status" role="status" aria-live="polite">不会自动提交，也不会覆盖你已经填写的字段。</p>
 </section>
 
@@ -374,6 +378,103 @@
             input.focus();
         }
     });
+    // #51C: server-side AI suggestion fill (suggestions only, EMPTY fields only).
+    const AI_FILL_FIELDS = {
+        service_date: { label: '服务日期', convert: (value) => String(value) },
+        boat_id: { label: '船只', convert: (value) => String(value) },
+        route_summary: { label: '路线 / 目的地', convert: (value) => String(value) },
+        contact_name: { label: '联系人', convert: (value) => String(value) },
+        contact_method: { label: '联系方式', convert: (value) => String(value) },
+        contact_value: { label: '联系信息', convert: (value) => String(value) },
+        party_size: { label: '总人数', convert: (value) => String(value) },
+        pickup_required: { label: '是否需要接送', convert: (value) => (value ? '1' : '0') },
+        pickup_time: { label: '接客时间', convert: (value) => String(value) },
+        meeting_point: { label: '接客 / 集合地点', convert: (value) => String(value) },
+        hotel_name: { label: '酒店 / 住宿名称', convert: (value) => String(value) },
+        room_number: { label: '房间号', convert: (value) => String(value) },
+        service_location: { label: '返程 / 下客地点', convert: (value) => String(value) },
+    };
+
+    function applyAiSuggestion(suggestion, source) {
+        const aiFilled = [];
+        for (const [name, spec] of Object.entries(AI_FILL_FIELDS)) {
+            const value = suggestion[name];
+            if (value === null || value === undefined || value === '') continue;
+            const element = field(name);
+            if (!element || element.value !== '') continue; // never overwrite operator input
+            element.value = spec.convert(value);
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            aiFilled.push(spec.label);
+        }
+        const notesElement = field('notes');
+        if (notesElement && notesElement.value === '' && source) {
+            notesElement.value = `原始粘贴：
+${source}`.slice(0, 1000);
+            aiFilled.push('原始记录');
+        }
+        const messages = [];
+        if (aiFilled.length > 0) {
+            messages.push(`已填入 ${aiFilled.length} 项 AI 建议：${aiFilled.join('、')}。`);
+        }
+        if (typeof suggestion.boat_name_suggestion === 'string' && suggestion.boat_name_suggestion !== '' && !suggestion.boat_id) {
+            messages.push(`未确定唯一船只（${String(suggestion.boat_resolution || '未识别')}）：建议船名「${suggestion.boat_name_suggestion}」仅作提示，未自动选择。`);
+        }
+        if (messages.length === 0) {
+            messages.push('AI 未识别出可填充的字段：未修改任何内容，请直接手工填写。');
+        } else {
+            messages.push('AI 结果仅为建议，未自动提交；请核对后点击「创建询价」。');
+        }
+        status.textContent = messages.join(' ');
+    }
+
+    function applyAiFailure(fallbackMessage) {
+        status.textContent = (fallbackMessage && String(fallbackMessage).trim())
+            ? String(fallbackMessage)
+            : 'AI 识别暂不可用：表单未被修改，请直接手工填写并点击「创建询价」。';
+    }
+
+    const aiButton = document.getElementById('quick-paste-ai');
+    if (aiButton) {
+        aiButton.addEventListener('click', async () => {
+            const source = input.value.trim();
+            if (!source) {
+                status.textContent = '请先在上方粘贴订单原文，再点击 AI 识别。';
+                input.focus();
+                return;
+            }
+            const token = form.elements.namedItem('_token')?.value || '';
+            const endpoint = aiButton.dataset?.endpoint || '';
+            aiButton.disabled = true;
+            status.textContent = '正在请求 AI 识别（仅建议，不会自动提交）…';
+            try {
+                let payload = null;
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                        },
+                        body: JSON.stringify({ raw_text: source }),
+                    });
+                    payload = await response.json();
+                } catch (error) {
+                    payload = null;
+                }
+                if (!payload || payload.ok !== true || typeof payload.suggestion !== 'object' || payload.suggestion === null || Array.isArray(payload.suggestion)) {
+                    const reason = (payload && typeof payload.message === 'string') ? payload.message : '';
+                    applyAiFailure(reason);
+                    return;
+                }
+                applyAiSuggestion(payload.suggestion, source);
+            } finally {
+                aiButton.disabled = false;
+            }
+        });
+    }
 })();
 </script>
 </main>
