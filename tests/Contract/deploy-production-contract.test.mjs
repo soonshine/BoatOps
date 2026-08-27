@@ -206,6 +206,7 @@ assert.match(deployScript, /SU_BIN/, 'su fallback privilege-drop primitive must 
 assert.match(deployScript, /run_repository_command/, 'repository commands must be routed through the non-root boundary helper');
 assert.match(deployScript, /ensure_env_readable_by_web_user/, 'deploy user env readability must be ensured');
 assert.match(deployScript, /prepare_release_for_app_user/, 'deploy user write paths must be prepared');
+assert.match(deployScript, /safe\.directory/, 'release checkout must be marked safe for the deploy user');
 assert.match(
   deployScript,
   /run_repository_command '\nset -Eeuo pipefail\ncd "\$1"\n"\$COMPOSER_BIN" install/,

@@ -78,7 +78,8 @@ Non-root boundary requirements on the host:
 - a non-root deploy/web user exists (`BOATOPS_WEB_USER`, default `www`; `BOATOPS_WEB_GROUP`, default `www`);
 - `runuser` or `su` is available (the script fails closed otherwise);
 - `git`, `flock`, `curl`, and `composer` are available to the script's environment, and `BOATOPS_PHP` (default `/www/server/php/84/bin/php`) is executable;
-- the shared `.env` is readable by the deploy user. The deploy script fixes group read access (`root:<web-group>`, mode `640`) when needed; it never widens world access.
+- the shared `.env` is readable by the deploy user.
+- the deploy script marks each release checkout (`git safe.directory`) for the deploy user so the non-root composer/artisan flow can probe the repository without an ownership error. The deploy script fixes group read access (`root:<web-group>`, mode `640`) when needed; it never widens world access.
 
 The queue worker is not a current deployment or live gate. The deploy verifies the candidate release's own content rather than trusting a pinned historical target: a release whose checked-out content contains no `ShouldQueue` implementation, queued Job/Listener, `dispatch()` path, or Queue/Bus facade call does not need the queue worker. The Operator booking path calls `ConfirmBookingAction` synchronously (`app/Http/Controllers/Operator/BookingWorkflowController.php:36`), and the required scheduler calls `ExpireDueHolds` synchronously (`app/Console/Commands/ExpireHolds.php:17`). Application actions insert outbox rows inside their database transactions (for example, `app/Application/Holds/ExpireDueHoldAction.php:64`), but there is no current in-repository queue consumer. `deploy/systemd/boatops-queue.service` remains only as a future wiring reference until a concrete queued workload exists in a candidate release.
 

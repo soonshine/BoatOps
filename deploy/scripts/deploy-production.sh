@@ -331,6 +331,11 @@ cd "$1"
 "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
 ' || fail "composer install failed"
 
+# Composer probes git inside the release repo for version detection; the
+# root-owned checkout must be marked safe for the non-root deploy user so the
+# probe succeeds instead of degrading to a fetch-only fallback.
+run_repository_command 'git config --global --add safe.directory "$1"'
+
 build_frontend_if_required "$RELEASE"
 ARTISAN_BLOCK='
 set -Eeuo pipefail
