@@ -194,4 +194,37 @@ try {
   fs.rmSync(fixturesRoot, { recursive: true, force: true });
 }
 
+
+// --- Issue #49: non-root repository execution boundary + deployment mutex ---
+assert.match(deployScript, /flock -n 9/, 'deployment must acquire a single-instance flock mutex');
+assert.match(deployScript, /LOCK_FILE/, 'deployment mutex lock file must be configurable');
+assert.match(deployScript, /another deployment holds the single-instance mutex/, 'mutex contention must fail with a clear message');
+assert.match(deployScript, /WEB_USER must be a non-root deploy user/, 'deploy user must be enforced non-root');
+assert.match(deployScript, /must not be uid 0/, 'deploy user must not be uid 0');
+assert.match(deployScript, /runuser|RUNUSER_BIN/, 'minimal runuser privilege-drop primitive must be supported');
+assert.match(deployScript, /SU_BIN/, 'su fallback privilege-drop primitive must be supported');
+assert.match(deployScript, /run_repository_command/, 'repository commands must be routed through the non-root boundary helper');
+assert.match(deployScript, /ensure_env_readable_by_web_user/, 'deploy user env readability must be ensured');
+assert.match(deployScript, /prepare_release_for_app_user/, 'deploy user write paths must be prepared');
+assert.match(deployScript, /safe\.directory/, 'release checkout must be marked safe for the deploy user');
+assert.match(
+  deployScript,
+  /run_repository_command '\nset -Eeuo pipefail\ncd "\$1"\n"\$COMPOSER_BIN" install/,
+  'composer install must run through the non-root boundary',
+);
+assert.equal((deployScript.match(/"\$COMPOSER_BIN" install/g) || []).length, 1, 'composer install must be invoked exactly once');
+assert.match(deployScript, /ARTISAN_BLOCK=/, 'artisan commands must be grouped into one boundary block');
+assert.match(deployScript, /run_repository_command "\$ARTISAN_BLOCK"/, 'the artisan group must run through the non-root boundary');
+assert.equal((deployScript.match(/"\$PHP_BIN" artisan migrate --force/g) || []).length, 1, 'artisan migrate must be invoked exactly once');
+assert.match(deployScript, /--rehearsal/, 'rehearsal dry-run mode must exist');
+assert.match(deployScript, /REHEARSAL: skipping production migrations/, 'rehearsal must not run production migrations');
+assert.match(deployScript, /REHEARSAL: release prepared but current symlink was NOT switched/, 'rehearsal must not switch current');
+assert.match(deployScript, /REHEARSAL PASS/, 'rehearsal must emit a distinct pass result');
+assert.match(deployScript, /\[\[ "\$REHEARSAL_MODE" == true \]\]/, 'rehearsal branch must be explicit');
+assert.match(deployScript, /chown root:"\$WEB_GROUP" "\$SHARED_ENV"/, 'env ownership fix must keep root as owner');
+assert.match(deployScript, /chmod u\+rw,g\+r,o-rwx "\$SHARED_ENV"/, 'env fix must not widen world access');
+assert.match(runbook, /mutex/i, 'runbook must document the deployment mutex');
+assert.match(runbook, /non-root/, 'runbook must document the non-root execution boundary');
+assert.match(runbook, /--rehearsal/, 'runbook must document rehearsal mode');
+
 console.log('PASS production deployment contract');
