@@ -2,9 +2,9 @@
 
 Status: `ACTIVE`
 
-Charter version: `3.0`
+Charter version: `3.1`
 
-Effective: `2026-08-17` after merge to `main`
+Effective: `2026-08-27` after merge to `main`
 
 ## 1. Mission
 
@@ -103,14 +103,39 @@ Operator Web
         -> Audit / Idempotency / Outbox where already required
 ```
 
-Rules:
+When a proven real-use problem benefits from language understanding, BoatOps may use a bounded external AI inference path:
+
+```text
+Operator Web
+    -> Application AI Parsing / Assistance Service
+        -> External Model Provider
+        -> validated suggestions only
+
+Operator review / confirmation
+    -> existing Shared Application Actions
+        -> PostgreSQL
+```
+
+AI boundary:
+
+- AI interprets, extracts, summarizes, or suggests; it is not operational authority.
+- AI never directly writes PostgreSQL, reserves Boat inventory, confirms a booking, changes Trip state, assigns people, prices an order, or submits an operational form.
+- Provider responses must be validated against an explicit allowlist/schema before entering the application flow.
+- Entity names suggested by AI must be resolved deterministically against organization-scoped BoatOps truth; AI must not invent database IDs.
+- Unknown or unsupported facts remain empty / `null`; absence of evidence is not permission to infer a business fact.
+- Existing operator-entered facts are not silently overwritten by AI suggestions.
+- AI/provider failure must degrade to the existing manual workflow; BoatOps operations must not depend on provider availability.
+- Provider credentials remain server-side. Customer data sent externally must be minimized to the current task, and routine logs must not retain raw customer PII.
+- A first provider such as DeepSeek is an implementation choice, not a permanent product dependency. Add a provider abstraction only when a second proven consumer/provider makes it useful.
+
+General architecture rules:
 
 - Web is the primary operating surface.
 - Controllers remain thin transport / authorization adapters.
 - Web, APIs, jobs, and agents must reuse the same business actions when they exist.
 - PostgreSQL is the operational data authority once BoatOps is used for the real workflow.
-- APIs, events, jobs, and integrations are added only for a demonstrated consumer.
-- Do not create a second workflow engine, second task system, or second operational SSOT.
+- APIs, events, jobs, integrations, and AI inference are added only for a demonstrated consumer.
+- Do not create a second workflow engine, second task system, second operational SSOT, general Agent platform, vector store, or AI Gateway unless real use proves it necessary.
 
 ## 6. Single production runtime
 
@@ -151,7 +176,7 @@ Direct production development never means editing production source manually. Gi
 | Real operational data | production PostgreSQL |
 | Historical decisions and prior states | Git / PR history |
 
-Chat history, Worker self-report, spreadsheets, LINE messages, and employee memory are not competing operational authorities.
+Chat history, Worker self-report, spreadsheets, LINE messages, external AI output, and employee memory are not competing operational authorities.
 
 ## 8. Observability before analytics
 
@@ -183,6 +208,7 @@ Permanent invariants:
 5. Service time, buffers, occupied interval, Trip lifecycle and inventory authority remain distinct facts.
 6. Real credentials, secrets, customer PII and production backups never enter public Git, fixtures, screenshots or reports.
 7. Before a risky production mutation, there must be a proportionate recovery path: backup, rollback, reversible migration, or an explicit reason it is unnecessary.
+8. External AI output is untrusted input until BoatOps validation and human/application confirmation; it cannot independently mutate operational truth.
 
 Do not create a new Gate document, readiness matrix, or approval layer unless a real risk cannot be controlled without it.
 
@@ -196,6 +222,7 @@ Add only after real use proves the need. Examples:
 - Admin UI only when repeated configuration work is error-prone;
 - Finance / fuel / stock / expense only when they block or materially degrade real operations;
 - API / ChannelHub / OTA only when a real consumer exists;
+- AI-assisted extraction only when real operator input proves deterministic parsing unreliable;
 - AI Agent autonomy only after the underlying operational state and human responsibility are clear.
 
 Current default non-goals:
@@ -204,6 +231,7 @@ Current default non-goals:
 - SPA rewrite;
 - generic workflow engine;
 - generic CRM / accounting / reporting platform;
+- general AI Agent / AI Gateway / vector-memory platform;
 - multi-environment release bureaucracy;
 - features justified only by future possibility.
 
@@ -211,7 +239,7 @@ Current default non-goals:
 
 BoatOps remains organization-scoped and reusable.
 
-Ayany, Plan C, vessel names, staff identities, schedules, prices and operating rules are configuration / operational facts, not hard-coded product assumptions.
+Ayany, Plan C, vessel names, staff identities, schedules, prices, AI provider names and operating rules are configuration / operational facts, not hard-coded product assumptions.
 
 Reusability must not delay real use. Build the smallest organization-scoped implementation that works now; generalize only when a second real case proves the need.
 
