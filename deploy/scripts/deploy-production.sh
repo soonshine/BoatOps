@@ -324,17 +324,17 @@ chown -R "$WEB_USER:$WEB_GROUP" "$SHARED_STORAGE" bootstrap/cache
 # execute as the non-root deploy user through run_repository_command.
 ensure_env_readable_by_web_user
 prepare_release_for_app_user "$RELEASE"
+# Composer probes git inside the release repo for version detection; the
+# root-owned checkout must be marked safe for the non-root deploy user so the
+# probe succeeds instead of degrading to a fetch-only fallback.
+run_repository_command 'git config --global --add safe.directory "$1"'
+
 
 run_repository_command '
 set -Eeuo pipefail
 cd "$1"
 "$COMPOSER_BIN" install --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
 ' || fail "composer install failed"
-
-# Composer probes git inside the release repo for version detection; the
-# root-owned checkout must be marked safe for the non-root deploy user so the
-# probe succeeds instead of degrading to a fetch-only fallback.
-run_repository_command 'git config --global --add safe.directory "$1"'
 
 build_frontend_if_required "$RELEASE"
 ARTISAN_BLOCK='
