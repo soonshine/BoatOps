@@ -1,6 +1,6 @@
-schema_version: 23
+schema_version: 24
 project: BoatOps
-updated_at: "2026-08-24T20:40:00+07:00"
+updated_at: "2026-08-27T09:48:00+07:00"
 
 current_phase: PRODUCTION_LIVE_AWAITING_FIRST_REAL_OPERATION
 
@@ -46,12 +46,27 @@ source_of_truth:
   chat_is_authority: false
   spreadsheets_are_operational_authority: false
   line_messages_are_operational_authority: false
+  external_ai_output_is_authority: false
 
 architecture:
   flow:
     - OPERATOR_WEB
     - SHARED_APPLICATION_ACTIONS
     - POSTGRESQL
+  optional_ai_inference:
+    role: INTERPRET_AND_SUGGEST_ONLY
+    flow:
+      - OPERATOR_WEB
+      - APPLICATION_AI_PARSING_SERVICE
+      - EXTERNAL_MODEL_PROVIDER
+      - VALIDATED_FORM_SUGGESTIONS
+      - HUMAN_CONFIRMATION
+      - SHARED_APPLICATION_ACTIONS
+    first_provider_target: DEEPSEEK
+    provider_replaceable: true
+    direct_operational_write: false
+    direct_inventory_or_state_authority: false
+    fallback: MANUAL_ENTRY
   supporting_existing_components:
     - AUDIT
     - IDEMPOTENCY
@@ -59,6 +74,7 @@ architecture:
   no_second_workflow_engine: true
   no_second_task_system: true
   no_second_operational_ssot: true
+  no_general_ai_platform_now: true
 
 inventory:
   model: WHOLE_VESSEL_OCCUPIED_INTERVAL
@@ -98,6 +114,13 @@ real_use_feedback:
     - OBSERVED_OPERATIONAL_PAIN
     - OPERATIONAL_TRUTH_OR_OBSERVABILITY_GAP
     - UNIVERSAL_CORE_SAFETY_DEFECT
+  current_observed_pain:
+    issue: 51
+    task_id: AI-INQUIRY-PARSE-001
+    classification: OBSERVED_OPERATIONAL_PAIN
+    summary: DETERMINISTIC_QUICK_PASTE_UNRELIABLE_FOR_REAL_BILINGUAL_ORDER_INPUT
+    approved_direction: SERVER_SIDE_AI_PARSE_VALIDATE_RESOLVE_HUMAN_CONFIRM
+    customer_pii_recorded_in_git: false
   unproven_future_feature_priority: NONE
 
 production_delivery:
@@ -144,7 +167,7 @@ existing_capability_evidence:
   today_operations_v1: VERIFIED_PRODUCTION_PRIOR_SESSION
   fleet_inventory_calendar: VERIFIED_PRODUCTION
   inquiry_hold_booking_trip_block_audit: IMPLEMENTED
-  quick_paste_inquiry_capture: VERIFIED_PRODUCTION
+  quick_paste_inquiry_capture: VERIFIED_PRODUCTION_WITH_REAL_USE_GAP
 
 owner_decisions_2026_08_17:
   production_domain: "https://boatops.ayany.com/"
@@ -152,10 +175,23 @@ owner_decisions_2026_08_17:
   development_model: DIRECT_REAL_USE_PRODUCTION_LOOP
   architecture_basis: FIRST_PRINCIPLES_TO_PROGRESSIVE_COMPLEXITY
 
+owner_decisions_2026_08_27:
+  ai_inquiry_parse_task: ISSUE_51
+  ai_role: INTERPRET_EXTRACT_SUGGEST_ONLY
+  boatops_role: VALIDATE_RESOLVE_AUTHORIZE_MUTATE
+  operational_truth: PRODUCTION_POSTGRESQL
+  first_provider_target: DEEPSEEK
+  ai_provider_is_replaceable: true
+  human_confirmation_required: true
+  ai_failure_fallback: MANUAL_ENTRY
+
 next:
   operational_task: WAIT_FOR_NEXT_GENUINE_OPERATION
   operational_objective: EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
-  engineering_default: STOP_UNLESS_NEXT_REAL_OPERATION_NEEDS_IT
+  engineering_task: ISSUE_51_AI_INQUIRY_PARSE_001
+  engineering_classification: OBSERVED_OPERATIONAL_PAIN
+  implementation_allowed_before_issue_49: true
+  production_deploy_blocked_by: ISSUE_49_DEPLOYMENT_PRIVILEGE_BOUNDARY
   first_real_operation: AWAITING
   current_safety_exception: ISSUE_49_DEPLOYMENT_PRIVILEGE_BOUNDARY
   production_cutover_verified: true
