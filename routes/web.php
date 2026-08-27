@@ -31,6 +31,7 @@ Route::prefix('operator')->middleware(UseChineseOperatorUi::class)->name('operat
     Route::get('/inquiries', [InquiryController::class, 'index'])->middleware('operator.membership:booking_workflow')->name('inquiries.index');
     Route::get('/inquiries/create', [InquiryController::class, 'create'])->middleware('operator.membership:booking_workflow')->name('inquiries.create');
     Route::post('/inquiries', [InquiryController::class, 'store'])->middleware('operator.membership:booking_workflow')->name('inquiries.store');
+    Route::post('/inquiries/ai-suggest', [InquiryController::class, 'aiSuggest'])->middleware('operator.membership:booking_workflow')->name('inquiries.ai_suggest');
     Route::get('/inquiries/{inquiry}', [InquiryController::class, 'show'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.show');
     Route::post('/inquiries/{inquiry}/dossier', [InquiryController::class, 'updateDossier'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.dossier.update');
     Route::post('/inquiries/{inquiry}/execution', [InquiryController::class, 'updateExecution'])->whereNumber('inquiry')->middleware('operator.membership:booking_workflow')->name('inquiries.execution.update');
