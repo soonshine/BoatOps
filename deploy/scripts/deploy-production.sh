@@ -245,6 +245,7 @@ COMPOSER_BIN="$(command -v "$COMPOSER_BIN")"
 [[ -n "$WEB_USER" && "$WEB_USER" != "root" ]] || fail "WEB_USER must be a non-root deploy user (got: ${WEB_USER:-empty})"
 WEB_UID="$(id -u "$WEB_USER" 2>/dev/null || true)"
 [[ -n "$WEB_UID" && "$WEB_UID" -ne 0 ]] || fail "WEB_USER must exist and must not be uid 0: $WEB_USER"
+getent group "$WEB_GROUP" >/dev/null 2>&1 || fail "WEB_GROUP does not exist: $WEB_GROUP"
 RUNUSER_BIN="$(command -v runuser 2>/dev/null || true)"
 SU_BIN="$(command -v su 2>/dev/null || true)"
 [[ -n "$RUNUSER_BIN" || -n "$SU_BIN" ]] || fail "non-root execution boundary requires runuser or su"
@@ -327,7 +328,7 @@ prepare_release_for_app_user "$RELEASE"
 # Composer probes git inside the release repo for version detection; the
 # root-owned checkout must be marked safe for the non-root deploy user so the
 # probe succeeds instead of degrading to a fetch-only fallback.
-run_repository_command 'git config --global --add safe.directory "$1"'
+run_repository_command 'git config --global --add safe.directory "$1"'     || echo "[BoatOps deploy] NOTICE: could not register git safe.directory for $WEB_USER; composer will fall back" >&2
 
 
 run_repository_command '
