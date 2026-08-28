@@ -259,6 +259,49 @@ class InquirySuggestionResolverTest extends TestCase
         $this->assertSame(InquirySuggestionResolver::NO_MATCH, $suggestion->boatResolution);
     }
 
+    public function test_plan_c_is_no_match_when_production_catalog_has_no_such_boat(): void
+    {
+        // #62 production truth (verified read-only on the live catalog): the
+        // production organization has exactly one ACTIVE boat whose normalized
+        // name is "demo coral one"; no boat, trip_template or slot_offering is
+        // named PLAN C (0 exact and 0 ILIKE '%plan%' matches). The sanitized
+        // acceptance order "PLAN C" therefore has no deterministic Boat match
+        // and must stay NO_MATCH - the resolver must NOT invent a mapping.
+        $org = $this->organizationId();
+        $this->addBoat($org, 'demo coral one');
+
+        $suggestion = $this->resolver()->resolveForOrganization(
+            $this->extracted(['boat_name' => 'PLAN C']),
+            $org,
+        );
+
+        $this->assertNull($suggestion->boatId);
+        $this->assertSame(InquirySuggestionResolver::NO_MATCH, $suggestion->boatResolution);
+        $this->assertSame('PLAN C', $suggestion->boatNameSuggestion);
+        $this->assertNull($suggestion->tripTemplateId);
+        $this->assertNull($suggestion->slotOfferingId);
+    }
+
+    public function test_no_transfer_bilingual_marker_maps_to_pickup_false_and_no_hotel(): void
+    {
+        // #62 Issue 1 server truth: the sanitized bilingual no-transfer marker
+        // (as extracted by the provider, matching the #51D fixture) is a
+        // self-arrival marker, so pickup_required stays false and no hotel
+        // name is fabricated from it.
+        $org = $this->organizationId();
+
+        $suggestion = $this->resolver()->resolveForOrganization(
+            $this->extracted([
+                'pickup_required' => false,
+                'hotel_name' => '不需要酒店接送',
+            ]),
+            $org,
+        );
+
+        $this->assertFalse($suggestion->pickupRequired);
+        $this->assertNull($suggestion->hotelName);
+    }
+
     public function test_boatops_field_semantics_are_revalidated_before_suggesting(): void
     {
         $org = $this->organizationId();

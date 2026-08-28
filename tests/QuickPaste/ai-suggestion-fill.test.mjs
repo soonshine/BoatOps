@@ -254,4 +254,54 @@ function filledValues(page) {
   assert.ok(page.status.textContent.includes('先在上方粘贴订单原文'), 'the UI must prompt for the paste first');
 }
 
+// #62: pickup_required begins in a genuine UNSET state. The four required
+// behaviors, exercised against the REAL blade script:
+//   1. unknown input -> pickup_required remains unset (待确认, value '');
+//   2. AI says transfer required -> true ('1');
+//   3. AI says no transfer -> false ('0');
+//   4. operator manually selected a value -> AI MUST NOT overwrite it.
+{
+  // Case 1: unknown pickup facts (null suggestion) leave the select unset.
+  const pageUnknown = buildPage({
+    payload: {
+      ok: true,
+      suggestion: { pickup_required: null, contact_name: 'Test Guest' },
+    },
+  });
+  await clickAi(pageUnknown, '2026-08-30 6人 Koh Tao 海钓 Test Guest');
+  const filledUnknown = filledValues(pageUnknown);
+  assert.ok(!('pickup_required' in filledUnknown), 'unknown pickup input must leave pickup_required unset');
+  assert.equal(filledUnknown.contact_name, 'Test Guest', 'other fields still fill');
+
+  // Case 2: AI says transfer required -> true maps to select value '1'.
+  const pageTrue = buildPage({
+    payload: { ok: true, suggestion: { pickup_required: true } },
+  });
+  await clickAi(pageTrue, '需要接送');
+  assert.equal(filledValues(pageTrue).pickup_required, '1', 'AI true must map to 需要');
+
+  // Case 3: AI says no transfer -> false maps to select value '0'.
+  const pageFalse = buildPage({
+    payload: { ok: true, suggestion: { pickup_required: false } },
+  });
+  await clickAi(pageFalse, 'no transfer 不需要酒店接送');
+  assert.equal(filledValues(pageFalse).pickup_required, '0', 'AI false must map to 不需要');
+
+  // Case 4a: operator manually selected 需要 ('1'); AI false must NOT overwrite.
+  const pageManualTrue = buildPage({
+    prefilled: { pickup_required: '1' },
+    payload: { ok: true, suggestion: { pickup_required: false } },
+  });
+  await clickAi(pageManualTrue, 'no transfer');
+  assert.equal(filledValues(pageManualTrue).pickup_required, '1', 'operator-selected 需要 must never be overwritten');
+
+  // Case 4b: operator manually selected 不需要 ('0'); AI true must NOT overwrite.
+  const pageManualFalse = buildPage({
+    prefilled: { pickup_required: '0' },
+    payload: { ok: true, suggestion: { pickup_required: true } },
+  });
+  await clickAi(pageManualFalse, '需要接送');
+  assert.equal(filledValues(pageManualFalse).pickup_required, '0', 'operator-selected 不需要 must never be overwritten');
+}
+
 console.log('AI suggestion fill regression: PASS');

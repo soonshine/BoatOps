@@ -104,4 +104,39 @@ function parse(page, text) {
   assert.equal(filled.contact_value, '0812345678', 'the real phone number must be filled');
 }
 
+// #62: bilingual no-transfer phrasing must map to pickup_required='0' and must
+// never be misread as pickup-required because the text contains 接送 / transfer.
+{
+  const page = buildPage();
+  const filled = parse(page, '2026-08-30 PLAN C 6 people / 6人 Koh Tao 海域海钓 no transfer 不需要酒店接送');
+  assert.equal(filled.pickup_required, '0', 'no transfer / 不需要酒店接送 must map to pickup_required=false');
+  assert.equal(filled.service_date, '2026-08-30', 'service_date must still parse');
+  assert.equal(filled.party_size, '6', 'party_size must still parse');
+  assert.ok(!('hotel_name' in filled), 'no transfer marker must not become a fabricated hotel name');
+}
+
+// #62: a separate no-transfer variant with the negation before 酒店 must also
+// stay false, not fall through to the positive 接送 branch.
+{
+  const page = buildPage();
+  const filled = parse(page, '客人 张三 不需要酒店接送 6人');
+  assert.equal(filled.pickup_required, '0', '不需要酒店接送 must map to pickup_required=false');
+}
+
+// #62: unknown pickup facts leave pickup_required genuinely unset (待确认),
+// never pre-filled with 需要.
+{
+  const page = buildPage();
+  const filled = parse(page, '2026-08-30 6人 Koh Tao 海钓 张三');
+  assert.ok(!('pickup_required' in filled), 'unknown pickup facts must leave pickup_required unset');
+}
+
+// #62: an explicit positive pickup request still maps to pickup_required='1'.
+{
+  const page = buildPage();
+  const filled = parse(page, '客人 张三 需要接送 10:30 6人');
+  assert.equal(filled.pickup_required, '1', '需要接送 must map to pickup_required=true');
+  assert.equal(filled.pickup_time, '10:30', 'pickup time must still parse');
+}
+
 console.log('quick-paste parser regression: PASS');

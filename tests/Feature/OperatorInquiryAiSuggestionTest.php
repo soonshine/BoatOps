@@ -272,4 +272,28 @@ class OperatorInquiryAiSuggestionTest extends TestCase
             ->assertSee('不会自动提交')
             ->assertSee('只有空字段会被填充', false);
     }
+
+    public function test_create_page_pickup_required_defaults_to_genuine_unset_state(): void
+    {
+        // #62 Issue 1: the create form must render pickup_required with the
+        // unset 待确认 option selected (value="") on a fresh page, never 需要,
+        // so the AI suggestion JS can fill true->1 / false->0 into an empty
+        // field while a non-empty operator selection is never overwritten.
+        $html = $this->actingAs($this->operator)
+            ->get('/operator/inquiries/create')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('<select name="pickup_required">', $html);
+        $this->assertMatchesRegularExpression(
+            '/<option value=""\s+selected>待确认<\/option>/',
+            $html,
+            'the 待确认 (unset) option must be selected by default',
+        );
+        $this->assertStringNotContainsString(
+            '<option value="1" selected>需要</option>',
+            $html,
+            '需要 must never be the default pickup state',
+        );
+    }
 }

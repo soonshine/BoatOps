@@ -345,9 +345,15 @@
 
         let pickupTime = source.match(/(?:接客|接送|pickup|接)\D{0,8}([01]?\d|2[0-3])[:：.]([0-5]\d)/i);
         if (!pickupTime) pickupTime = source.match(/([01]?\d|2[0-3])[:：.]([0-5]\d)\s*(?:接客|接送|pickup|接)/i);
-        if (/(?:不接送|无需接送|不需要接送|no pickup)/i.test(source)) {
+        // #62: explicit no-transfer phrasing (bilingual) must map to
+        // pickup_required=false and must never be misread as pickup-required
+        // merely because the text contains 接送 / pickup / transfer. The
+        // negation check runs FIRST so 不需要酒店接送 / no transfer cannot be
+        // caught by the positive 接送 substring branch.
+        const noTransferPickup = /(?:no\s*(?:transfer|pickup)|nopickup|不需要酒店接送|无需酒店接送|不需要接送|不需接送|无需接送|不用接送|不接送|无接送|自行前往|自行到达|自己到码头|自己到|自己前往|直接到码头)/i;
+        if (noTransferPickup.test(source)) {
             setField('pickup_required', '0', '接送');
-        } else if (pickupTime || meetingPoint || /(?:接客|接送|pickup)/i.test(source)) {
+        } else if (pickupTime || meetingPoint || /(?:需要接送|接客|接送|pickup)/i.test(source)) {
             setField('pickup_required', '1', '接送');
         }
         if (pickupTime) setField('pickup_time', `${String(Number(pickupTime[1])).padStart(2, '0')}:${pickupTime[2]}`, '接客时间');
