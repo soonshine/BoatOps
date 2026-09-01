@@ -1,6 +1,6 @@
 schema_version: 24
 project: BoatOps
-updated_at: "2026-08-27T09:48:00+07:00"
+updated_at: "2026-09-01T18:40:00+07:00"
 
 current_phase: PRODUCTION_LIVE_AWAITING_FIRST_REAL_OPERATION
 
@@ -140,7 +140,7 @@ production_delivery:
 current_code:
   repository: "https://github.com/soonshine/BoatOps"
   default_branch: main
-  production_sha: "4bdd541cb739b257153dc9fb45a7eb7ba97bd40e"
+  production_sha: "5cf54d2faff568962fc4c780e4b141e980afce1a"
   production_verification_issue: 41
   deployed_to_production: true
 
@@ -191,12 +191,29 @@ next:
   engineering_task: ISSUE_51_AI_INQUIRY_PARSE_001
   engineering_classification: OBSERVED_OPERATIONAL_PAIN
   implementation_allowed_before_issue_49: true
-  production_deploy_blocked_by: ISSUE_49_DEPLOYMENT_PRIVILEGE_BOUNDARY
+  production_deploy_blocked_by: NONE
   first_real_operation: AWAITING
-  current_safety_exception: ISSUE_49_DEPLOYMENT_PRIVILEGE_BOUNDARY
+  current_safety_exception: NONE
   production_cutover_verified: true
 
 history_policy:
   detailed_test_gate_history: GIT_PR_ISSUE_HISTORY
   current_state_should_remain_small: true
   review_queue_is_current_authority: false
+
+# REYKY-TOUR PROD SSOT — AI-INQUIRY-PROD-SSOT-001 convergence record (2026-09-01)
+owner_ai_inquiry_ssot:
+  production_sha: "5cf54d2faff568962fc4c780e4b141e980afce1a"
+  deployment_safety_blocker_issue_49: CLEARED
+  ai_inquiry_slice_51: ACCEPTED_AND_VERIFIED_PRODUCTION_LIVE
+  no_transfer_fix_issue_63: PRODUCTION_VERIFIED
+  ai_behavior:
+    suggestion_only: true
+    human_confirmed: true
+    no_auto_submit: true
+  plan_c_unresolved:
+    status: CORRECT_FOR_CURRENT_PRODUCTION_CATALOG
+    no_invented_boat_mapping: true
+  next_step:
+    action: USE_IN_GENUINE_OPERATIONS_AND_OBSERVE_FEEDBACK
+    speculative_ai_expansion: DO_NOT_BUILD_NOW
