@@ -1,6 +1,6 @@
 # BoatOps Current Guardrail
 
-Updated: 2026-08-27 Asia/Bangkok
+Updated: 2026-09-19 Asia/Bangkok
 
 This file records only the immediate boundary for the next real task. It is not a phase engine or second task system.
 
@@ -9,23 +9,33 @@ This file records only the immediate boundary for the next real task. It is not 
 ```text
 PRIMARY_GOAL = REAL_OPERATOR_USE
 PRODUCTION_SURFACE = https://boatops.ayany.com/
-PRODUCTION_SHA = 4bdd541cb739b257153dc9fb45a7eb7ba97bd40e
+PRODUCTION_SHA = 5cf54d2faff568962fc4c780e4b141e980afce1a
 PRODUCTION_DEPLOYMENT = VERIFIED_LIVE
+PRODUCTION_CUTOVER = VERIFIED
+CURRENT_PHASE = PRODUCTION_LIVE_AWAITING_FIRST_REAL_OPERATION
 NEXT_OPERATION = WAIT_FOR_NEXT_GENUINE_OPERATION
-CURRENT_OBSERVED_PAIN = ISSUE_51_AI_INQUIRY_PARSE_001
-NEXT_ENGINEERING_TASK = ISSUE_51_AI_INQUIRY_PARSE_001
+NEXT_OPERATIONAL_OBJECTIVE = EXECUTE_FIRST_REAL_OPERATION_AND_OBSERVE_FEEDBACK
+CURRENT_OBSERVED_PAIN = NONE_OPEN
+NEXT_ENGINEERING_TASK = NONE_JUSTIFIED
+DEPLOYMENT_SAFETY_BLOCKER_ISSUE_49 = CLEARED
+AI_INQUIRY_SLICE_51 = ACCEPTED_AND_VERIFIED_PRODUCTION_LIVE
+NO_TRANSFER_FIX_ISSUE_63 = PRODUCTION_VERIFIED
+NEXT_PRODUCTION_CODE_DEPLOYMENT = NOT_BLOCKED
 AI_BOUNDARY = INTERPRET_EXTRACT_SUGGEST_ONLY
 OPERATIONAL_AUTHORITY = BOATOPS_PLUS_PRODUCTION_POSTGRESQL
-CURRENT_SAFETY_EXCEPTION = ISSUE_49_DEPLOYMENT_PRIVILEGE_BOUNDARY
-NEXT_PRODUCTION_CODE_DEPLOYMENT = BLOCKED_BY_ISSUE_49
+CURRENT_SAFETY_EXCEPTION = NONE
 DSH_MISSION_AUTHORITY = OWNING_GITHUB_ISSUE_LABELS
 ```
 
-REAL-OPS-001 / Issue #41 is complete and accepted. Quick Paste is verified in production, but real operator input has now exposed a concrete parsing gap: deterministic parsing can misread bilingual order semantics such as transfer intent and can fail to resolve a named Boat reliably. The durable, PII-free task contract is Issue #51.
+REAL-OPS-001 / Issue #41 is complete and accepted. Quick Paste is verified in production.
+
+Issue #49 (non-root deployment privilege boundary + single-instance deployment mutex) is complete: merged via PR #58 and closed with `dsh:done`. It no longer blocks the next production code deployment. The deployment controls it introduced remain mandatory.
+
+Issue #51 AI-INQUIRY-PARSE-001 is accepted and verified production live, per the AI-INQUIRY-PROD-SSOT-001 convergence recorded in `.project/CURRENT_STATE.yaml` (`owner_ai_inquiry_ssot`). The AI suggestion path remains interpret / extract / suggest only, human-confirmed, and never auto-submits. The no-transfer regression fix from #62 (PR #63) is production verified.
 
 Issue #4 is complete: `main` protection is live (PR-before-merge, required checks `Quality and contracts` + `PostgreSQL concurrency`, force-push and deletion blocked).
 
-Issue #49 remains the current deployment-safety gate. It blocks the NEXT production code deployment. It does not block real operations on the already-live production surface, and it does not block bounded local/branch/PR implementation and validation of Issue #51.
+No unresolved operational pain or deployment-safety blocker is currently open. The immediate boundary is genuine operation on the live production surface, with the smallest bounded change only when real use proves it necessary.
 
 ## Permanent question
 
@@ -37,21 +47,17 @@ If no, do not build it now.
 
 ## Allowed now
 
-- run the next genuine boat operation through the existing production Operator surface; AI is not required for operations to continue;
-- implement and validate the bounded Issue #51 AI-assisted Inquiry parser on a branch / PR;
-- keep the AI call server-side with provider credentials outside the browser and repository;
-- use AI only to interpret / extract / suggest fields already represented by the Inquiry flow;
-- validate provider output against an explicit allowlist/schema;
-- resolve Boat and other entity names deterministically against the current organization before suggesting IDs;
-- preserve human review and the existing manual Create Inquiry action;
-- preserve manual entry as the fallback for provider failure, timeout, 429, malformed output, or disabled AI;
-- capture further concrete missing facts, friction, safety blockers, or observability gaps from real use;
+- run the next genuine boat operation through the existing production Operator surface;
+- capture concrete missing facts, friction, safety blockers, or observability gaps from real use;
+- when real use proves a blocker, make the smallest bounded change through the existing production loop (local / automated validation, exact-SHA deployment, smoke check, observe);
+- keep the AI path server-side and suggestion-only: interpret / extract fields already represented by the Inquiry flow, validate provider output against an explicit allowlist/schema, resolve entities deterministically against organization-scoped truth, and preserve human review plus manual-entry fallback;
 - use an owning GitHub Issue with `dsh:ready / dsh:running / dsh:done / dsh:blocked` when DSH execution is required.
 
 An open Issue without a DSH execution label is not automatically the current executable Mission.
 
 ## Not justified now
 
+- speculative AI expansion (`speculative_ai_expansion = DO_NOT_BUILD_NOW`);
 - direct AI database access or direct operational mutation;
 - automatic Inquiry submission, Booking confirmation, Boat reservation, Trip-state transition, staffing, pricing, or accounting by AI;
 - general Agent framework, AI Gateway platform, vector database, memory system, prompt-management platform, or autonomous tool-calling platform;
@@ -78,25 +84,24 @@ Stop if the task would require:
 - bypassing organization isolation or transactional Boat occupancy checks;
 - manual production source edits not represented in Git;
 - deploying an unidentified or different Git SHA;
-- requesting the next production code deployment while Issue #49 remains incomplete;
+- weakening or bypassing the non-root execution boundary, single-instance deployment mutex, exact-SHA, backup acknowledgement, atomic switch, smoke, or rollback controls established by Issue #49;
 - changing product intent, Acceptance Criteria, or Mission scope without Control Plane approval;
 - claiming runtime success without evidence.
 
 ## Current next action
 
 ```text
-ISSUE #51 AI-INQUIRY-PARSE-001
--> architecture / contract in GitHub
--> bounded implementation on branch / PR
--> tests + strict output validation
--> no customer PII in public Git
--> NO production deployment while Issue #49 is open
-
-IN PARALLEL:
-NEXT GENUINE OPERATION
--> existing manual Operator workflow remains available
+NEXT = GENUINE OPERATION + FEEDBACK
+-> run the next real boat operation on https://boatops.ayany.com/
 -> observe real execution
 -> record the next smallest proven gap
+-> implement only when the next real task would fail without it
+-> no speculative AI / product expansion
+
+NO ACTIVE ENGINEERING MISSION
+-> #51 is accepted and production live, not the next implementation task
+-> #49 is cleared and does not block deployment
+-> open a new owning GitHub Issue only for a proven operational blocker or gap
 ```
 
 ## DSH handoff pointer
