@@ -98,3 +98,7 @@ D1 was an isolated fictional Demo, not production or Release:
 BoatOps is not Ayany-specific. Vessel ownership, schedules, buffers, HOLD TTL, prices, compatibility, weather, and Operators are deployment facts. ChannelHub is separate and never writes BoatOps tables. WordPress is not inventory truth. Demo and production remain isolated.
 
 Licensing, Tags, and GitHub Releases are governed by the separate RELEASE Gate. Never commit credentials, browser storage, PII, real contracts/quotes/finance, production backups, or real inventory. Fixtures must be synthetic.
+
+## V3 架构衔接与开发计划
+
+[V3_ADOPTION_PLAN.md](V3_ADOPTION_PLAN.md) 记录本项目的 V3 职责、增量开发顺序、既有/新增任务和 DSH → GitHub 回写 → 独立 Codex 审核流程。本轮只提交计划与文档；当前运行能力与业务验收仍以各自权威证据为准。
